@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/yanislav-igonin/shoe-bot#readme",
   "devDependencies": {
+    "@typescript-eslint/parser": "^5.53.0",
+    "eslint": "^8.34.0",
     "typescript": "^4.9.5"
   },
   "dependencies": {
