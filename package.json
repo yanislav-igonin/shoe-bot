@@ -18,5 +18,8 @@
   "homepage": "https://github.com/yanislav-igonin/shoe-bot#readme",
   "devDependencies": {
     "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "grammy": "^1.14.1"
   }
 }
