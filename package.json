@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --exec 'ts-node -r dotenv/config src/index.ts'",
+    "dev": "nodemon --watch 'src/**/*.*' --exec 'ts-node -r dotenv/config src/index.ts'",
     "lint": "eslint --ext .ts src",
     "typecheck": "tsc --noEmit",
     "build": "tsc"
