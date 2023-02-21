@@ -1,0 +1,21 @@
+{
+  "root": true,
+  "env": {
+    "node": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "sourceType": "module"
+  },
+  "extends": [
+    "canonical",
+    "canonical/node",
+    "canonical/typescript",
+    "canonical/typescript-type-checking",
+    "canonical/prettier"
+  ]
+}
