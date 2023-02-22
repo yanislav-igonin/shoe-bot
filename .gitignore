@@ -105,6 +105,9 @@ dist
 
 .env
 
+# Build
 dist/
 
+# Prisma shit
 **/*/dev.db
+**/*/dev.db-journal
