@@ -16,13 +16,26 @@ bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
 
+const shouldBeIgnored = (text: string) =>
+  !(text.startsWith('Ботинок,') || text.startsWith('ботинок,'));
+
+const getRest = (text: string) => {
+  if (text.startsWith('Ботинок,')) {
+    return text.replace('Ботинок,', '');
+  }
+
+  if (text.startsWith('ботинок,')) {
+    return text.replace('ботинок,', '');
+  }
+
+  return text;
+};
+
 bot.on('message:text', async (context) => {
   const { text } = context.message;
   const fromId = context.message.from.id;
 
-  const notRightText = !(
-    text.startsWith('Ботинок,') || text.startsWith('ботинок,')
-  );
+  const notRightText = shouldBeIgnored(text);
   if (notRightText) {
     return;
   }
@@ -34,7 +47,7 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const rest = text.replace('Ботинок,', '').replace('ботинок,', '');
+  const rest = getRest(text);
 
   try {
     const completition = await getCompletion(rest);
