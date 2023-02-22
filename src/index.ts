@@ -9,17 +9,17 @@ bot.on('message:text', async (context) => {
   const { text } = context.message;
   const fromId = context.message.from.id;
 
-  // Disable bot for other users for now
-  const notRightUser = fromId !== 142_166_671;
-  if (notRightUser) {
-    await context.reply('Пока доступно только Яну');
-    return;
-  }
-
   const notRightText = !(
     text.startsWith('Ботинок,') || text.startsWith('ботинок,')
   );
   if (notRightText) {
+    return;
+  }
+
+  // Disable bot for other users for now
+  const notRightUser = fromId !== 142_166_671;
+  if (notRightUser) {
+    await context.reply('Пока доступно только Яну');
     return;
   }
 
