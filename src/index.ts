@@ -7,6 +7,14 @@ const bot = new Bot(config.botToken);
 // я, Серега и Марк
 const allowedUsers = [142_166_671, 383_288_860, 546_166_718];
 
+bot.command('start', async (context) => {
+  await context.reply(
+    'Привет, я Ботинок.' +
+      '\nЯ умею генерировать текст по запросу и отвечать на любые вопросы.' +
+      '\nНапиши мне что-нибудь, и я попробую ответить.',
+  );
+});
+
 bot.on('message:text', async (context) => {
   const { text } = context.message;
   const fromId = context.message.from.id;
