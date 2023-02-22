@@ -1,4 +1,4 @@
-import { config } from './config';
+import { config, isProduction } from './config';
 import { database } from './database';
 import { logger } from './logger';
 import { getCompletion } from './openai';
@@ -26,8 +26,9 @@ bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
 
-// TODO: Change before deploy to prod
-const triggeredBy = ['Бомж,', 'бомж,'];
+const triggeredBy = isProduction()
+  ? ['Ботинок,', 'ботинок,']
+  : ['Бомж,', 'бомж,'];
 const shouldBeIgnored = (text: string) => {
   return !triggeredBy.some((trigger) => text.startsWith(trigger));
 };
