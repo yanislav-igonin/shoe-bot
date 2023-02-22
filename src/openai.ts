@@ -13,5 +13,5 @@ export const getCompletion = async (prompt: string) => {
     prompt,
   });
   const { text } = response.data.choices[0];
-  return text;
+  return text as string;
 };

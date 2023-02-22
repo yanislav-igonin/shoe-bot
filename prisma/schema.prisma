@@ -12,10 +12,11 @@ datasource db {
 
 model User {
   id        Int      @unique
-  username  String   @unique
+  username  String?   @unique
   firstName String?
   lastName  String?
   language  String?
+  createdAt DateTime @default(now())
   prompts    Prompt[]
 
   @@map("users")

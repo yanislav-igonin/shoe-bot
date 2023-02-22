@@ -2,10 +2,14 @@ import { config } from './config';
 import { database } from './database';
 import { logger } from './logger';
 import { getCompletion } from './openai';
+import { createPrompt } from './promt.repository';
 import { replies } from './replies';
+import { createUser, getUser } from './user.repository';
 import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
+
+const valueOrNull = (value: string | undefined) => value ?? null;
 
 // я, Серега и Марк
 const allowedUsers = [142_166_671, 383_288_860, 546_166_718];
@@ -39,15 +43,32 @@ const getRest = (text: string) => {
 
 bot.on('message:text', async (context) => {
   const { text } = context.message;
-  const fromId = context.message.from.id;
+  const {
+    id: userId,
+    first_name: firstName,
+    language_code: language,
+    last_name: lastName,
+    username,
+  } = context.message.from;
 
   const notRightText = shouldBeIgnored(text);
   if (notRightText) {
     return;
   }
 
+  let user = await getUser(userId);
+  if (!user) {
+    user = await createUser({
+      firstName: valueOrNull(firstName),
+      id: userId,
+      language: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      username: valueOrNull(username),
+    });
+  }
+
   // Disable bot for other users for now
-  const hasNoAccess = !hasAccess(fromId);
+  const hasNoAccess = !hasAccess(userId);
   if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
@@ -57,9 +78,14 @@ bot.on('message:text', async (context) => {
 
   try {
     const completition = await getCompletion(rest);
-    const fromMessageId = context.message.message_id;
+    const replyToMessageId = context.message.message_id;
     await context.reply(completition ?? 'LOL', {
-      reply_to_message_id: fromMessageId,
+      reply_to_message_id: replyToMessageId,
+    });
+    await createPrompt({
+      result: completition,
+      text: rest,
+      userId,
     });
   } catch (error) {
     await context.reply(replies.error);
