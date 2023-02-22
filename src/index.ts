@@ -4,8 +4,8 @@ import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
 
-// я и Серега
-const allowedUsers = [142_166_671, 383_288_860];
+// я, Серега и Марк
+const allowedUsers = [142_166_671, 383_288_860, 546_166_718];
 
 bot.on('message:text', async (context) => {
   const { text } = context.message;
