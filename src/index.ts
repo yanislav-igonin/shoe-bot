@@ -27,7 +27,10 @@ bot.on('message:text', async (context) => {
 
   try {
     const completition = await getCompletion(rest);
-    await context.reply(completition ?? 'LOL');
+    const fromMessageId = context.message.message_id;
+    await context.reply(completition ?? 'LOL', {
+      reply_to_message_id: fromMessageId,
+    });
   } catch (error) {
     await context.reply('Что-то пошло не так');
     throw error;
