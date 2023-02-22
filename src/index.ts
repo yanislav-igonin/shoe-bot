@@ -20,6 +20,7 @@ bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
 
+// TODO: Change before deploy to prod
 const triggeredBy = ['Бомж,', 'бомж,'];
 const shouldBeIgnored = (text: string) => {
   return !triggeredBy.some((trigger) => text.startsWith(trigger));
