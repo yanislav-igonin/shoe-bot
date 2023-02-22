@@ -75,10 +75,10 @@ bot.on('message:text', async (context) => {
   }
 
   const rest = getRest(text);
+  const replyToMessageId = context.message.message_id;
 
   try {
     const completition = await getCompletion(rest);
-    const replyToMessageId = context.message.message_id;
     await context.reply(completition ?? 'LOL', {
       reply_to_message_id: replyToMessageId,
     });
