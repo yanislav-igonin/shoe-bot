@@ -8,6 +8,10 @@ const bot = new Bot(config.botToken);
 // я, Серега и Марк
 const allowedUsers = [142_166_671, 383_288_860, 546_166_718];
 
+const hasAccess = (userId: number) => {
+  return allowedUsers.includes(userId);
+};
+
 bot.command('start', async (context) => {
   await context.reply(replies.start);
 });
@@ -16,19 +20,18 @@ bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
 
-const shouldBeIgnored = (text: string) =>
-  !(text.startsWith('Ботинок,') || text.startsWith('ботинок,'));
+const triggeredBy = ['Бомж,', 'бомж,'];
+const shouldBeIgnored = (text: string) => {
+  return !triggeredBy.some((trigger) => text.startsWith(trigger));
+};
 
 const getRest = (text: string) => {
-  if (text.startsWith('Ботинок,')) {
-    return text.replace('Ботинок,', '');
+  const found = triggeredBy.find((trigger) => text.startsWith(trigger));
+  if (!found) {
+    return text;
   }
 
-  if (text.startsWith('ботинок,')) {
-    return text.replace('ботинок,', '');
-  }
-
-  return text;
+  return text.slice(found.length).trim();
 };
 
 bot.on('message:text', async (context) => {
@@ -41,8 +44,8 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const notRightUser = !allowedUsers.includes(fromId);
-  if (notRightUser) {
+  const hasNoAccess = !hasAccess(fromId);
+  if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
   }
