@@ -11,17 +11,19 @@ datasource db {
 }
 
 model User {
-  id     String  @unique
-  username String  @unique
-  name  String?
-  posts Post[]
+  id        Int      @unique
+  username  String   @unique
+  firstName String?
+  lastName  String?
+  language  String?
+  Prompt    Prompt[]
 }
 
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean @default(false)
-  author    User    @relation(fields: [authorId], references: [id])
-  authorId  Int
+model Prompt {
+  id        Int      @id @default(autoincrement())
+  text      String
+  result    String
+  createdAt DateTime @default(now())
+  user   User     @relation(fields: [userId], references: [id])
+  userId  Int
 }
