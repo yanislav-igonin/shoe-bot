@@ -1,4 +1,3 @@
-/* eslint-disable require-unicode-regexp */
 import { config } from './config';
 import { getCompletion } from './openai';
 import { Bot } from 'grammy';
