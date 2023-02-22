@@ -1,4 +1,6 @@
 import { config } from './config';
+import { database } from './database';
+import { logger } from './logger';
 import { getCompletion } from './openai';
 import { replies } from './replies';
 import { Bot } from 'grammy';
@@ -65,8 +67,18 @@ bot.on('message:text', async (context) => {
   }
 });
 
-// eslint-disable-next-line no-console
-bot.catch(console.error);
+bot.catch(logger.error);
 
-// eslint-disable-next-line no-console
-bot.start().catch(console.error);
+const start = async () => {
+  await database.$connect();
+  logger.info('database connected');
+  // eslint-disable-next-line promise/prefer-await-to-then
+  bot.start().catch(async (error) => {
+    logger.error(error);
+    await database.$disconnect();
+  });
+};
+
+start()
+  .then(() => logger.info('bot started'))
+  .catch(logger.error);
