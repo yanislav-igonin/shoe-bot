@@ -5,6 +5,9 @@ import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
 
+// я и Серега
+const allowedUsers = [142_166_671, 383_288_860];
+
 bot.on('message:text', async (context) => {
   const { text } = context.message;
   const fromId = context.message.from.id;
@@ -17,7 +20,7 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const notRightUser = fromId !== 142_166_671;
+  const notRightUser = !allowedUsers.includes(fromId);
   if (notRightUser) {
     await context.reply('Пока доступно только Яну');
     return;
