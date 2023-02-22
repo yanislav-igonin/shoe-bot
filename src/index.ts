@@ -16,8 +16,9 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const notRightText =
-    text.startsWith('Ботинок,') || text.startsWith('ботинок,');
+  const notRightText = !(
+    text.startsWith('Ботинок,') || text.startsWith('ботинок,')
+  );
   if (notRightText) {
     return;
   }
