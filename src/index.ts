@@ -8,11 +8,17 @@ const bot = new Bot(config.botToken);
 bot.on('message:text', async (context) => {
   const { text } = context.message;
   const fromId = context.message.from.id;
-  const notRightText =
-    text.startsWith('Ботинок,') || text.startsWith('ботинок,');
+
   // Disable bot for other users for now
   const notRightUser = fromId !== 142_166_671;
-  if (notRightText || notRightUser) {
+  if (notRightUser) {
+    await context.reply('Пока доступно только Яну');
+    return;
+  }
+
+  const notRightText =
+    text.startsWith('Ботинок,') || text.startsWith('ботинок,');
+  if (notRightText) {
     return;
   }
 
