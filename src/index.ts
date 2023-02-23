@@ -41,7 +41,7 @@ const getPrompt = (text: string) => {
 };
 
 bot.on('message:text', async (context) => {
-  const { text } = context.message;
+  let text = context.message.text;
   const {
     id: userId,
     first_name: firstName,
@@ -55,9 +55,16 @@ bot.on('message:text', async (context) => {
     const myId = bot.botInfo.id;
     const repliedOnOthersMessage =
       context.message.reply_to_message?.from?.id !== myId;
+    const originalText = context.message.reply_to_message?.text;
     if (repliedOnOthersMessage) {
       return;
     }
+
+    text =
+      'Твое сообщение ниже:\n' +
+      originalText +
+      '\n\nМое сообщение ниже:\n' +
+      text;
   }
 
   let user = await getUser(userId);
