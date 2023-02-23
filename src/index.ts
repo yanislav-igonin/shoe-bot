@@ -13,13 +13,9 @@ const valueOrNull = (value: string | undefined) => value ?? null;
 
 // я, Серега и Марк
 const allowedUsers = [142_166_671, 383_288_860, 546_166_718];
-const allowedUsernames = ['cool_story_bro_bot', 'hobo_test_bot'];
 
-type Identifiers = { userId: number; username: string | null };
-const hasAccess = ({ userId, username }: Identifiers) => {
-  const foundUserId = allowedUsers.includes(userId);
-  const foundUsername = allowedUsernames.includes(username ?? '');
-  return foundUserId || foundUsername;
+const hasAccess = (userId: number) => {
+  return allowedUsers.includes(userId);
 };
 
 bot.command('start', async (context) => {
@@ -73,7 +69,7 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const hasNoAccess = !hasAccess({ userId });
+  const hasNoAccess = !hasAccess(userId);
   if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
