@@ -31,7 +31,7 @@ const shouldBeIgnored = (text: string) => {
   return !triggeredBy.some((trigger) => text.startsWith(trigger));
 };
 
-const getRest = (text: string) => {
+const getPrompt = (text: string) => {
   const found = triggeredBy.find((trigger) => text.startsWith(trigger));
   if (!found) {
     return text;
@@ -41,7 +41,7 @@ const getRest = (text: string) => {
 };
 
 bot.on('message:text', async (context) => {
-  const { text } = context.message;
+  let text = context.message.text;
   const {
     id: userId,
     first_name: firstName,
@@ -50,9 +50,26 @@ bot.on('message:text', async (context) => {
     username,
   } = context.message.from;
 
-  const notRightText = shouldBeIgnored(text);
-  if (notRightText) {
+  const wrongText = shouldBeIgnored(text);
+  const { reply_to_message: replyToMessage } = context.message;
+  const replied = replyToMessage !== undefined;
+  if (wrongText && !replied) {
     return;
+  }
+
+  if (replied) {
+    const myId = bot.botInfo.id;
+    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
+    if (repliedOnOthersMessage) {
+      return;
+    }
+
+    const originalText = context.message.reply_to_message?.text;
+    text =
+      'Твое сообщение ниже:\n' +
+      originalText +
+      '\n\nМое сообщение ниже:\n' +
+      text;
   }
 
   let user = await getUser(userId);
@@ -73,17 +90,17 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const rest = getRest(text);
+  const prompt = getPrompt(text);
   const { message_id: replyToMessageId } = context.message;
 
   try {
-    const completition = await getCompletion(rest);
-    await context.reply(completition ?? 'LOL', {
+    const completition = await getCompletion(prompt);
+    await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
     await createPrompt({
       result: completition,
-      text: rest,
+      text: prompt,
       userId,
     });
   } catch (error) {
