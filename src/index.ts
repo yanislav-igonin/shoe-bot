@@ -50,8 +50,8 @@ bot.on('message:text', async (context) => {
     username,
   } = context.message.from;
 
-  const notRightText = shouldBeIgnored(text);
-  if (notRightText) {
+  const wrongText = shouldBeIgnored(text);
+  if (wrongText) {
     const myId = bot.botInfo.id;
     const repliedOnOthersMessage =
       context.message.reply_to_message?.from?.id !== myId;
