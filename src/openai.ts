@@ -13,6 +13,6 @@ export const getCompletion = async (prompt: string) => {
     model: 'text-davinci-003',
     prompt,
   });
-  const { text } = response.data.choices[0];
-  return text?.trim() ?? replies.error; // just in case if text is undefined
+  const { text } = response.data.choices[0] as { text: string };
+  return text.trim() || replies.noAnswer;
 };

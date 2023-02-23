@@ -95,7 +95,7 @@ bot.on('message:text', async (context) => {
 
   try {
     const completition = await getCompletion(prompt);
-    await context.reply(completition ?? 'LOL', {
+    await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
     await createPrompt({
