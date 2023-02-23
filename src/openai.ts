@@ -9,7 +9,7 @@ const openai = new OpenAIApi(configuration);
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
-    max_tokens: 3_000,
+    max_tokens: 2_048,
     model: 'text-davinci-003',
     prompt,
   });
