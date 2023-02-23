@@ -66,9 +66,9 @@ bot.on('message:text', async (context) => {
 
     const originalText = context.message.reply_to_message?.text;
     text =
-      'Твое сообщение ниже:\n' +
+      'Мое предыдущие сообщение:\n' +
       originalText +
-      '\n\nМое сообщение ниже:\n' +
+      '\n\nСообщение пользователя:\n' +
       text;
   }
 
