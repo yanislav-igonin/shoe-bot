@@ -1,4 +1,5 @@
 import { config } from './config';
+import { replies } from './replies';
 import { Configuration, OpenAIApi } from 'openai';
 
 const configuration = new Configuration({
@@ -13,5 +14,5 @@ export const getCompletion = async (prompt: string) => {
     prompt,
   });
   const { text } = response.data.choices[0];
-  return text?.trim() as string;
+  return text?.trim() ?? replies.error; // just in case if text is undefined
 };
