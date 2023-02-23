@@ -51,14 +51,14 @@ bot.on('message:text', async (context) => {
   } = context.message.from;
 
   const wrongText = shouldBeIgnored(text);
-  if (wrongText) {
-    const myId = bot.botInfo.id;
-    const { reply_to_message: replyToMessage } = context.message;
-    const notReplied = replyToMessage === undefined;
-    if (notReplied) {
-      return;
-    }
+  const { reply_to_message: replyToMessage } = context.message;
+  const replied = replyToMessage !== undefined;
+  if (wrongText && !replied) {
+    return;
+  }
 
+  if (replied) {
+    const myId = bot.botInfo.id;
     const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
     if (repliedOnOthersMessage) {
       return;
@@ -95,7 +95,7 @@ bot.on('message:text', async (context) => {
 
   try {
     const completition = await getCompletion(prompt);
-    await context.reply(completition ?? 'LOL', {
+    await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
     await createPrompt({
