@@ -10,17 +10,11 @@ import { Bot } from 'grammy';
 const bot = new Bot(config.botToken);
 
 const valueOrNull = (value: string | undefined) => value ?? null;
+const valueOrDefault = <T>(value: T | undefined, defaultValue: T) =>
+  value ?? defaultValue;
 
-// я, Серега и Марк
-const allowedUsers = [142_166_671, 383_288_860, 546_166_718];
-const allowedUsernames = ['cool_story_bro_bot', 'hobo_test_bot'];
-
-type Identifiers = { userId: number; username: string | null };
-const hasAccess = ({ userId, username }: Identifiers) => {
-  const foundUserId = allowedUsers.includes(userId);
-  const foundUsername = allowedUsernames.includes(username ?? '');
-  return foundUserId || foundUsername;
-};
+const hasAccess = (username: string) =>
+  config.allowedUsernames.includes(username);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -73,7 +67,7 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const hasNoAccess = !hasAccess({ userId });
+  const hasNoAccess = !hasAccess(valueOrDefault(username, ''));
   if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
