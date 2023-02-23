@@ -52,7 +52,12 @@ bot.on('message:text', async (context) => {
 
   const notRightText = shouldBeIgnored(text);
   if (notRightText) {
-    return;
+    const myId = bot.botInfo.id;
+    const repliedOnOthersMessage =
+      context.message.reply_to_message?.from?.id !== myId;
+    if (repliedOnOthersMessage) {
+      return;
+    }
   }
 
   let user = await getUser(userId);
