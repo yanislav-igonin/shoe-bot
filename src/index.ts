@@ -73,7 +73,7 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const hasNoAccess = !hasAccess({ userId, username: valueOrNull(username) });
+  const hasNoAccess = !hasAccess({ userId });
   if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
