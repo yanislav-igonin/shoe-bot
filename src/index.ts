@@ -27,8 +27,8 @@ bot.command('help', async (context) => {
 });
 
 const triggeredBy = isProduction()
-  ? ['Ботинок,', 'ботинок,']
-  : ['Бомж,', 'бомж,'];
+  ? ['Ботинок,', 'ботинок,', 'Shoe,', 'shoe,']
+  : ['Бомж,', 'бомж,', 'Hobo,', 'hobo,'];
 const shouldBeIgnored = (text: string) => {
   return !triggeredBy.some((trigger) => text.startsWith(trigger));
 };
