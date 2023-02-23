@@ -53,13 +53,18 @@ bot.on('message:text', async (context) => {
   const wrongText = shouldBeIgnored(text);
   if (wrongText) {
     const myId = bot.botInfo.id;
-    const repliedOnOthersMessage =
-      context.message.reply_to_message?.from?.id !== myId;
-    const originalText = context.message.reply_to_message?.text;
+    const { reply_to_message: replyToMessage } = context.message;
+    const notReplied = replyToMessage === undefined;
+    if (notReplied) {
+      return;
+    }
+
+    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
     if (repliedOnOthersMessage) {
       return;
     }
 
+    const originalText = context.message.reply_to_message?.text;
     text =
       'Твое сообщение ниже:\n' +
       originalText +
