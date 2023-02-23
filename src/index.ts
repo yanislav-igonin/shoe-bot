@@ -31,7 +31,7 @@ const shouldBeIgnored = (text: string) => {
   return !triggeredBy.some((trigger) => text.startsWith(trigger));
 };
 
-const getRest = (text: string) => {
+const getPrompt = (text: string) => {
   const found = triggeredBy.find((trigger) => text.startsWith(trigger));
   if (!found) {
     return text;
@@ -73,17 +73,17 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const rest = getRest(text);
+  const prompt = getPrompt(text);
   const { message_id: replyToMessageId } = context.message;
 
   try {
-    const completition = await getCompletion(rest);
+    const completition = await getCompletion(prompt);
     await context.reply(completition ?? 'LOL', {
       reply_to_message_id: replyToMessageId,
     });
     await createPrompt({
       result: completition,
-      text: rest,
+      text: prompt,
       userId,
     });
   } catch (error) {
