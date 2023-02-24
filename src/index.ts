@@ -55,9 +55,9 @@ bot.on('message:text', async (context) => {
   const { message_id: replyToMessageId } = context.message;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   if (hasNoAccess) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
-    });
+    // await context.reply(replies.notAllowed, {
+    //   reply_to_message_id: replyToMessageId,
+    // });
     return;
   }
 
