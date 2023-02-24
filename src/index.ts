@@ -36,13 +36,6 @@ const getPrompt = (text: string) => {
 
 bot.on('message:text', async (context) => {
   let text = context.message.text;
-  const {
-    id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
-    username,
-  } = context.message.from;
 
   const wrongText = shouldBeIgnored(text);
   const { reply_to_message: replyToMessage } = context.message;
@@ -51,20 +44,13 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  if (replied) {
-    const myId = bot.botInfo.id;
-    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    const originalText = context.message.reply_to_message?.text;
-    text =
-      'Мое предыдущие сообщение:\n' +
-      originalText +
-      '\n\nСообщение пользователя:\n' +
-      text;
-  }
+  const {
+    id: userId,
+    first_name: firstName,
+    language_code: language,
+    last_name: lastName,
+    username,
+  } = context.message.from;
 
   let user = await getUser(userId);
   if (!user) {
@@ -82,6 +68,21 @@ bot.on('message:text', async (context) => {
   if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
+  }
+
+  if (replied) {
+    const myId = bot.botInfo.id;
+    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
+    if (repliedOnOthersMessage) {
+      return;
+    }
+
+    const originalText = context.message.reply_to_message?.text;
+    text =
+      'Мое предыдущие сообщение:\n' +
+      originalText +
+      '\n\nСообщение пользователя:\n' +
+      text;
   }
 
   const prompt = getPrompt(text);
