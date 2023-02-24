@@ -1,7 +1,8 @@
-import { config, isProduction } from './config';
+import { config } from './config';
 import { database } from './database';
 import { logger } from './logger';
 import { getCompletion } from './openai';
+import { getPrompt, joinWithReply, shouldBeIgnored } from './prompt';
 import { replies } from './replies';
 import { createPrompt } from './repositories/promt.repository';
 import { createUser, getUser, hasAccess } from './repositories/user.repository';
@@ -17,22 +18,6 @@ bot.command('start', async (context) => {
 bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
-
-const triggeredBy = isProduction()
-  ? ['Ботинок,', 'ботинок,', 'Shoe,', 'shoe,']
-  : ['Бомж,', 'бомж,', 'Hobo,', 'hobo,'];
-const shouldBeIgnored = (text: string) => {
-  return !triggeredBy.some((trigger) => text.startsWith(trigger));
-};
-
-const getPrompt = (text: string) => {
-  const found = triggeredBy.find((trigger) => text.startsWith(trigger));
-  if (!found) {
-    return text;
-  }
-
-  return text.slice(found.length).trim();
-};
 
 bot.on('message:text', async (context) => {
   let text = context.message.text;
@@ -77,12 +62,8 @@ bot.on('message:text', async (context) => {
       return;
     }
 
-    const originalText = context.message.reply_to_message?.text;
-    text =
-      'Мое предыдущие сообщение:\n' +
-      originalText +
-      '\n\nСообщение пользователя:\n' +
-      text;
+    const originalText = replyToMessage.text;
+    text = joinWithReply(originalText ?? '', text);
   }
 
   const prompt = getPrompt(text);
