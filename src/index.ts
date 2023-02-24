@@ -25,26 +25,12 @@ bot.command('help', async (context) => {
 
 bot.on('message:text', async (context) => {
   let text = context.message.text;
-  const { message_id: replyToMessageId } = context.message;
-
-  // Random encounter. Triggered by chance, replies to any message just4lulz
-  // const shouldReplyRandomly = shouldMakeRandomEncounter();
-  // if (shouldReplyRandomly) {
-  //   const encounterPrompt = getPrompt(text);
-  //   const completition = await getCompletion(encounterPrompt);
-  //   await context.reply(completition, {
-  //     reply_to_message_id: replyToMessageId,
-  //   });
-  //   return;
-  // }
-
-  // Ignore messages that starts wrong and are not replies
-  const wrongText = shouldBeIgnored(text);
-  const { reply_to_message: replyToMessage } = context.message;
-  const replied = replyToMessage !== undefined;
-  if (wrongText && !replied) {
-    return;
-  }
+  const {
+    message_id: replyToMessageId,
+    reply_to_message: replyToMessage,
+    from,
+    chat,
+  } = context.message;
 
   const {
     id: userId,
@@ -52,7 +38,36 @@ bot.on('message:text', async (context) => {
     language_code: language,
     last_name: lastName,
     username,
-  } = context.message.from;
+  } = from;
+
+  const myId = context.me.id;
+  const shouldReplyRandomly = shouldMakeRandomEncounter();
+  const wrongText = shouldBeIgnored(text);
+  const replied = replyToMessage !== undefined;
+  const repliedOnOthersMessage = replyToMessage?.from?.id !== myId;
+  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const askedInPrivate = chat.type === 'private';
+
+  // Random encounter. Triggered by chance, replies to any message just4lulz
+  if (shouldReplyRandomly) {
+    // Forbid random encounters in private chats to prevent
+    // access to the bot for non-allowed users
+    if (askedInPrivate) {
+      return;
+    }
+
+    const encounterPrompt = getPrompt(text);
+    const completition = await getCompletion(encounterPrompt);
+    await context.reply(completition, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  // Ignore messages that starts wrong and are not replies
+  if (wrongText && !replied) {
+    return;
+  }
 
   let user = await userRepo.get(userId);
   if (!user) {
@@ -65,17 +80,14 @@ bot.on('message:text', async (context) => {
     });
   }
 
-  // Disable bot for other users for now
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
-
   // If user has no access and replied to my message
   if (hasNoAccess && replied) {
-    const myId = context.me.id;
-    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
+    // If user replied to other user message, ignore it
     if (repliedOnOthersMessage) {
       return;
     }
 
+    // If user replied to my message, reply with error
     await context.reply(replies.notAllowed, {
       reply_to_message_id: replyToMessageId,
     });
@@ -91,8 +103,6 @@ bot.on('message:text', async (context) => {
   }
 
   if (replied) {
-    const myId = context.me.id;
-    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
     if (repliedOnOthersMessage) {
       return;
     }
