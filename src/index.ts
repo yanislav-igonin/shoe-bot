@@ -48,6 +48,17 @@ bot.on('message:text', async (context) => {
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   const askedInPrivate = chat.type === 'private';
 
+  let user = await userRepo.get(userId);
+  if (!user) {
+    user = await userRepo.create({
+      firstName: valueOrNull(firstName),
+      id: userId,
+      language: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      username: valueOrNull(username),
+    });
+  }
+
   // Random encounter. Triggered by chance, replies to any message just4lulz
   if (shouldReplyRandomly) {
     // Forbid random encounters in private chats to prevent
@@ -67,17 +78,6 @@ bot.on('message:text', async (context) => {
   // Ignore messages that starts wrong and are not replies
   if (wrongText && !replied) {
     return;
-  }
-
-  let user = await userRepo.get(userId);
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(firstName),
-      id: userId,
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      username: valueOrNull(username),
-    });
   }
 
   // If user has no access and replied to my message
@@ -102,12 +102,9 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  if (replied) {
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    const originalText = replyToMessage.text;
+  // If user has access and replied to my message
+  if (replied && !repliedOnOthersMessage) {
+    const originalText = replyToMessage?.text;
     text = joinWithReply(originalText ?? '', text);
   }
 
