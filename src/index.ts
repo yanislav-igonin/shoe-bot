@@ -28,15 +28,15 @@ bot.on('message:text', async (context) => {
   const { message_id: replyToMessageId } = context.message;
 
   // Random encounter. Triggered by chance, replies to any message just4lulz
-  const shouldReplyRandomly = shouldMakeRandomEncounter();
-  if (shouldReplyRandomly) {
-    const encounterPrompt = getPrompt(text);
-    const completition = await getCompletion(encounterPrompt);
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
-    });
-    return;
-  }
+  // const shouldReplyRandomly = shouldMakeRandomEncounter();
+  // if (shouldReplyRandomly) {
+  //   const encounterPrompt = getPrompt(text);
+  //   const completition = await getCompletion(encounterPrompt);
+  //   await context.reply(completition, {
+  //     reply_to_message_id: replyToMessageId,
+  //   });
+  //   return;
+  // }
 
   // Ignore messages that starts wrong and are not replies
   const wrongText = shouldBeIgnored(text);
