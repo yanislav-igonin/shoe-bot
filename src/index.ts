@@ -1,12 +1,16 @@
-import { config } from './config';
-import { database } from './database';
-import { logger } from './logger';
-import { getCompletion } from './openai';
-import { getPrompt, joinWithReply, shouldBeIgnored } from './prompt';
-import { replies } from './replies';
-import { createPrompt } from './repositories/promt.repository';
-import { createUser, getUser, hasAccess } from './repositories/user.repository';
-import { valueOrDefault, valueOrNull } from './values';
+import { config } from '@/config';
+import { database } from '@/database';
+import { logger } from '@/logger';
+import {
+  getCompletion,
+  getPrompt,
+  joinWithReply,
+  shouldBeIgnored,
+} from '@/prompt';
+import { replies } from '@/replies';
+import { createPrompt } from '@/repositories/promt.repository';
+import { createUser, getUser, hasAccess } from '@/repositories/user.repository';
+import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
