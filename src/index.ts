@@ -25,6 +25,7 @@ bot.command('help', async (context) => {
 bot.on('message:text', async (context) => {
   let text = context.message.text;
 
+  // Ignore messages that starts wrong and are not replies
   const wrongText = shouldBeIgnored(text);
   const { reply_to_message: replyToMessage } = context.message;
   const replied = replyToMessage !== undefined;
@@ -54,15 +55,31 @@ bot.on('message:text', async (context) => {
   // Disable bot for other users for now
   const { message_id: replyToMessageId } = context.message;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
-  if (hasNoAccess) {
-    // await context.reply(replies.notAllowed, {
-    //   reply_to_message_id: replyToMessageId,
-    // });
+
+  // If user has no access and replied to my message
+  if (hasNoAccess && replied) {
+    const myId = context.me.id;
+    const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
+    if (repliedOnOthersMessage) {
+      return;
+    }
+
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  // If user has no access and just wrote a message, not reply
+  if (hasNoAccess && !replied) {
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
     return;
   }
 
   if (replied) {
-    const myId = bot.botInfo.id;
+    const myId = context.me.id;
     const repliedOnOthersMessage = replyToMessage.from?.id !== myId;
     if (repliedOnOthersMessage) {
       return;
