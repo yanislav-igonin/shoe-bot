@@ -52,9 +52,12 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
+  const { message_id: replyToMessageId } = context.message;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   if (hasNoAccess) {
-    await context.reply(replies.notAllowed);
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
     return;
   }
 
@@ -70,7 +73,6 @@ bot.on('message:text', async (context) => {
   }
 
   const prompt = getPrompt(text);
-  const { message_id: replyToMessageId } = context.message;
 
   try {
     const completition = await getCompletion(prompt);
