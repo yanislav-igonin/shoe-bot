@@ -2,9 +2,9 @@ import { config, isProduction } from './config';
 import { database } from './database';
 import { logger } from './logger';
 import { getCompletion } from './openai';
-import { createPrompt } from './promt.repository';
 import { replies } from './replies';
-import { createUser, getUser } from './user.repository';
+import { createPrompt } from './repositories/promt.repository';
+import { createUser, getUser } from './repositories/user.repository';
 import { valueOrDefault, valueOrNull } from './values';
 import { Bot } from 'grammy';
 
