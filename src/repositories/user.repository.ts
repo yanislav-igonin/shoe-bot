@@ -1,3 +1,4 @@
+import { config } from '../config';
 import { type User } from '../database';
 import { database } from '../database';
 
@@ -6,3 +7,6 @@ export const getUser = async (id: number) =>
 
 export const createUser = async (data: Omit<User, 'createdAt'>) =>
   await database.user.create({ data });
+
+export const hasAccess = (username: string) =>
+  config.allowedUsernames.includes(username);

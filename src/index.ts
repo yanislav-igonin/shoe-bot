@@ -4,14 +4,11 @@ import { logger } from './logger';
 import { getCompletion } from './openai';
 import { replies } from './replies';
 import { createPrompt } from './repositories/promt.repository';
-import { createUser, getUser } from './repositories/user.repository';
+import { createUser, getUser, hasAccess } from './repositories/user.repository';
 import { valueOrDefault, valueOrNull } from './values';
 import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
-
-const hasAccess = (username: string) =>
-  config.allowedUsernames.includes(username);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
