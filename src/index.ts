@@ -5,13 +5,10 @@ import { getCompletion } from './openai';
 import { createPrompt } from './promt.repository';
 import { replies } from './replies';
 import { createUser, getUser } from './user.repository';
+import { valueOrDefault, valueOrNull } from './values';
 import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
-
-const valueOrNull = (value: string | undefined) => value ?? null;
-const valueOrDefault = <T>(value: T | undefined, defaultValue: T) =>
-  value ?? defaultValue;
 
 const hasAccess = (username: string) =>
   config.allowedUsernames.includes(username);
