@@ -33,7 +33,7 @@
       "@/config": ["config"],
       "@/replies": ["replies"],
       "@/values": ["values"],
-      "@/repositories/*": ["repositories/*"],
+      "@/repositories": ["repositories"],
       "@/prompt": ["prompt"],
       "@/logger": ["logger"],
       "@/database": ["database"]

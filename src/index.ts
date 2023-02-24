@@ -8,8 +8,7 @@ import {
   shouldBeIgnored,
 } from '@/prompt';
 import { replies } from '@/replies';
-import { createPrompt } from '@/repositories/promt.repository';
-import { createUser, getUser, hasAccess } from '@/repositories/user.repository';
+import { prompt as promptRepo, user as userRepo } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot } from 'grammy';
 
@@ -41,9 +40,9 @@ bot.on('message:text', async (context) => {
     username,
   } = context.message.from;
 
-  let user = await getUser(userId);
+  let user = await userRepo.get(userId);
   if (!user) {
-    user = await createUser({
+    user = await userRepo.create({
       firstName: valueOrNull(firstName),
       id: userId,
       language: valueOrNull(language),
@@ -53,7 +52,7 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const hasNoAccess = !hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   if (hasNoAccess) {
     await context.reply(replies.notAllowed);
     return;
@@ -78,7 +77,7 @@ bot.on('message:text', async (context) => {
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
-    await createPrompt({
+    await promptRepo.create({
       result: completition,
       text: prompt,
       userId,
