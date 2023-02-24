@@ -72,6 +72,11 @@ bot.on('message:text', async (context) => {
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
+    await promptRepo.create({
+      result: completition,
+      text: encounterPrompt,
+      userId,
+    });
     return;
   }
 
