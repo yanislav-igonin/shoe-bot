@@ -6,6 +6,7 @@ import {
   getPrompt,
   joinWithReply,
   shouldBeIgnored,
+  shouldMakeRandomEncounter,
 } from '@/prompt';
 import { replies } from '@/replies';
 import { prompt as promptRepo, user as userRepo } from '@/repositories';
@@ -24,6 +25,18 @@ bot.command('help', async (context) => {
 
 bot.on('message:text', async (context) => {
   let text = context.message.text;
+  const { message_id: replyToMessageId } = context.message;
+
+  // Random encounter. Triggered by chance, replies to any message just4lulz
+  const shouldReplyRandomly = shouldMakeRandomEncounter();
+  if (shouldReplyRandomly) {
+    const encounterPrompt = getPrompt(text);
+    const completition = await getCompletion(encounterPrompt);
+    await context.reply(completition, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
 
   // Ignore messages that starts wrong and are not replies
   const wrongText = shouldBeIgnored(text);
@@ -53,7 +66,6 @@ bot.on('message:text', async (context) => {
   }
 
   // Disable bot for other users for now
-  const { message_id: replyToMessageId } = context.message;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
 
   // If user has no access and replied to my message

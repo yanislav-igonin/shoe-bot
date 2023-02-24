@@ -38,3 +38,6 @@ export const joinWithReply = (originalText: string, text: string) =>
   originalText +
   '\n\nСообщение пользователя:\n' +
   text;
+
+export const shouldMakeRandomEncounter = () =>
+  Math.random() < config.randomEncounterChance;
