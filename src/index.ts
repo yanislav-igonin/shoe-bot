@@ -29,7 +29,6 @@ bot.on('message:text', async (context) => {
     message_id: replyToMessageId,
     reply_to_message: replyToMessage,
     from,
-    chat,
   } = context.message;
 
   const {
