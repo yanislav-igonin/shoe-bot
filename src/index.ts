@@ -108,7 +108,12 @@ bot.on('message:text', async (context) => {
   }
 
   // If user has access and replied to my message
-  if (replied && !repliedOnOthersMessage) {
+  if (replied) {
+    // If user replied to other user message, ignore it
+    if (repliedOnOthersMessage) {
+      return;
+    }
+
     const originalText = replyToMessage?.text;
     text = joinWithReply(originalText ?? '', text);
   }
