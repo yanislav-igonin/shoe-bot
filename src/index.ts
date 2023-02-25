@@ -46,7 +46,7 @@ bot.on('message:text', async (context) => {
   const replied = replyToMessage !== undefined;
   const repliedOnOthersMessage = replyToMessage?.from?.id !== myId;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
-  const askedInPrivate = chat.type === 'private';
+  const askedInPrivate = context.hasChatType('private');
 
   let user = await userRepo.get(userId);
   if (!user) {
