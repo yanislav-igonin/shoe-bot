@@ -120,6 +120,7 @@ bot.on('message:text', async (context) => {
   const prompt = getPrompt(text);
 
   try {
+    await context.replyWithChatAction('typing');
     const completition = await getCompletion(prompt);
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
