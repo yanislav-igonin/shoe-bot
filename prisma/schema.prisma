@@ -1,19 +1,15 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  // provider = "sqlite"
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
   id        Int      @id
-  username  String?  @unique
+  username  String?
   firstName String?
   lastName  String?
   language  String?
@@ -28,8 +24,8 @@ model Prompt {
   text      String
   result    String
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
   userId    Int
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("prompts")
 }
