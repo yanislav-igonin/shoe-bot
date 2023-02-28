@@ -47,11 +47,11 @@ bot.on('message:text', async (context) => {
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   const askedInPrivate = context.hasChatType('private');
 
-  let user = await userRepo.get(userId);
+  let user = await userRepo.get(userId.toString());
   if (!user) {
     user = await userRepo.create({
       firstName: valueOrNull(firstName),
-      id: userId,
+      id: userId.toString(),
       language: valueOrNull(language),
       lastName: valueOrNull(lastName),
       username: valueOrNull(username),
@@ -74,7 +74,7 @@ bot.on('message:text', async (context) => {
     await promptRepo.create({
       result: completition,
       text: encounterPrompt,
-      userId,
+      userId: userId.toString(),
     });
     return;
   }
@@ -128,7 +128,7 @@ bot.on('message:text', async (context) => {
     await promptRepo.create({
       result: completition,
       text: prompt,
-      userId,
+      userId: userId.toString(),
     });
   } catch (error) {
     await context.reply(replies.error);
