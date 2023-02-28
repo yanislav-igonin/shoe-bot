@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE "users" (
-    "id" INT4 NOT NULL,
+    "id" STRING NOT NULL,
     "username" STRING,
     "firstName" STRING,
     "lastName" STRING,
@@ -16,7 +16,7 @@ CREATE TABLE "prompts" (
     "text" STRING NOT NULL,
     "result" STRING NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "userId" INT4 NOT NULL,
+    "userId" STRING NOT NULL,
 
     CONSTRAINT "prompts_pkey" PRIMARY KEY ("id")
 );
