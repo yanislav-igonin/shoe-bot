@@ -14,6 +14,9 @@ import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot } from 'grammy';
 
 const bot = new Bot(config.botToken);
+// const dankAnswersMiddleware = async (context: Context, next: NextFunction) => {
+//   const { message_id: replyToMessageId, text } = context.message as Message;
+// };
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -21,6 +24,28 @@ bot.command('start', async (context) => {
 
 bot.command('help', async (context) => {
   await context.reply(replies.help);
+});
+
+bot.hears(/^да$/iu, async (context) => {
+  const { message } = context;
+  if (!message) {
+    return;
+  }
+
+  const { message_id: replyToMessageId } = message;
+
+  await context.reply(replies.yes, { reply_to_message_id: replyToMessageId });
+});
+
+bot.hears(/^нет$/iu, async (context) => {
+  const { message } = context;
+  if (!message) {
+    return;
+  }
+
+  const { message_id: replyToMessageId } = message;
+
+  await context.reply(replies.no, { reply_to_message_id: replyToMessageId });
 });
 
 bot.on('message:text', async (context) => {
