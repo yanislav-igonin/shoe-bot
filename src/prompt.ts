@@ -33,6 +33,44 @@ export const getPrompt = (text: string) => {
   return text.slice(found.length).trim();
 };
 
+const randomEncounterWords = [
+  'говно',
+  'параша',
+  'пизда',
+  'пиздец',
+  'пиздюк',
+  'пиздюлина',
+  'хуй',
+  'хуйня',
+  'хуйло',
+  'залупа',
+  'пидор',
+  'пидорас',
+  'подзалупный',
+  'подзалупный творог',
+  'подзалупный творожок',
+  'клизма',
+  'клизмоед',
+  'кал',
+  'дебил',
+  'фаллос',
+  'соси',
+  'дилдак',
+  'цыганский сыр',
+  'нищий',
+];
+
+// Get random words from array
+export const getRandomEncounterWords = () => {
+  const words = [];
+  for (let index = 0; index < 3; index++) {
+    const randomIndex = Math.floor(Math.random() * randomEncounterWords.length);
+    words.push(randomEncounterWords[randomIndex]);
+  }
+
+  return words;
+};
+
 export const joinWithReply = (originalText: string, text: string) =>
   'Мое предыдущие сообщение:\n' +
   originalText +

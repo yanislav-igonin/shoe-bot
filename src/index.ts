@@ -4,6 +4,7 @@ import { logger } from '@/logger';
 import {
   getCompletion,
   getPrompt,
+  getRandomEncounterWords,
   joinWithReply,
   shouldBeIgnored,
   shouldMakeRandomEncounter,
@@ -92,7 +93,11 @@ bot.on('message:text', async (context) => {
     }
 
     const encounterPrompt = getPrompt(text);
-    const completition = await getCompletion(encounterPrompt);
+    const randomWords = getRandomEncounterWords();
+    const withRandomWords =
+      'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
+      `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
+    const completition = await getCompletion(withRandomWords);
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
