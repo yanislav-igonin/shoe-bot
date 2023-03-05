@@ -1,6 +1,7 @@
 import { config, isProduction } from '@/config';
 import { replies } from '@/replies';
 import { Configuration, OpenAIApi } from 'openai';
+import { randomEncounterWords } from 'randomEncounterWords';
 
 const configuration = new Configuration({
   apiKey: config.openAiApiKey,
@@ -32,33 +33,6 @@ export const getPrompt = (text: string) => {
 
   return text.slice(found.length).trim();
 };
-
-const randomEncounterWords = [
-  'говно',
-  'параша',
-  'пизда',
-  'пиздец',
-  'пиздюк',
-  'пиздюлина',
-  'хуй',
-  'хуйня',
-  'хуйло',
-  'залупа',
-  'пидор',
-  'пидорас',
-  'подзалупный',
-  'подзалупный творог',
-  'подзалупный творожок',
-  'клизма',
-  'клизмоед',
-  'кал',
-  'дебил',
-  'фаллос',
-  'соси',
-  'дилдак',
-  'цыганский сыр',
-  'нищий',
-];
 
 // Get random words from array
 export const getRandomEncounterWords = () => {
