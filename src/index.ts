@@ -97,6 +97,7 @@ bot.on('message:text', async (context) => {
     const withRandomWords =
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
       `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
+    await context.replyWithChatAction('typing');
     const completition = await getCompletion(withRandomWords);
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
