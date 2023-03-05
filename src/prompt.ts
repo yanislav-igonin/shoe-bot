@@ -37,7 +37,8 @@ export const getPrompt = (text: string) => {
 // Get random words from array
 export const getRandomEncounterWords = () => {
   const words = [];
-  for (let index = 0; index < 3; index++) {
+  const howMany = Math.floor(Math.random() * 5) + 1;
+  for (let index = 0; index < howMany; index++) {
     const randomIndex = Math.floor(Math.random() * randomEncounterWords.length);
     words.push(randomEncounterWords[randomIndex]);
   }
