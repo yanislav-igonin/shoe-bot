@@ -15,7 +15,7 @@ model User {
   language  String?
   createdAt DateTime @default(now())
   prompts   Prompt[]
-  Images    Images[]
+  Images    Image[]
 
   @@map("users")
 }
@@ -31,7 +31,7 @@ model Prompt {
   @@map("prompts")
 }
 
-model Images {
+model Image {
   id        String   @id @default(cuid())
   prompt    String
   data      String
