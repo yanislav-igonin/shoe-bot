@@ -15,6 +15,7 @@ model User {
   language  String?
   createdAt DateTime @default(now())
   prompts   Prompt[]
+  Images    Images[]
 
   @@map("users")
 }
@@ -28,4 +29,15 @@ model Prompt {
   user      User     @relation(fields: [userId], references: [id])
 
   @@map("prompts")
+}
+
+model Images {
+  id        String   @id @default(cuid())
+  prompt    String
+  data     String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("images")
 }
