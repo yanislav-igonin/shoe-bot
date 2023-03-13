@@ -10,7 +10,11 @@ import {
   shouldMakeRandomEncounter,
 } from '@/prompt';
 import { replies } from '@/replies';
-import { prompt as promptRepo, user as userRepo } from '@/repositories';
+import {
+  image as imageRepo,
+  prompt as promptRepo,
+  user as userRepo,
+} from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot, InputFile } from 'grammy';
 import {
@@ -55,6 +59,12 @@ bot.hears(imageTriggerRegex, async (context) => {
 
     await context.replyWithPhoto(file, {
       reply_to_message_id: replyToMessageId,
+    });
+
+    await imageRepo.create({
+      data: imageBase64,
+      prompt,
+      userId: message.from.id.toString(),
     });
   } catch (error) {
     await context.reply(replies.error, {
