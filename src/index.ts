@@ -12,8 +12,12 @@ import {
 import { replies } from '@/replies';
 import { prompt as promptRepo, user as userRepo } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
-import { Bot } from 'grammy';
-import { generateImage, imageTriggerRegex } from 'imageGeneration';
+import { Bot, InputFile } from 'grammy';
+import {
+  base64ToImage,
+  generateImage,
+  imageTriggerRegex,
+} from 'imageGeneration';
 
 const bot = new Bot(config.botToken);
 
@@ -37,15 +41,19 @@ bot.hears(imageTriggerRegex, async (context) => {
   await context.replyWithChatAction('upload_photo');
 
   try {
-    const imageUrl = await generateImage(prompt);
-    if (!imageUrl) {
+    const imageBase64 = await generateImage(prompt);
+    if (!imageBase64) {
       await context.reply(replies.error, {
         reply_to_message_id: replyToMessageId,
       });
+      logger.error('Failed to generate image');
       return;
     }
 
-    await context.replyWithPhoto(imageUrl, {
+    const buffer = base64ToImage(imageBase64);
+    const file = new InputFile(buffer, 'image.png');
+
+    await context.replyWithPhoto(file, {
       reply_to_message_id: replyToMessageId,
     });
   } catch (error) {
