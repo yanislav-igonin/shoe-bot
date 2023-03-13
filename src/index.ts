@@ -1,5 +1,10 @@
 import { config } from '@/config';
 import { database } from '@/database';
+import {
+  base64ToImage,
+  generateImage,
+  imageTriggerRegex,
+} from '@/imageGeneration';
 import { logger } from '@/logger';
 import {
   getCompletion,
@@ -17,11 +22,6 @@ import {
 } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot, InputFile } from 'grammy';
-import {
-  base64ToImage,
-  generateImage,
-  imageTriggerRegex,
-} from 'imageGeneration';
 
 const bot = new Bot(config.botToken);
 

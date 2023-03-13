@@ -1,5 +1,5 @@
-import { isProduction } from './config';
-import { openai } from 'ai';
+import { openai } from '@/ai';
+import { isProduction } from '@/config';
 
 export const imageTriggerRegex = isProduction()
   ? /((ботинок,|shoe,) покажи)(.+)/iu
