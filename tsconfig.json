@@ -24,7 +24,13 @@
       ],
       "@/database": [
         "database"
-      ]
+      ],
+      "@/imageGeneration": [
+        "imageGeneration"
+      ],
+      "@/ai": [
+        "ai"
+      ],
     },
     "outDir": "dist",
     "esModuleInterop": true,

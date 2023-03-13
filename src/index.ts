@@ -1,5 +1,10 @@
 import { config } from '@/config';
 import { database } from '@/database';
+import {
+  base64ToImage,
+  generateImage,
+  imageTriggerRegex,
+} from '@/imageGeneration';
 import { logger } from '@/logger';
 import {
   getCompletion,
@@ -10,14 +15,15 @@ import {
   shouldMakeRandomEncounter,
 } from '@/prompt';
 import { replies } from '@/replies';
-import { prompt as promptRepo, user as userRepo } from '@/repositories';
+import {
+  image as imageRepo,
+  prompt as promptRepo,
+  user as userRepo,
+} from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
-import { Bot } from 'grammy';
+import { Bot, InputFile } from 'grammy';
 
 const bot = new Bot(config.botToken);
-// const dankAnswersMiddleware = async (context: Context, next: NextFunction) => {
-//   const { message_id: replyToMessageId, text } = context.message as Message;
-// };
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -25,6 +31,47 @@ bot.command('start', async (context) => {
 
 bot.command('help', async (context) => {
   await context.reply(replies.help);
+});
+
+bot.hears(imageTriggerRegex, async (context) => {
+  const { message, match } = context;
+  if (!message) {
+    return;
+  }
+
+  const prompt = `изображение ${match[3].trim()}`;
+  const { message_id: replyToMessageId } = message;
+
+  await context.replyWithChatAction('upload_photo');
+
+  try {
+    const imageBase64 = await generateImage(prompt);
+    if (!imageBase64) {
+      await context.reply(replies.error, {
+        reply_to_message_id: replyToMessageId,
+      });
+      logger.error('Failed to generate image');
+      return;
+    }
+
+    const buffer = base64ToImage(imageBase64);
+    const file = new InputFile(buffer, 'image.png');
+
+    await context.replyWithPhoto(file, {
+      reply_to_message_id: replyToMessageId,
+    });
+
+    await imageRepo.create({
+      data: imageBase64,
+      prompt,
+      userId: message.from.id.toString(),
+    });
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
+    throw error;
+  }
 });
 
 bot.hears(/^да$/iu, async (context) => {
@@ -98,16 +145,24 @@ bot.on('message:text', async (context) => {
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
       `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
     await context.replyWithChatAction('typing');
-    const completition = await getCompletion(withRandomWords);
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
-    });
-    await promptRepo.create({
-      result: completition,
-      text: encounterPrompt,
-      userId: userId.toString(),
-    });
-    return;
+
+    try {
+      const completition = await getCompletion(withRandomWords);
+      await context.reply(completition, {
+        reply_to_message_id: replyToMessageId,
+      });
+      await promptRepo.create({
+        result: completition,
+        text: encounterPrompt,
+        userId: userId.toString(),
+      });
+      return;
+    } catch (error) {
+      await context.reply(replies.error, {
+        reply_to_message_id: replyToMessageId,
+      });
+      throw error;
+    }
   }
 
   // Ignore messages that starts wrong and are not replies
@@ -162,7 +217,9 @@ bot.on('message:text', async (context) => {
       userId: userId.toString(),
     });
   } catch (error) {
-    await context.reply(replies.error);
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
     throw error;
   }
 });

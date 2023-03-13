@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id        String      @id
+  id        String   @id
   username  String?
   firstName String?
   lastName  String?
   language  String?
   createdAt DateTime @default(now())
   prompts   Prompt[]
+  Images    Image[]
 
   @@map("users")
 }
@@ -28,4 +29,15 @@ model Prompt {
   user      User     @relation(fields: [userId], references: [id])
 
   @@map("prompts")
+}
+
+model Image {
+  id        String   @id @default(cuid())
+  prompt    String
+  data      String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("images")
 }

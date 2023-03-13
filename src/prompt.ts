@@ -1,12 +1,7 @@
 import { config, isProduction } from '@/config';
 import { replies } from '@/replies';
-import { Configuration, OpenAIApi } from 'openai';
+import { openai } from 'ai';
 import { randomEncounterWords } from 'randomEncounterWords';
-
-const configuration = new Configuration({
-  apiKey: config.openAiApiKey,
-});
-const openai = new OpenAIApi(configuration);
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
