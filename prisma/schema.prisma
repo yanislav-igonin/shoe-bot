@@ -34,7 +34,7 @@ model Prompt {
 model Images {
   id        String   @id @default(cuid())
   prompt    String
-  data     String
+  data      String
   createdAt DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
