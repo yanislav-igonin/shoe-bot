@@ -13,7 +13,7 @@ import { replies } from '@/replies';
 import { prompt as promptRepo, user as userRepo } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot } from 'grammy';
-import { generateImage } from 'imageGeneration';
+import { generateImage, imageTriggerRegex } from 'imageGeneration';
 
 const bot = new Bot(config.botToken);
 
@@ -25,35 +25,35 @@ bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
 
-bot.hears(/^(бомж, покажи)(.+)/iu, async (context) => {
-  const { message } = context;
+bot.hears(imageTriggerRegex, async (context) => {
+  const { message, match } = context;
   if (!message) {
     return;
   }
 
-  const { text } = message;
-  if (!text) {
-    return;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
-  const [_, start, query] = message.text.split(/(бомж, покажи)(.+)/iu);
-  const prompt = query.trim();
+  const prompt = match[3].trim();
   const { message_id: replyToMessageId } = message;
 
   await context.replyWithChatAction('upload_photo');
 
-  const imageUrl = await generateImage(prompt);
-  if (!imageUrl) {
+  try {
+    const imageUrl = await generateImage(prompt);
+    if (!imageUrl) {
+      await context.reply(replies.error, {
+        reply_to_message_id: replyToMessageId,
+      });
+      return;
+    }
+
+    await context.replyWithPhoto(imageUrl, {
+      reply_to_message_id: replyToMessageId,
+    });
+  } catch (error) {
     await context.reply(replies.error, {
       reply_to_message_id: replyToMessageId,
     });
-    return;
+    throw error;
   }
-
-  await context.replyWithPhoto(imageUrl, {
-    reply_to_message_id: replyToMessageId,
-  });
 });
 
 bot.hears(/^да$/iu, async (context) => {
