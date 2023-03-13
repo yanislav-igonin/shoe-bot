@@ -13,11 +13,9 @@ import { replies } from '@/replies';
 import { prompt as promptRepo, user as userRepo } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot } from 'grammy';
+import { generateImage } from 'imageGeneration';
 
 const bot = new Bot(config.botToken);
-// const dankAnswersMiddleware = async (context: Context, next: NextFunction) => {
-//   const { message_id: replyToMessageId, text } = context.message as Message;
-// };
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -25,6 +23,37 @@ bot.command('start', async (context) => {
 
 bot.command('help', async (context) => {
   await context.reply(replies.help);
+});
+
+bot.hears(/^(бомж, покажи)(.+)/iu, async (context) => {
+  const { message } = context;
+  if (!message) {
+    return;
+  }
+
+  const { text } = message;
+  if (!text) {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+  const [_, start, query] = message.text.split(/(бомж, покажи)(.+)/iu);
+  const prompt = query.trim();
+  const { message_id: replyToMessageId } = message;
+
+  await context.replyWithChatAction('upload_photo');
+
+  const imageUrl = await generateImage(prompt);
+  if (!imageUrl) {
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  await context.replyWithPhoto(imageUrl, {
+    reply_to_message_id: replyToMessageId,
+  });
 });
 
 bot.hears(/^да$/iu, async (context) => {
@@ -98,16 +127,24 @@ bot.on('message:text', async (context) => {
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
       `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
     await context.replyWithChatAction('typing');
-    const completition = await getCompletion(withRandomWords);
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
-    });
-    await promptRepo.create({
-      result: completition,
-      text: encounterPrompt,
-      userId: userId.toString(),
-    });
-    return;
+
+    try {
+      const completition = await getCompletion(withRandomWords);
+      await context.reply(completition, {
+        reply_to_message_id: replyToMessageId,
+      });
+      await promptRepo.create({
+        result: completition,
+        text: encounterPrompt,
+        userId: userId.toString(),
+      });
+      return;
+    } catch (error) {
+      await context.reply(replies.error, {
+        reply_to_message_id: replyToMessageId,
+      });
+      throw error;
+    }
   }
 
   // Ignore messages that starts wrong and are not replies
@@ -162,7 +199,9 @@ bot.on('message:text', async (context) => {
       userId: userId.toString(),
     });
   } catch (error) {
-    await context.reply(replies.error);
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
     throw error;
   }
 });
