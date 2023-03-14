@@ -4,8 +4,8 @@ import { openai } from 'ai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
 export const smartTextTriggerRegexp = isProduction()
-  ? /((барон ботинок,|smart shoe,) )(.+)/iu
-  : /((барон бомж,|smart hobo,) )(.+)/iu;
+  ? /((барон ботинок,|baron shoe,) )(.+)/iu
+  : /((барон бомж,|baron hobo,) )(.+)/iu;
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
