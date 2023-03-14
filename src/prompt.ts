@@ -4,8 +4,8 @@ import { openai } from 'ai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
 export const smartTextTriggerRegexp = isProduction()
-  ? /((барон ботинок,|baron shoe,) )(.+)/iu
-  : /((барон бомж,|baron hobo,) )(.+)/iu;
+  ? /((барон ботинок,|baron shoe,) )(.+)/isu
+  : /((барон бомж,|baron hobo,) )(.+)/isu;
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
@@ -31,20 +31,16 @@ export const getSmartCompletion = async (prompt: string) => {
   return text?.trim() ?? replies.noAnswer;
 };
 
-const triggeredBy = isProduction()
-  ? ['Ботинок,', 'ботинок,', 'Shoe,', 'shoe,']
-  : ['Бомж,', 'бомж,', 'Hobo,', 'hobo,'];
-export const shouldBeIgnored = (text: string) => {
-  return !triggeredBy.some((trigger) => text.startsWith(trigger));
+export const textTriggerRegexp = isProduction()
+  ? /((ботинок,|shoe,) )(.+)/isu
+  : /((бомж,|hobo,) )(.+)/isu;
+
+const cleanPrompt = (text: string) => {
+  return text.trim();
 };
 
-export const getPrompt = (text: string) => {
-  const found = triggeredBy.find((trigger) => text.startsWith(trigger));
-  if (!found) {
-    return text;
-  }
-
-  return text.slice(found.length).trim();
+export const preparePrompt = (text: string) => {
+  return cleanPrompt(text);
 };
 
 // Get random words from array

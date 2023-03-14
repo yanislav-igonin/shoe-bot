@@ -8,13 +8,13 @@ import {
 import { logger } from '@/logger';
 import {
   getCompletion,
-  getPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
   joinWithReply,
-  shouldBeIgnored,
+  preparePrompt,
   shouldMakeRandomEncounter,
   smartTextTriggerRegexp,
+  textTriggerRegexp,
 } from '@/prompt';
 import { replies } from '@/replies';
 import {
@@ -76,7 +76,8 @@ bot.hears(imageTriggerRegexp, async (context) => {
   }
 });
 
-bot.hears(/^да$/iu, async (context) => {
+const yesTriggerRegexp = /^да$/iu;
+bot.hears(yesTriggerRegexp, async (context) => {
   const { message } = context;
   if (!message) {
     return;
@@ -87,7 +88,8 @@ bot.hears(/^да$/iu, async (context) => {
   await context.reply(replies.yes, { reply_to_message_id: replyToMessageId });
 });
 
-bot.hears(/^нет$/iu, async (context) => {
+const noTriggerRegexp = /^нет$/iu;
+bot.hears(noTriggerRegexp, async (context) => {
   const { message } = context;
   if (!message) {
     return;
@@ -104,13 +106,8 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     return;
   }
 
-  let text = match[3].trim();
-
-  const {
-    message_id: replyToMessageId,
-    reply_to_message: replyToMessage,
-    from,
-  } = context.message;
+  const text = match[3];
+  const { message_id: replyToMessageId, from } = message;
 
   const {
     id: userId,
@@ -120,9 +117,6 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const myId = context.me.id;
-  const replied = replyToMessage !== undefined;
-  const repliedOnOthersMessage = replyToMessage?.from?.id !== myId;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
 
   let user = await userRepo.get(userId.toString());
@@ -136,40 +130,15 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     });
   }
 
-  // If user has no access and replied to my message
-  if (hasNoAccess && replied) {
-    // If user replied to other user message, ignore it
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    // If user replied to my message, reply with error
+  if (hasNoAccess) {
+    // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
       reply_to_message_id: replyToMessageId,
     });
     return;
   }
 
-  // If user has no access and just wrote a message, not reply
-  if (hasNoAccess && !replied) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
-    });
-    return;
-  }
-
-  // If user has access and replied to my message
-  if (replied) {
-    // If user replied to other user message, ignore it
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    const originalText = replyToMessage?.text;
-    text = joinWithReply(originalText ?? '', text);
-  }
-
-  const prompt = getPrompt(text);
+  const prompt = preparePrompt(text);
 
   try {
     await context.replyWithChatAction('typing');
@@ -190,11 +159,71 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 });
 
+bot.hears(textTriggerRegexp, async (context) => {
+  const { match, message } = context;
+  if (!message) {
+    return;
+  }
+
+  const text = match[3];
+  const { message_id: replyToMessageId, from } = message;
+
+  const {
+    id: userId,
+    first_name: firstName,
+    language_code: language,
+    last_name: lastName,
+    username,
+  } = from;
+
+  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+
+  let user = await userRepo.get(userId.toString());
+  if (!user) {
+    user = await userRepo.create({
+      firstName: valueOrNull(firstName),
+      id: userId.toString(),
+      language: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      username: valueOrNull(username),
+    });
+  }
+
+  if (hasNoAccess) {
+    // If user has no access and just wrote a message with trigger
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  const prompt = preparePrompt(text);
+
+  try {
+    await context.replyWithChatAction('typing');
+    const completition = await getCompletion(prompt);
+    await context.reply(completition, {
+      reply_to_message_id: replyToMessageId,
+    });
+    await promptRepo.create({
+      result: completition,
+      text: prompt,
+      userId: userId.toString(),
+    });
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
+    throw error;
+  }
+});
+
+// For handling replies
 bot.on('message:text', async (context) => {
-  let text = context.message.text;
+  const { text } = context.message;
   const {
     message_id: replyToMessageId,
-    reply_to_message: replyToMessage,
+    reply_to_message: messageRepliedOn,
     from,
   } = context.message;
 
@@ -208,9 +237,8 @@ bot.on('message:text', async (context) => {
 
   const myId = context.me.id;
   const shouldReplyRandomly = shouldMakeRandomEncounter();
-  const wrongText = shouldBeIgnored(text);
-  const replied = replyToMessage !== undefined;
-  const repliedOnOthersMessage = replyToMessage?.from?.id !== myId;
+  const replied = messageRepliedOn !== undefined;
+  const repliedOnOthersMessage = messageRepliedOn?.from?.id !== myId;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   const askedInPrivate = context.hasChatType('private');
 
@@ -225,15 +253,16 @@ bot.on('message:text', async (context) => {
     });
   }
 
-  // Random encounter. Triggered by chance, replies to any message just4lulz
-  if (shouldReplyRandomly) {
+  // Random encounter, shouldn't be triggered on reply.
+  // Triggered by chance, replies to any message just4lulz
+  if (shouldReplyRandomly && !replied) {
     // Forbid random encounters in private chats to prevent
     // access to the bot for non-allowed users
     if (askedInPrivate) {
       return;
     }
 
-    const encounterPrompt = getPrompt(text);
+    const encounterPrompt = preparePrompt(text);
     const randomWords = getRandomEncounterWords();
     const withRandomWords =
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
@@ -259,45 +288,28 @@ bot.on('message:text', async (context) => {
     }
   }
 
-  // Ignore messages that starts wrong and are not replies
-  if (wrongText && !replied) {
-    return;
-  }
-
-  // If user has no access and replied to my message
-  if (hasNoAccess && replied) {
-    // If user replied to other user message, ignore it
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    // If user replied to my message, reply with error
+  // If user has no access
+  if (hasNoAccess) {
     await context.reply(replies.notAllowed, {
       reply_to_message_id: replyToMessageId,
     });
     return;
   }
 
-  // If user has no access and just wrote a message, not reply
-  if (hasNoAccess && !replied) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
-    });
+  // If its not a reply, ignore it
+  if (!replied) {
     return;
   }
 
-  // If user has access and replied to my message
-  if (replied) {
-    // If user replied to other user message, ignore it
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    const originalText = replyToMessage?.text;
-    text = joinWithReply(originalText ?? '', text);
+  // If user replied to other user message, ignore it
+  if (repliedOnOthersMessage) {
+    return;
   }
 
-  const prompt = getPrompt(text);
+  const originalText = messageRepliedOn?.text;
+  const withReply = joinWithReply(originalText ?? '', text);
+
+  const prompt = preparePrompt(withReply);
 
   try {
     await context.replyWithChatAction('typing');
