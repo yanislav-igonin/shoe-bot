@@ -32,7 +32,7 @@ bot.command('start', async (context) => {
 });
 
 bot.command('help', async (context) => {
-  await context.reply(replies.help);
+  await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
 
 bot.hears(imageTriggerRegexp, async (context) => {
