@@ -288,11 +288,16 @@ bot.on('message:text', async (context) => {
     }
   }
 
-  // If user has no access
-  if (hasNoAccess) {
+  // If user has no access and asks the bot
+  if (hasNoAccess && replied) {
     await context.reply(replies.notAllowed, {
       reply_to_message_id: replyToMessageId,
     });
+    return;
+  }
+
+  // If user has no access, ignore it
+  if (hasNoAccess) {
     return;
   }
 
