@@ -41,7 +41,7 @@ bot.hears(imageTriggerRegexp, async (context) => {
     return;
   }
 
-  const prompt = `изображение ${match[3].trim()}`;
+  const prompt = match[3].trim();
   const { message_id: replyToMessageId } = message;
 
   await context.replyWithChatAction('upload_photo');
