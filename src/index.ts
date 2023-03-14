@@ -15,6 +15,7 @@ import {
   shouldBeIgnored,
   shouldMakeRandomEncounter,
   smartTextTriggerRegexp,
+  textTriggerRegexp,
 } from '@/prompt';
 import { replies } from '@/replies';
 import {
@@ -76,7 +77,8 @@ bot.hears(imageTriggerRegexp, async (context) => {
   }
 });
 
-bot.hears(/^да$/iu, async (context) => {
+const yesTriggerRegexp = /^да$/iu;
+bot.hears(yesTriggerRegexp, async (context) => {
   const { message } = context;
   if (!message) {
     return;
@@ -87,7 +89,8 @@ bot.hears(/^да$/iu, async (context) => {
   await context.reply(replies.yes, { reply_to_message_id: replyToMessageId });
 });
 
-bot.hears(/^нет$/iu, async (context) => {
+const noTriggerRegexp = /^нет$/iu;
+bot.hears(noTriggerRegexp, async (context) => {
   const { message } = context;
   if (!message) {
     return;
@@ -174,6 +177,65 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   try {
     await context.replyWithChatAction('typing');
     const completition = await getSmartCompletion(prompt);
+    await context.reply(completition, {
+      reply_to_message_id: replyToMessageId,
+    });
+    await promptRepo.create({
+      result: completition,
+      text: prompt,
+      userId: userId.toString(),
+    });
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
+    throw error;
+  }
+});
+
+bot.hears(textTriggerRegexp, async (context) => {
+  const { match, message } = context;
+  if (!message) {
+    return;
+  }
+
+  const text = match[3].trim();
+  const { message_id: replyToMessageId, from } = message;
+
+  const {
+    id: userId,
+    first_name: firstName,
+    language_code: language,
+    last_name: lastName,
+    username,
+  } = from;
+
+  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+
+  let user = await userRepo.get(userId.toString());
+  if (!user) {
+    user = await userRepo.create({
+      firstName: valueOrNull(firstName),
+      id: userId.toString(),
+      language: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      username: valueOrNull(username),
+    });
+  }
+
+  if (hasNoAccess) {
+    // If user has no access and just wrote a message with trigger
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  const prompt = getPrompt(text);
+
+  try {
+    await context.replyWithChatAction('typing');
+    const completition = await getCompletion(prompt);
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
