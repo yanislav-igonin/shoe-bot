@@ -8,11 +8,10 @@ import {
 import { logger } from '@/logger';
 import {
   getCompletion,
-  getPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
   joinWithReply,
-  shouldBeIgnored,
+  preparePrompt,
   shouldMakeRandomEncounter,
   smartTextTriggerRegexp,
   textTriggerRegexp,
@@ -107,7 +106,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     return;
   }
 
-  let text = match[3].trim();
+  let text = match[3];
 
   const {
     message_id: replyToMessageId,
@@ -172,7 +171,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     text = joinWithReply(originalText ?? '', text);
   }
 
-  const prompt = getPrompt(text);
+  const prompt = preparePrompt(text);
 
   try {
     await context.replyWithChatAction('typing');
@@ -199,7 +198,7 @@ bot.hears(textTriggerRegexp, async (context) => {
     return;
   }
 
-  const text = match[3].trim();
+  const text = match[3];
   const { message_id: replyToMessageId, from } = message;
 
   const {
@@ -231,7 +230,7 @@ bot.hears(textTriggerRegexp, async (context) => {
     return;
   }
 
-  const prompt = getPrompt(text);
+  const prompt = preparePrompt(text);
 
   try {
     await context.replyWithChatAction('typing');
@@ -254,7 +253,7 @@ bot.hears(textTriggerRegexp, async (context) => {
 
 // For handling replies
 bot.on('message:text', async (context) => {
-  const text = context.message.text;
+  const { text } = context.message;
   const {
     message_id: replyToMessageId,
     reply_to_message: messageRepliedOn,
@@ -296,7 +295,7 @@ bot.on('message:text', async (context) => {
       return;
     }
 
-    const encounterPrompt = getPrompt(text);
+    const encounterPrompt = preparePrompt(text);
     const randomWords = getRandomEncounterWords();
     const withRandomWords =
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
@@ -343,7 +342,7 @@ bot.on('message:text', async (context) => {
   const originalText = messageRepliedOn?.text;
   const withReply = joinWithReply(originalText ?? '', text);
 
-  const prompt = getPrompt(withReply);
+  const prompt = preparePrompt(withReply);
 
   try {
     await context.replyWithChatAction('typing');
