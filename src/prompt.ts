@@ -13,6 +13,21 @@ export const getCompletion = async (prompt: string) => {
   return text.trim() || replies.noAnswer;
 };
 
+export const getSmartCompletion = async (prompt: string) => {
+  const response = await openai.createChatCompletion({
+    max_tokens: 2_048,
+    messages: [
+      {
+        content: prompt,
+        role: 'user',
+      },
+    ],
+    model: 'gpt-3.5-turbo',
+  });
+  const { text } = response.data.choices[0] as { text: string };
+  return text.trim() || replies.noAnswer;
+};
+
 const triggeredBy = isProduction()
   ? ['Ботинок,', 'ботинок,', 'Shoe,', 'shoe,']
   : ['Бомж,', 'бомж,', 'Hobo,', 'hobo,'];
