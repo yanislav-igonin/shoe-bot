@@ -1,7 +1,7 @@
 import { openai } from '@/ai';
 import { isProduction } from '@/config';
 
-export const imageTriggerRegex = isProduction()
+export const imageTriggerRegexp = isProduction()
   ? /((ботинок,|shoe,) покажи)(.+)/iu
   : /((бомж,|hobo,) покажи)(.+)/iu;
 

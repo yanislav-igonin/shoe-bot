@@ -3,7 +3,7 @@ import { database } from '@/database';
 import {
   base64ToImage,
   generateImage,
-  imageTriggerRegex,
+  imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
 import {
@@ -33,7 +33,7 @@ bot.command('help', async (context) => {
   await context.reply(replies.help);
 });
 
-bot.hears(imageTriggerRegex, async (context) => {
+bot.hears(imageTriggerRegexp, async (context) => {
   const { message, match } = context;
   if (!message) {
     return;
