@@ -106,13 +106,8 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     return;
   }
 
-  let text = match[3];
-
-  const {
-    message_id: replyToMessageId,
-    reply_to_message: replyToMessage,
-    from,
-  } = context.message;
+  const text = match[3];
+  const { message_id: replyToMessageId, from } = message;
 
   const {
     id: userId,
@@ -122,9 +117,6 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const myId = context.me.id;
-  const replied = replyToMessage !== undefined;
-  const repliedOnOthersMessage = replyToMessage?.from?.id !== myId;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
 
   let user = await userRepo.get(userId.toString());
@@ -138,37 +130,12 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     });
   }
 
-  // If user has no access and replied to my message
-  if (hasNoAccess && replied) {
-    // If user replied to other user message, ignore it
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    // If user replied to my message, reply with error
+  if (hasNoAccess) {
+    // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
       reply_to_message_id: replyToMessageId,
     });
     return;
-  }
-
-  // If user has no access and just wrote a message, not reply
-  if (hasNoAccess && !replied) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
-    });
-    return;
-  }
-
-  // If user has access and replied to my message
-  if (replied) {
-    // If user replied to other user message, ignore it
-    if (repliedOnOthersMessage) {
-      return;
-    }
-
-    const originalText = replyToMessage?.text;
-    text = joinWithReply(originalText ?? '', text);
   }
 
   const prompt = preparePrompt(text);
