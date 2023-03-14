@@ -31,6 +31,10 @@ export const getSmartCompletion = async (prompt: string) => {
   return text?.trim() ?? replies.noAnswer;
 };
 
+export const textTriggerRegexp = isProduction()
+  ? /((ботинок,|shoe,) )(.+)/iu
+  : /((бомж,|hobo,) )(.+)/iu;
+
 const triggeredBy = isProduction()
   ? ['Ботинок,', 'ботинок,', 'Shoe,', 'shoe,']
   : ['Бомж,', 'бомж,', 'Hobo,', 'hobo,'];
