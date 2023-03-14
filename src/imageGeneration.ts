@@ -2,8 +2,8 @@ import { openai } from '@/ai';
 import { isProduction } from '@/config';
 
 export const imageTriggerRegexp = isProduction()
-  ? /((граф ботинок,|graph shoe,) )(.+)/iu
-  : /((граф бомж,|graph hobo,) )(.+)/iu;
+  ? /((граф ботинок,|graph shoe,) )(.+)/isu
+  : /((граф бомж,|graph hobo,) )(.+)/isu;
 
 // eslint-disable-next-line canonical/id-match
 export const base64ToImage = (base64: string) => {
