@@ -3,6 +3,10 @@ import { replies } from '@/replies';
 import { openai } from 'ai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
+export const smartTextTriggerRegexp = isProduction()
+  ? /((барон ботинок,|smart shoe,) )(.+)/iu
+  : /((барон бомж,|smart hobo,) )(.+)/iu;
+
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
     max_tokens: 2_048,
@@ -11,6 +15,20 @@ export const getCompletion = async (prompt: string) => {
   });
   const { text } = response.data.choices[0] as { text: string };
   return text.trim() || replies.noAnswer;
+};
+
+export const getSmartCompletion = async (prompt: string) => {
+  const response = await openai.createChatCompletion({
+    messages: [
+      {
+        content: prompt,
+        role: 'user',
+      },
+    ],
+    model: 'gpt-3.5-turbo',
+  });
+  const text = response.data.choices[0].message?.content;
+  return text?.trim() ?? replies.noAnswer;
 };
 
 const triggeredBy = isProduction()
