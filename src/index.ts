@@ -10,9 +10,11 @@ import {
   getCompletion,
   getPrompt,
   getRandomEncounterWords,
+  getSmartCompletion,
   joinWithReply,
   shouldBeIgnored,
   shouldMakeRandomEncounter,
+  smartTextTriggerRegexp,
 } from '@/prompt';
 import { replies } from '@/replies';
 import {
@@ -94,6 +96,98 @@ bot.hears(/^нет$/iu, async (context) => {
   const { message_id: replyToMessageId } = message;
 
   await context.reply(replies.no, { reply_to_message_id: replyToMessageId });
+});
+
+bot.hears(smartTextTriggerRegexp, async (context) => {
+  const { match, message } = context;
+  if (!message) {
+    return;
+  }
+
+  let text = match[3].trim();
+
+  const {
+    message_id: replyToMessageId,
+    reply_to_message: replyToMessage,
+    from,
+  } = context.message;
+
+  const {
+    id: userId,
+    first_name: firstName,
+    language_code: language,
+    last_name: lastName,
+    username,
+  } = from;
+
+  const myId = context.me.id;
+  const replied = replyToMessage !== undefined;
+  const repliedOnOthersMessage = replyToMessage?.from?.id !== myId;
+  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+
+  let user = await userRepo.get(userId.toString());
+  if (!user) {
+    user = await userRepo.create({
+      firstName: valueOrNull(firstName),
+      id: userId.toString(),
+      language: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      username: valueOrNull(username),
+    });
+  }
+
+  // If user has no access and replied to my message
+  if (hasNoAccess && replied) {
+    // If user replied to other user message, ignore it
+    if (repliedOnOthersMessage) {
+      return;
+    }
+
+    // If user replied to my message, reply with error
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  // If user has no access and just wrote a message, not reply
+  if (hasNoAccess && !replied) {
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
+
+  // If user has access and replied to my message
+  if (replied) {
+    // If user replied to other user message, ignore it
+    if (repliedOnOthersMessage) {
+      return;
+    }
+
+    const originalText = replyToMessage?.text;
+    text = joinWithReply(originalText ?? '', text);
+  }
+
+  const prompt = getPrompt(text);
+
+  try {
+    await context.replyWithChatAction('typing');
+    const completition = await getSmartCompletion(prompt);
+    await context.reply(completition, {
+      reply_to_message_id: replyToMessageId,
+    });
+    await promptRepo.create({
+      result: completition,
+      text: prompt,
+      userId: userId.toString(),
+    });
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: replyToMessageId,
+    });
+    throw error;
+  }
 });
 
 bot.on('message:text', async (context) => {
