@@ -237,8 +237,9 @@ bot.on('message:text', async (context) => {
 
   const myId = context.me.id;
   const shouldReplyRandomly = shouldMakeRandomEncounter();
-  const replied = messageRepliedOn !== undefined;
-  const repliedOnOthersMessage = messageRepliedOn?.from?.id !== myId;
+  const notReply = messageRepliedOn === undefined;
+  const repliedOnMyMessage = messageRepliedOn?.from?.id === myId;
+  const repliedOnOthersMessage = !repliedOnMyMessage;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   const askedInPrivate = context.hasChatType('private');
 
@@ -255,7 +256,7 @@ bot.on('message:text', async (context) => {
 
   // Random encounter, shouldn't be triggered on reply.
   // Triggered by chance, replies to any message just4lulz
-  if (shouldReplyRandomly && !replied) {
+  if (shouldReplyRandomly && notReply) {
     // Forbid random encounters in private chats to prevent
     // access to the bot for non-allowed users
     if (askedInPrivate) {
@@ -289,7 +290,7 @@ bot.on('message:text', async (context) => {
   }
 
   // If user has no access and asks the bot
-  if (hasNoAccess && replied) {
+  if (hasNoAccess && repliedOnMyMessage) {
     await context.reply(replies.notAllowed, {
       reply_to_message_id: replyToMessageId,
     });
@@ -302,7 +303,7 @@ bot.on('message:text', async (context) => {
   }
 
   // If its not a reply, ignore it
-  if (!replied) {
+  if (notReply) {
     return;
   }
 
