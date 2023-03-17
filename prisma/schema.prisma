@@ -41,3 +41,17 @@ model Image {
 
   @@map("images")
 }
+
+model Chat {
+  id   String @id
+  name String
+  type ChatType 
+
+  @@map("dialogs")
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+  SUPERGROUP
+}
