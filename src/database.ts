@@ -1,12 +1,5 @@
-import {
-  type Image as ImageType,
-  type Prompt as PromptType,
-  type User as UserType,
-} from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
 
-export const database = new PrismaClient();
+export { type Chat, type Image, type Prompt, type User } from '@prisma/client';
 
-export type User = UserType;
-export type Prompt = PromptType;
-export type Image = ImageType;
+export const database = new PrismaClient();
