@@ -24,8 +24,13 @@ import {
 } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot, InputFile } from 'grammy';
+import { saveChatMiddleware } from 'middlewares';
 
 const bot = new Bot(config.botToken);
+
+bot.catch(logger.error);
+
+bot.use(saveChatMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -335,8 +340,6 @@ bot.on('message:text', async (context) => {
     throw error;
   }
 });
-
-bot.catch(logger.error);
 
 const start = async () => {
   await database.$connect();

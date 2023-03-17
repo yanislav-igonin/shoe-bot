@@ -41,3 +41,13 @@ model Image {
 
   @@map("images")
 }
+
+model Chat {
+  id   String @id
+  name String
+  type String
+  isAllowed Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("chats")
+}
