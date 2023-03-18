@@ -24,13 +24,14 @@ import {
 } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot, InputFile } from 'grammy';
-import { saveChatMiddleware } from 'middlewares';
+import { saveChatMiddleware, saveUserMiddleware } from 'middlewares';
 
 const bot = new Bot(config.botToken);
 
 bot.catch(logger.error);
 
 bot.use(saveChatMiddleware);
+bot.use(saveUserMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
