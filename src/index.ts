@@ -6,6 +6,7 @@ import {
   imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
+import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
   getCompletion,
   getRandomEncounterWords,
@@ -24,7 +25,6 @@ import {
 } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
 import { Bot, InputFile } from 'grammy';
-import { saveChatMiddleware, saveUserMiddleware } from 'middlewares';
 
 const bot = new Bot(config.botToken);
 

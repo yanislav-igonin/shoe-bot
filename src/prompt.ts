@@ -1,6 +1,6 @@
+import { openai } from '@/ai';
 import { config, isProduction } from '@/config';
 import { replies } from '@/replies';
-import { openai } from 'ai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
 export const smartTextTriggerRegexp = isProduction()

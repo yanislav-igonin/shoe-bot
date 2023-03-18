@@ -31,6 +31,9 @@
       "@/ai": [
         "ai"
       ],
+      "@/middlewares": [
+        "middlewares"
+      ],
     },
     "outDir": "dist",
     "esModuleInterop": true,
