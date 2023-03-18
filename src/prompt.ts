@@ -25,7 +25,7 @@ export const getSmartCompletion = async (prompt: string) => {
         role: 'user',
       },
     ],
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4',
   });
   const text = response.data.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
