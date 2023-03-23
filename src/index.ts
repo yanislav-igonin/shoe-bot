@@ -277,7 +277,7 @@ bot.on('message:text', async (context) => {
     await context.replyWithChatAction('typing');
 
     try {
-      const completition = await getCompletion(withRandomWords);
+      const completition = await getSmartCompletion(withRandomWords);
       await context.reply(completition, {
         reply_to_message_id: replyToMessageId,
       });
