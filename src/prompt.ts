@@ -75,3 +75,6 @@ const answerToReplyTriggerRegexp = isProduction()
   : /^((ответь бомж,|answer hobo,) )(.+)/isu;
 export const getAnswerToReplyMatches = (text: string) =>
   answerToReplyTriggerRegexp.exec(text);
+
+export const funnyResultPrompt =
+  'Ответь смешно и саркастично (возможно, используя мат) на сообщение ниже с учетом контекста сообщения выше:';

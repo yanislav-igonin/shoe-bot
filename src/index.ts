@@ -9,6 +9,7 @@ import { logger } from '@/logger';
 import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
   addContext,
+  funnyResultPrompt,
   getAnswerToReplyMatches,
   getCompletion,
   getRandomEncounterWords,
@@ -336,9 +337,7 @@ bot.on('message:text', async (context) => {
     const answerToReplyPrompt = preparePrompt(answerToReplyText);
     const answerToReplyContext = [
       addContext(`Соощение предыдущего пользователя: ${originalText}`),
-      addContext(
-        `Ответь смешно на сообщение ниже с учетом контекста сообщения выше:`,
-      ),
+      addContext(funnyResultPrompt),
     ];
 
     try {
@@ -355,6 +354,7 @@ bot.on('message:text', async (context) => {
         text: answerToReplyPrompt,
         userId: userId.toString(),
       });
+      return;
     } catch (error) {
       await context.reply(replies.error, {
         reply_to_message_id: replyToMessageId,
@@ -376,9 +376,7 @@ bot.on('message:text', async (context) => {
 
   const previousMessageContext = [
     addContext(`Мое предыдущее сообщение: ${originalText}`),
-    addContext(
-      `Ответь смешно на сообщение ниже с учетом контекста сообщения выше:`,
-    ),
+    addContext(funnyResultPrompt),
   ];
   const prompt = preparePrompt(text);
 
