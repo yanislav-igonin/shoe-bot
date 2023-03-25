@@ -67,11 +67,5 @@ export const getRandomEncounterWords = () => {
   return words;
 };
 
-export const joinWithReply = (originalText: string, text: string) =>
-  'Мое предыдущие сообщение:\n' +
-  originalText +
-  '\n\nСообщение пользователя:\n' +
-  text;
-
 export const shouldMakeRandomEncounter = () =>
   Math.random() < config.randomEncounterChance;
