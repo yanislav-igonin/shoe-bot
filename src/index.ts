@@ -106,6 +106,9 @@ bot.hears(noTriggerRegexp, async (context) => {
   await context.reply(replies.no, { reply_to_message_id: replyToMessageId });
 });
 
+/**
+ * Handling gpt-4 requests.
+ */
 bot.hears(smartTextTriggerRegexp, async (context) => {
   const { match, message } = context;
   if (!message) {
@@ -165,6 +168,9 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 });
 
+/**
+ * Handling text-davinci-003 requests.
+ */
 bot.hears(textTriggerRegexp, async (context) => {
   const { match, message } = context;
   if (!message) {
@@ -224,7 +230,9 @@ bot.hears(textTriggerRegexp, async (context) => {
   }
 });
 
-// For handling replies
+/**
+ * For handling replies and random encounters
+ */
 bot.on('message:text', async (context) => {
   const { text } = context.message;
   const {
