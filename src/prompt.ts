@@ -1,6 +1,7 @@
 import { openai } from '@/ai';
 import { config, isProduction } from '@/config';
 import { replies } from '@/replies';
+import { type ChatCompletionRequestMessage } from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
 export const smartTextTriggerRegexp = isProduction()
@@ -17,9 +18,20 @@ export const getCompletion = async (prompt: string) => {
   return text.trim() || replies.noAnswer;
 };
 
-export const getSmartCompletion = async (prompt: string) => {
+export const addContext = (text: string): ChatCompletionRequestMessage => {
+  return {
+    content: text,
+    role: 'system',
+  };
+};
+
+export const getSmartCompletion = async (
+  prompt: string,
+  context: ChatCompletionRequestMessage[] = [],
+) => {
   const response = await openai.createChatCompletion({
     messages: [
+      ...context,
       {
         content: prompt,
         role: 'user',
