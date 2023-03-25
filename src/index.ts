@@ -9,6 +9,8 @@ import { logger } from '@/logger';
 import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
   addContext,
+  funnyResultPrompt,
+  getAnswerToReplyMatches,
   getCompletion,
   getRandomEncounterWords,
   getSmartCompletion,
@@ -321,9 +323,44 @@ bot.on('message:text', async (context) => {
     return;
   }
 
+  const originalText = messageRepliedOn.text;
+
   // If user replied to other user message, ignore it
   if (repliedOnOthersMessage) {
-    return;
+    const answerToReplyMatches = getAnswerToReplyMatches(text);
+    const shouldNotAnswerToReply = answerToReplyMatches === null;
+    if (shouldNotAnswerToReply) {
+      return;
+    }
+
+    const answerToReplyText = answerToReplyMatches[3];
+    const answerToReplyPrompt = preparePrompt(answerToReplyText);
+    const answerToReplyContext = [
+      addContext(`Соощение предыдущего пользователя: ${originalText}`),
+      addContext(funnyResultPrompt),
+    ];
+
+    try {
+      await context.replyWithChatAction('typing');
+      const completition = await getSmartCompletion(
+        answerToReplyPrompt,
+        answerToReplyContext,
+      );
+      await context.reply(completition, {
+        reply_to_message_id: replyToMessageId,
+      });
+      await promptRepo.create({
+        result: completition,
+        text: answerToReplyPrompt,
+        userId: userId.toString(),
+      });
+      return;
+    } catch (error) {
+      await context.reply(replies.error, {
+        reply_to_message_id: replyToMessageId,
+      });
+      throw error;
+    }
   }
 
   // If we got there, it means that user replied to our message,
@@ -337,12 +374,9 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const originalText = messageRepliedOn.text;
   const previousMessageContext = [
     addContext(`Мое предыдущее сообщение: ${originalText}`),
-    addContext(
-      `Ответь смешно на сообщение ниже с учетом контекста сообщения выше:`,
-    ),
+    addContext(funnyResultPrompt),
   ];
   const prompt = preparePrompt(text);
 

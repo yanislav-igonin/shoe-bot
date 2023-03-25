@@ -5,8 +5,8 @@ import { type ChatCompletionRequestMessage } from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
 export const smartTextTriggerRegexp = isProduction()
-  ? /((барон ботинок,|baron shoe,) )(.+)/isu
-  : /((барон бомж,|baron hobo,) )(.+)/isu;
+  ? /^((барон ботинок,|baron shoe,) )(.+)/isu
+  : /^((барон бомж,|baron hobo,) )(.+)/isu;
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
@@ -44,8 +44,8 @@ export const getSmartCompletion = async (
 };
 
 export const textTriggerRegexp = isProduction()
-  ? /((ботинок,|shoe,) )(.+)/isu
-  : /((бомж,|hobo,) )(.+)/isu;
+  ? /^((ботинок,|shoe,) )(.+)/isu
+  : /^((бомж,|hobo,) )(.+)/isu;
 
 const cleanPrompt = (text: string) => {
   return text.trim();
@@ -69,3 +69,12 @@ export const getRandomEncounterWords = () => {
 
 export const shouldMakeRandomEncounter = () =>
   Math.random() < config.randomEncounterChance;
+
+const answerToReplyTriggerRegexp = isProduction()
+  ? /^((ответь ботинок,|answer shoe,) )(.+)/isu
+  : /^((ответь бомж,|answer hobo,) )(.+)/isu;
+export const getAnswerToReplyMatches = (text: string) =>
+  answerToReplyTriggerRegexp.exec(text);
+
+export const funnyResultPrompt =
+  'Ответь смешно и саркастично (возможно, используя мат) на сообщение ниже с учетом контекста сообщения выше:';
