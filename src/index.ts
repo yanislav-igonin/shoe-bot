@@ -8,10 +8,10 @@ import {
 import { logger } from '@/logger';
 import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
+  addContext,
   getCompletion,
   getRandomEncounterWords,
   getSmartCompletion,
-  joinWithReply,
   preparePrompt,
   shouldMakeRandomEncounter,
   smartTextTriggerRegexp,
@@ -326,14 +326,32 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const originalText = messageRepliedOn?.text;
-  const withReply = joinWithReply(originalText ?? '', text);
+  // If we got there, it means that user replied to our message,
+  // and we should have it, or throw an error, because it's a bug
+  if (!messageRepliedOn) {
+    throw new Error('Message replied on is undefined');
+  }
 
-  const prompt = preparePrompt(withReply);
+  // If message replied on has no text, ignore it
+  if (!messageRepliedOn.text) {
+    return;
+  }
+
+  const originalText = messageRepliedOn.text;
+  const previousMessageContext = [
+    addContext(`Мое предыдущее сообщение: ${originalText}`),
+    addContext(
+      `Ответь смешно на сообщение ниже с учетом контекста сообщения выше:`,
+    ),
+  ];
+  const prompt = preparePrompt(text);
 
   try {
     await context.replyWithChatAction('typing');
-    const completition = await getCompletion(prompt);
+    const completition = await getSmartCompletion(
+      prompt,
+      previousMessageContext,
+    );
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
