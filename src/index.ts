@@ -10,6 +10,7 @@ import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
+  doAnythingPrompt,
   funnyResultPrompt,
   getAnswerToReplyMatches,
   getCompletion,
@@ -31,7 +32,16 @@ import { Bot, InputFile } from 'grammy';
 
 const bot = new Bot(config.botToken);
 
-bot.catch(logger.error);
+bot.catch((error) => {
+  // @ts-expect-error Property 'response' does not exist on type '{}'.ts(2339)
+  if (error.error?.response?.data?.error) {
+    // @ts-expect-error Property 'response' does not exist on type '{}'.ts(2339)
+    logger.error(error.error?.response?.data?.error.message);
+    return;
+  }
+
+  logger.error(error);
+});
 
 bot.use(saveChatMiddleware);
 bot.use(saveUserMiddleware);
@@ -151,10 +161,11 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 
   const prompt = preparePrompt(text);
+  const systemContext = [addSystemContext(doAnythingPrompt)];
 
   try {
     await context.replyWithChatAction('typing');
-    const completition = await getSmartCompletion(prompt);
+    const completition = await getSmartCompletion(prompt, systemContext);
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
