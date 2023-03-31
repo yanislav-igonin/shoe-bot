@@ -18,10 +18,21 @@ export const getCompletion = async (prompt: string) => {
   return text.trim() || replies.noAnswer;
 };
 
-export const addContext = (text: string): ChatCompletionRequestMessage => {
+export const addSystemContext = (
+  text: string,
+): ChatCompletionRequestMessage => {
   return {
     content: text,
     role: 'system',
+  };
+};
+
+export const addAssistantContext = (
+  text: string,
+): ChatCompletionRequestMessage => {
+  return {
+    content: text,
+    role: 'assistant',
   };
 };
 
@@ -77,4 +88,7 @@ export const getAnswerToReplyMatches = (text: string) =>
   answerToReplyTriggerRegexp.exec(text);
 
 export const funnyResultPrompt =
-  'Ответь смешно и саркастично (возможно, используя мат) на сообщение ниже с учетом контекста сообщения выше:';
+  'Если пользователь использует маты,' +
+  ' то бот должен ответить ему также матами, но более грубыми.' +
+  'Если пользователь аггресивен в отношении бота,' +
+  ' то бот должен ответить ему также аггресивно.';

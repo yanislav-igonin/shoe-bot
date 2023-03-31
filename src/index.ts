@@ -8,7 +8,8 @@ import {
 import { logger } from '@/logger';
 import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
-  addContext,
+  addAssistantContext,
+  addSystemContext,
   funnyResultPrompt,
   getAnswerToReplyMatches,
   getCompletion,
@@ -336,8 +337,10 @@ bot.on('message:text', async (context) => {
     const answerToReplyText = answerToReplyMatches[3];
     const answerToReplyPrompt = preparePrompt(answerToReplyText);
     const answerToReplyContext = [
-      addContext(`Соощение предыдущего пользователя: ${originalText}`),
-      addContext(funnyResultPrompt),
+      addSystemContext(
+        `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
+      ),
+      addSystemContext(funnyResultPrompt),
     ];
 
     try {
@@ -370,13 +373,13 @@ bot.on('message:text', async (context) => {
   }
 
   // If message replied on has no text, ignore it
-  if (!messageRepliedOn.text) {
+  if (!originalText) {
     return;
   }
 
   const previousMessageContext = [
-    addContext(`Мое предыдущее сообщение: ${originalText}`),
-    addContext(funnyResultPrompt),
+    addSystemContext(funnyResultPrompt),
+    addAssistantContext(originalText),
   ];
   const prompt = preparePrompt(text);
 
