@@ -6,3 +6,6 @@ export const create = async (data: Omit<BotReply, 'createdAt' | 'id'>) =>
 
 export const get = async (id: string) =>
   await database.botReply.findUnique({ where: { id } });
+
+export const getList = async (filter: Partial<BotReply>) =>
+  await database.botReply.findMany({ where: filter });
