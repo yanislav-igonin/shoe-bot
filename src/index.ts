@@ -270,8 +270,6 @@ bot.hears(textTriggerRegexp, async (context) => {
  * For handling replies and random encounters
  */
 bot.on('message:text', async (context) => {
-  logger.info(context.message.message_id);
-  // const uniqueId = context.message.message_id.toString();
   const { text } = context.message;
   const {
     message_id: messageId,
