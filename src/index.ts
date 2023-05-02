@@ -1,4 +1,4 @@
-import { sortByIdPerChat } from './chat';
+import { sortByCreatedAt } from './date';
 import { config } from '@/config';
 import { type Prompt } from '@/database';
 import { database } from '@/database';
@@ -423,11 +423,22 @@ bot.on('message:text', async (context) => {
   const previousBotMessage = await botReplyRepo.getByIdPerChat(
     uniqueMessageRepliedOnId,
   );
+
+  let dialogId = '';
   if (!previousBotMessage) {
-    throw new Error('Previous bot message not found');
+    const newDialog = await dialogRepo.create();
+    dialogId = newDialog.id;
+    await botReplyRepo.create({
+      dialogId,
+      idPerChat: uniqueMessageRepliedOnId,
+      text: originalText,
+    });
   }
 
-  const dialogId = previousBotMessage.dialogId;
+  if (previousBotMessage) {
+    dialogId = previousBotMessage.dialogId;
+  }
+
   const dialog = await dialogRepo.get(dialogId);
   if (!dialog) {
     throw new Error('Dialog not found');
@@ -439,8 +450,7 @@ bot.on('message:text', async (context) => {
   const previousMessages = [
     ...previousUserMessages,
     ...previousBotMessages,
-    // @ts-expect-error
-  ].sort(sortByIdPerChat);
+  ].sort(sortByCreatedAt);
   // Assgign each message to user context or bot context
   const previousMessagesContext = previousMessages.map((message) => {
     if ((message as Prompt).userId === userId.toString()) {
