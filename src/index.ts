@@ -23,6 +23,7 @@ import {
 } from '@/prompt';
 import { replies } from '@/replies';
 import {
+  dialog as dialogRepo,
   image as imageRepo,
   prompt as promptRepo,
   user as userRepo,
@@ -169,7 +170,9 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
+    const dialog = await dialogRepo.create();
     await promptRepo.create({
+      dialogId: dialog.id,
       result: completition,
       text: prompt,
       userId: userId.toString(),
@@ -231,7 +234,9 @@ bot.hears(textTriggerRegexp, async (context) => {
     await context.reply(completition, {
       reply_to_message_id: replyToMessageId,
     });
+    const dialog = await dialogRepo.create();
     await promptRepo.create({
+      dialogId: dialog.id,
       result: completition,
       text: prompt,
       userId: userId.toString(),
@@ -247,178 +252,178 @@ bot.hears(textTriggerRegexp, async (context) => {
 /**
  * For handling replies and random encounters
  */
-bot.on('message:text', async (context) => {
-  logger.info(context.message.message_id);
-  const uniqueId = context.message.message_id.toString();
-  const { text } = context.message;
-  const {
-    message_id: replyToMessageId,
-    reply_to_message: messageRepliedOn,
-    from,
-  } = context.message;
+// bot.on('message:text', async (context) => {
+//   logger.info(context.message.message_id);
+//   const uniqueId = context.message.message_id.toString();
+//   const { text } = context.message;
+//   const {
+//     message_id: replyToMessageId,
+//     reply_to_message: messageRepliedOn,
+//     from,
+//   } = context.message;
 
-  const {
-    id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
-    username,
-  } = from;
+//   const {
+//     id: userId,
+//     first_name: firstName,
+//     language_code: language,
+//     last_name: lastName,
+//     username,
+//   } = from;
 
-  const myId = context.me.id;
-  const shouldReplyRandomly = shouldMakeRandomEncounter();
-  const notReply = messageRepliedOn === undefined;
-  const repliedOnMyMessage = messageRepliedOn?.from?.id === myId;
-  const repliedOnOthersMessage = !repliedOnMyMessage;
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
-  const askedInPrivate = context.hasChatType('private');
+//   const myId = context.me.id;
+//   const shouldReplyRandomly = shouldMakeRandomEncounter();
+//   const notReply = messageRepliedOn === undefined;
+//   const repliedOnMyMessage = messageRepliedOn?.from?.id === myId;
+//   const repliedOnOthersMessage = !repliedOnMyMessage;
+//   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+//   const askedInPrivate = context.hasChatType('private');
 
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(firstName),
-      id: userId.toString(),
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      username: valueOrNull(username),
-    });
-  }
+//   let user = await userRepo.get(userId.toString());
+//   if (!user) {
+//     user = await userRepo.create({
+//       firstName: valueOrNull(firstName),
+//       id: userId.toString(),
+//       language: valueOrNull(language),
+//       lastName: valueOrNull(lastName),
+//       username: valueOrNull(username),
+//     });
+//   }
 
-  // Random encounter, shouldn't be triggered on reply.
-  // Triggered by chance, replies to any message just4lulz
-  if (shouldReplyRandomly && notReply) {
-    // Forbid random encounters in private chats to prevent
-    // access to the bot for non-allowed users
-    if (askedInPrivate) {
-      return;
-    }
+//   // Random encounter, shouldn't be triggered on reply.
+//   // Triggered by chance, replies to any message just4lulz
+//   if (shouldReplyRandomly && notReply) {
+//     // Forbid random encounters in private chats to prevent
+//     // access to the bot for non-allowed users
+//     if (askedInPrivate) {
+//       return;
+//     }
 
-    const encounterPrompt = preparePrompt(text);
-    const randomWords = getRandomEncounterWords();
-    const withRandomWords =
-      'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
-      `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
-    await context.replyWithChatAction('typing');
+//     const encounterPrompt = preparePrompt(text);
+//     const randomWords = getRandomEncounterWords();
+//     const withRandomWords =
+//       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
+//       `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
+//     await context.replyWithChatAction('typing');
 
-    try {
-      const completition = await getSmartCompletion(withRandomWords);
-      await context.reply(completition, {
-        reply_to_message_id: replyToMessageId,
-      });
-      await promptRepo.create({
-        result: completition,
-        text: encounterPrompt,
-        userId: userId.toString(),
-      });
-      return;
-    } catch (error) {
-      await context.reply(replies.error, {
-        reply_to_message_id: replyToMessageId,
-      });
-      throw error;
-    }
-  }
+//     try {
+//       const completition = await getSmartCompletion(withRandomWords);
+//       await context.reply(completition, {
+//         reply_to_message_id: replyToMessageId,
+//       });
+//       await promptRepo.create({
+//         result: completition,
+//         text: encounterPrompt,
+//         userId: userId.toString(),
+//       });
+//       return;
+//     } catch (error) {
+//       await context.reply(replies.error, {
+//         reply_to_message_id: replyToMessageId,
+//       });
+//       throw error;
+//     }
+//   }
 
-  // If user has no access and asks the bot
-  if (hasNoAccess && repliedOnMyMessage) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
-    });
-    return;
-  }
+//   // If user has no access and asks the bot
+//   if (hasNoAccess && repliedOnMyMessage) {
+//     await context.reply(replies.notAllowed, {
+//       reply_to_message_id: replyToMessageId,
+//     });
+//     return;
+//   }
 
-  // If user has no access, ignore it
-  if (hasNoAccess) {
-    return;
-  }
+//   // If user has no access, ignore it
+//   if (hasNoAccess) {
+//     return;
+//   }
 
-  // If its not a reply, ignore it
-  if (notReply) {
-    return;
-  }
+//   // If its not a reply, ignore it
+//   if (notReply) {
+//     return;
+//   }
 
-  const originalText = messageRepliedOn.text;
+//   const originalText = messageRepliedOn.text;
 
-  // If user replied to other user message
-  if (repliedOnOthersMessage) {
-    // Check if user asked bot to take other user's message into account
-    const answerToReplyMatches = getAnswerToReplyMatches(text);
-    const shouldNotAnswerToReply = answerToReplyMatches === null;
-    if (shouldNotAnswerToReply) {
-      // Just return if not
-      return;
-    }
+//   // If user replied to other user message
+//   if (repliedOnOthersMessage) {
+//     // Check if user asked bot to take other user's message into account
+//     const answerToReplyMatches = getAnswerToReplyMatches(text);
+//     const shouldNotAnswerToReply = answerToReplyMatches === null;
+//     if (shouldNotAnswerToReply) {
+//       // Just return if not
+//       return;
+//     }
 
-    const answerToReplyText = answerToReplyMatches[3];
-    const answerToReplyPrompt = preparePrompt(answerToReplyText);
-    const answerToReplyContext = [
-      addSystemContext(
-        `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
-      ),
-      addSystemContext(funnyResultPrompt),
-    ];
+//     const answerToReplyText = answerToReplyMatches[3];
+//     const answerToReplyPrompt = preparePrompt(answerToReplyText);
+//     const answerToReplyContext = [
+//       addSystemContext(
+//         `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
+//       ),
+//       addSystemContext(funnyResultPrompt),
+//     ];
 
-    try {
-      await context.replyWithChatAction('typing');
-      const completition = await getSmartCompletion(
-        answerToReplyPrompt,
-        answerToReplyContext,
-      );
-      await context.reply(completition, {
-        reply_to_message_id: replyToMessageId,
-      });
-      await promptRepo.create({
-        result: completition,
-        text: answerToReplyPrompt,
-        userId: userId.toString(),
-      });
-      return;
-    } catch (error) {
-      await context.reply(replies.error, {
-        reply_to_message_id: replyToMessageId,
-      });
-      throw error;
-    }
-  }
+//     try {
+//       await context.replyWithChatAction('typing');
+//       const completition = await getSmartCompletion(
+//         answerToReplyPrompt,
+//         answerToReplyContext,
+//       );
+//       await context.reply(completition, {
+//         reply_to_message_id: replyToMessageId,
+//       });
+//       await promptRepo.create({
+//         result: completition,
+//         text: answerToReplyPrompt,
+//         userId: userId.toString(),
+//       });
+//       return;
+//     } catch (error) {
+//       await context.reply(replies.error, {
+//         reply_to_message_id: replyToMessageId,
+//       });
+//       throw error;
+//     }
+//   }
 
-  // If we got there, it means that user replied to our message,
-  // and we should have it, or throw an error, because it's a bug
-  if (!messageRepliedOn) {
-    throw new Error('Message replied on is undefined');
-  }
+//   // If we got there, it means that user replied to our message,
+//   // and we should have it, or throw an error, because it's a bug
+//   if (!messageRepliedOn) {
+//     throw new Error('Message replied on is undefined');
+//   }
 
-  // If message replied on has no text, ignore it
-  if (!originalText) {
-    return;
-  }
+//   // If message replied on has no text, ignore it
+//   if (!originalText) {
+//     return;
+//   }
 
-  const previousMessageContext = [
-    addSystemContext(funnyResultPrompt),
-    addAssistantContext(originalText),
-  ];
-  const prompt = preparePrompt(text);
+//   const previousMessageContext = [
+//     addSystemContext(funnyResultPrompt),
+//     addAssistantContext(originalText),
+//   ];
+//   const prompt = preparePrompt(text);
 
-  try {
-    await context.replyWithChatAction('typing');
-    const completition = await getSmartCompletion(
-      prompt,
-      previousMessageContext,
-    );
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
-    });
-    await promptRepo.create({
-      result: completition,
-      text: prompt,
-      userId: userId.toString(),
-    });
-  } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: replyToMessageId,
-    });
-    throw error;
-  }
-});
+//   try {
+//     await context.replyWithChatAction('typing');
+//     const completition = await getSmartCompletion(
+//       prompt,
+//       previousMessageContext,
+//     );
+//     await context.reply(completition, {
+//       reply_to_message_id: replyToMessageId,
+//     });
+//     await promptRepo.create({
+//       result: completition,
+//       text: prompt,
+//       userId: userId.toString(),
+//     });
+//   } catch (error) {
+//     await context.reply(replies.error, {
+//       reply_to_message_id: replyToMessageId,
+//     });
+//     throw error;
+//   }
+// });
 
 const start = async () => {
   await database.$connect();
