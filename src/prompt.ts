@@ -36,6 +36,13 @@ export const addAssistantContext = (
   };
 };
 
+export const addUserContext = (text: string): ChatCompletionRequestMessage => {
+  return {
+    content: text,
+    role: 'user',
+  };
+};
+
 export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
