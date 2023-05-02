@@ -4,8 +4,8 @@ import { database } from '@/database';
 export const create = async (data: Omit<BotReply, 'createdAt' | 'id'>) =>
   await database.botReply.create({ data });
 
-export const get = async (id: string) =>
-  await database.botReply.findUnique({ where: { id } });
+export const getByIdPerChat = async (id: string) =>
+  await database.botReply.findUnique({ where: { idPerChat: id } });
 
-export const getList = async (filter: Partial<BotReply>) =>
-  await database.botReply.findMany({ where: filter });
+export const getListByDialogId = async (dialogId: string) =>
+  await database.botReply.findMany({ where: { dialogId } });
