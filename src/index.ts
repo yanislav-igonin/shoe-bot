@@ -337,11 +337,13 @@ bot.on('message:text', async (context) => {
 
   const originalText = messageRepliedOn.text;
 
-  // If user replied to other user message, ignore it
+  // If user replied to other user message
   if (repliedOnOthersMessage) {
+    // Check if user asked bot to take other user's message into account
     const answerToReplyMatches = getAnswerToReplyMatches(text);
     const shouldNotAnswerToReply = answerToReplyMatches === null;
     if (shouldNotAnswerToReply) {
+      // Just return if not
       return;
     }
 
