@@ -127,67 +127,82 @@ bot.hears(noTriggerRegexp, async (context) => {
 /**
  * Handling gpt-4 requests.
  */
-// bot.hears(smartTextTriggerRegexp, async (context) => {
-//   const { match, message } = context;
-//   if (!message) {
-//     return;
-//   }
+bot.hears(smartTextTriggerRegexp, async (context) => {
+  const { match, message } = context;
+  if (!message) {
+    return;
+  }
 
-//   const text = match[3];
-//   const { message_id: replyToMessageId, from } = message;
+  const text = match[3];
+  const {
+    message_id: messageId,
+    from,
+    date: messageDate,
+    chat: { id: chatId },
+  } = message;
 
-//   const {
-//     id: userId,
-//     first_name: firstName,
-//     language_code: language,
-//     last_name: lastName,
-//     username,
-//   } = from;
+  const {
+    id: userId,
+    first_name: firstName,
+    language_code: language,
+    last_name: lastName,
+    username,
+  } = from;
 
-//   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
 
-//   let user = await userRepo.get(userId.toString());
-//   if (!user) {
-//     user = await userRepo.create({
-//       firstName: valueOrNull(firstName),
-//       id: userId.toString(),
-//       language: valueOrNull(language),
-//       lastName: valueOrNull(lastName),
-//       username: valueOrNull(username),
-//     });
-//   }
+  let user = await userRepo.get(userId.toString());
+  if (!user) {
+    user = await userRepo.create({
+      firstName: valueOrNull(firstName),
+      id: userId.toString(),
+      language: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      username: valueOrNull(username),
+    });
+  }
 
-//   if (hasNoAccess) {
-//     // If user has no access and just wrote a message with trigger
-//     await context.reply(replies.notAllowed, {
-//       reply_to_message_id: replyToMessageId,
-//     });
-//     return;
-//   }
+  if (hasNoAccess) {
+    // If user has no access and just wrote a message with trigger
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: messageId,
+    });
+    return;
+  }
 
-//   const prompt = preparePrompt(text);
-//   const systemContext = [addSystemContext(doAnythingPrompt)];
+  const prompt = preparePrompt(text);
+  const systemContext = [addSystemContext(doAnythingPrompt)];
 
-//   try {
-//     await context.replyWithChatAction('typing');
-//     const completition = await getSmartCompletion(prompt, systemContext);
-//     await context.reply(completition, {
-//       reply_to_message_id: replyToMessageId,
-//     });
-//     const dialog = await dialogRepo.create();
-//     await promptRepo.create({
-//       dialogId: dialog.id,
-//       result: completition,
-//       text: prompt,
-//       userId: userId.toString(),
-//     });
-//   } catch (error) {
-//     await context.reply(replies.error, {
-//       reply_to_message_id: replyToMessageId,
-//     });
-//     throw error;
-//   }
-// });
+  try {
+    await context.replyWithChatAction('typing');
+    const completition = await getSmartCompletion(prompt, systemContext);
+    const botReply = await context.reply(completition, {
+      reply_to_message_id: messageId,
+    });
+    const dialog = await dialogRepo.create();
+    await promptRepo.create({
+      createdAt: new Date(messageDate),
+      dialogId: dialog.id,
+      result: completition,
+      text: prompt,
+      userId: userId.toString(),
+    });
+    const { message_id: botReplyMessageId, date: botReplyMessageDate } =
+      botReply;
+    const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
+    await botReplyRepo.create({
+      createdAt: new Date(botReplyMessageDate),
+      dialogId: dialog.id,
+      id: uniqueBotReplyId,
+      text: completition,
+    });
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: messageId,
+    });
+    throw error;
+  }
+});
 
 /**
  * Handling text-davinci-003 requests.
