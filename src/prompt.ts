@@ -47,10 +47,7 @@ export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
 ) => {
-  const userMessage = {
-    content: prompt,
-    role: 'user' as const,
-  };
+  const userMessage = addUserContext(prompt);
   const messages = [...context, userMessage];
   const response = await openai.createChatCompletion({
     messages,

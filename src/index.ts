@@ -307,43 +307,60 @@ bot.on('message:text', async (context) => {
 
   // Random encounter, shouldn't be triggered on reply.
   // Triggered by chance, replies to any message just4lulz
-  // if (shouldReplyRandomly && notReply) {
-  //   // Forbid random encounters in private chats to prevent
-  //   // access to the bot for non-allowed users
-  //   if (askedInPrivate) {
-  //     return;
-  //   }
+  if (shouldReplyRandomly && notReply) {
+    // Forbid random encounters in private chats to prevent
+    // access to the bot for non-allowed users
+    // TODO: uncomment when ready
+    // if (askedInPrivate) {
+    //   return;
+    // }
 
-  //   const encounterPrompt = preparePrompt(text);
-  //   const randomWords = getRandomEncounterWords();
-  //   const withRandomWords =
-  //     'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
-  //     `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
-  //   await context.replyWithChatAction('typing');
+    const encounterPrompt = preparePrompt(text);
+    const randomWords = getRandomEncounterWords();
+    const withRandomWords =
+      'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
+      `СЛОВ ${randomWords.join(',')} НА ФРАЗУ ПОЛЬЗОВАТЕЛЯ`;
 
-  //   try {
-  //     const completition = await getSmartCompletion(withRandomWords);
-  //     await context.reply(completition, {
-  //       reply_to_message_id: replyToMessageId,
-  //     });
-  //     await promptRepo.create({
-  //       result: completition,
-  //       text: encounterPrompt,
-  //       userId: userId.toString(),
-  //     });
-  //     return;
-  //   } catch (error) {
-  //     await context.reply(replies.error, {
-  //       reply_to_message_id: replyToMessageId,
-  //     });
-  //     throw error;
-  //   }
-  // }
+    const promptContext = [addSystemContext(withRandomWords)];
+    await context.replyWithChatAction('typing');
+
+    try {
+      const completition = await getSmartCompletion(
+        encounterPrompt,
+        promptContext,
+      );
+
+      const newBotMessage = await context.reply(completition, {
+        reply_to_message_id: messageId,
+      });
+      const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
+
+      const newEncounterDialog = await dialogRepo.create();
+
+      await botReplyRepo.create({
+        dialogId: newEncounterDialog.id,
+        id: newBotMessageId,
+        text: newBotMessage.text,
+      });
+      await promptRepo.create({
+        dialogId: newEncounterDialog.id,
+        result: completition,
+        text: encounterPrompt,
+        userId: userId.toString(),
+      });
+      return;
+    } catch (error) {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+      throw error;
+    }
+  }
 
   // // If user has no access and replied on bots message
   if (hasNoAccess && repliedOnBotsMessage) {
     await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     return;
   }
