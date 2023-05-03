@@ -1,4 +1,6 @@
+import { sortByCreatedAt } from './date';
 import { config } from '@/config';
+import { type Prompt } from '@/database';
 import { database } from '@/database';
 import {
   base64ToImage,
@@ -10,8 +12,9 @@ import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
+  addUserContext,
+  aggressiveSystemPrompt,
   doAnythingPrompt,
-  funnyResultPrompt,
   getAnswerToReplyMatches,
   getCompletion,
   getRandomEncounterWords,
@@ -23,6 +26,8 @@ import {
 } from '@/prompt';
 import { replies } from '@/replies';
 import {
+  botReply as botReplyRepo,
+  dialog as dialogRepo,
   image as imageRepo,
   prompt as promptRepo,
   user as userRepo,
@@ -129,7 +134,12 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 
   const text = match[3];
-  const { message_id: replyToMessageId, from } = message;
+  const {
+    message_id: messageId,
+    from,
+    date: messageDate,
+    chat: { id: chatId },
+  } = message;
 
   const {
     id: userId,
@@ -155,7 +165,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   if (hasNoAccess) {
     // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     return;
   }
@@ -166,17 +176,29 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   try {
     await context.replyWithChatAction('typing');
     const completition = await getSmartCompletion(prompt, systemContext);
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
+    const botReply = await context.reply(completition, {
+      reply_to_message_id: messageId,
     });
+    const dialog = await dialogRepo.create();
     await promptRepo.create({
+      createdAt: new Date(messageDate),
+      dialogId: dialog.id,
       result: completition,
       text: prompt,
       userId: userId.toString(),
     });
+    const { message_id: botReplyMessageId, date: botReplyMessageDate } =
+      botReply;
+    const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
+    await botReplyRepo.create({
+      createdAt: new Date(botReplyMessageDate),
+      dialogId: dialog.id,
+      id: uniqueBotReplyId,
+      text: completition,
+    });
   } catch (error) {
     await context.reply(replies.error, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     throw error;
   }
@@ -192,7 +214,12 @@ bot.hears(textTriggerRegexp, async (context) => {
   }
 
   const text = match[3];
-  const { message_id: replyToMessageId, from } = message;
+  const {
+    message_id: messageId,
+    date: messageDate,
+    from,
+    chat: { id: chatId },
+  } = message;
 
   const {
     id: userId,
@@ -218,7 +245,7 @@ bot.hears(textTriggerRegexp, async (context) => {
   if (hasNoAccess) {
     // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     return;
   }
@@ -228,17 +255,29 @@ bot.hears(textTriggerRegexp, async (context) => {
   try {
     await context.replyWithChatAction('typing');
     const completition = await getCompletion(prompt);
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
+    const botReply = await context.reply(completition, {
+      reply_to_message_id: messageId,
     });
+    const dialog = await dialogRepo.create();
     await promptRepo.create({
+      createdAt: new Date(messageDate),
+      dialogId: dialog.id,
       result: completition,
       text: prompt,
       userId: userId.toString(),
     });
+    const { message_id: botReplyMessageId, date: botReplyMessageDate } =
+      botReply;
+    const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
+    await botReplyRepo.create({
+      createdAt: new Date(botReplyMessageDate),
+      dialogId: dialog.id,
+      id: uniqueBotReplyId,
+      text: completition,
+    });
   } catch (error) {
     await context.reply(replies.error, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     throw error;
   }
@@ -250,34 +289,38 @@ bot.hears(textTriggerRegexp, async (context) => {
 bot.on('message:text', async (context) => {
   const { text } = context.message;
   const {
-    message_id: replyToMessageId,
+    message_id: messageId,
     reply_to_message: messageRepliedOn,
     from,
+    chat,
+    date: messageDate,
   } = context.message;
 
   const {
     id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
+    first_name: userFirstName,
+    language_code: userLanguage,
+    last_name: userLastName,
     username,
   } = from;
 
-  const myId = context.me.id;
+  const { id: chatId } = chat;
+
+  const botId = context.me.id;
   const shouldReplyRandomly = shouldMakeRandomEncounter();
   const notReply = messageRepliedOn === undefined;
-  const repliedOnMyMessage = messageRepliedOn?.from?.id === myId;
-  const repliedOnOthersMessage = !repliedOnMyMessage;
+  const repliedOnBotsMessage = messageRepliedOn?.from?.id === botId;
+  const repliedOnOthersMessage = !repliedOnBotsMessage;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   const askedInPrivate = context.hasChatType('private');
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
     user = await userRepo.create({
-      firstName: valueOrNull(firstName),
+      firstName: valueOrNull(userFirstName),
       id: userId.toString(),
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
+      language: valueOrNull(userLanguage),
+      lastName: valueOrNull(userLastName),
       username: valueOrNull(username),
     });
   }
@@ -295,15 +338,37 @@ bot.on('message:text', async (context) => {
     const randomWords = getRandomEncounterWords();
     const withRandomWords =
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
-      `СЛОВ ${randomWords.join(',')} НА ФРАЗУ НИЖЕ:\n\n${encounterPrompt}`;
+      `СЛОВ ${randomWords.join(',')} НА ФРАЗУ ПОЛЬЗОВАТЕЛЯ`;
+
+    const promptContext = [
+      addSystemContext(aggressiveSystemPrompt),
+      addSystemContext(withRandomWords),
+    ];
     await context.replyWithChatAction('typing');
 
     try {
-      const completition = await getSmartCompletion(withRandomWords);
-      await context.reply(completition, {
-        reply_to_message_id: replyToMessageId,
+      const completition = await getSmartCompletion(
+        encounterPrompt,
+        promptContext,
+      );
+
+      const newBotMessage = await context.reply(completition, {
+        reply_to_message_id: messageId,
+      });
+      const botMessageDate = newBotMessage.date;
+      const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
+
+      const newEncounterDialog = await dialogRepo.create();
+
+      await botReplyRepo.create({
+        createdAt: new Date(botMessageDate),
+        dialogId: newEncounterDialog.id,
+        id: newBotMessageId,
+        text: newBotMessage.text,
       });
       await promptRepo.create({
+        createdAt: new Date(messageDate),
+        dialogId: newEncounterDialog.id,
         result: completition,
         text: encounterPrompt,
         userId: userId.toString(),
@@ -311,37 +376,34 @@ bot.on('message:text', async (context) => {
       return;
     } catch (error) {
       await context.reply(replies.error, {
-        reply_to_message_id: replyToMessageId,
+        reply_to_message_id: messageId,
       });
       throw error;
     }
   }
 
-  // If user has no access and asks the bot
-  if (hasNoAccess && repliedOnMyMessage) {
+  // // If user has no access and replied on bots message
+  if (hasNoAccess && repliedOnBotsMessage) {
     await context.reply(replies.notAllowed, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     return;
   }
 
-  // If user has no access, ignore it
-  if (hasNoAccess) {
-    return;
-  }
-
-  // If its not a reply, ignore it
-  if (notReply) {
+  // // If user has no access or its not a reply, ignore it
+  if (hasNoAccess || notReply) {
     return;
   }
 
   const originalText = messageRepliedOn.text;
 
-  // If user replied to other user message, ignore it
+  // If user replied to other user message
   if (repliedOnOthersMessage) {
+    // Check if user asked bot to take other user's message into account
     const answerToReplyMatches = getAnswerToReplyMatches(text);
     const shouldNotAnswerToReply = answerToReplyMatches === null;
     if (shouldNotAnswerToReply) {
+      // Just return if not
       return;
     }
 
@@ -351,7 +413,7 @@ bot.on('message:text', async (context) => {
       addSystemContext(
         `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
       ),
-      addSystemContext(funnyResultPrompt),
+      addSystemContext(aggressiveSystemPrompt),
     ];
 
     try {
@@ -360,10 +422,24 @@ bot.on('message:text', async (context) => {
         answerToReplyPrompt,
         answerToReplyContext,
       );
-      await context.reply(completition, {
-        reply_to_message_id: replyToMessageId,
+      const botReplyOnOtherUserMessage = await context.reply(completition, {
+        reply_to_message_id: messageId,
       });
+      const botReplyOnOtherUserMessageId = `${chatId}_${botReplyOnOtherUserMessage.message_id}`;
+      const botReplyOnOtherUserMessageDate = botReplyOnOtherUserMessage.date;
+
+      const newDialogForOtherUser = await dialogRepo.create();
+
+      await botReplyRepo.create({
+        createdAt: new Date(botReplyOnOtherUserMessageDate),
+        dialogId: newDialogForOtherUser.id,
+        id: botReplyOnOtherUserMessageId,
+        text: botReplyOnOtherUserMessage.text,
+      });
+
       await promptRepo.create({
+        createdAt: new Date(messageDate),
+        dialogId: newDialogForOtherUser.id,
         result: completition,
         text: answerToReplyPrompt,
         userId: userId.toString(),
@@ -371,7 +447,7 @@ bot.on('message:text', async (context) => {
       return;
     } catch (error) {
       await context.reply(replies.error, {
-        reply_to_message_id: replyToMessageId,
+        reply_to_message_id: messageId,
       });
       throw error;
     }
@@ -383,34 +459,86 @@ bot.on('message:text', async (context) => {
     throw new Error('Message replied on is undefined');
   }
 
-  // If message replied on has no text, ignore it
+  // If message replied on has no text (e.g.: replied on image), ignore it
   if (!originalText) {
     return;
   }
 
-  const previousMessageContext = [
-    addSystemContext(funnyResultPrompt),
-    addAssistantContext(originalText),
-  ];
   const prompt = preparePrompt(text);
+
+  const uniqueMessageRepliedOnId = `${chatId}_${messageRepliedOn.message_id}`;
+  const previousBotMessage = await botReplyRepo.getOneById(
+    uniqueMessageRepliedOnId,
+  );
+
+  let dialogId = '';
+  if (!previousBotMessage) {
+    const newDialog = await dialogRepo.create();
+    dialogId = newDialog.id;
+    await botReplyRepo.create({
+      createdAt: new Date(),
+      dialogId,
+      id: uniqueMessageRepliedOnId,
+      text: originalText,
+    });
+  }
+
+  if (previousBotMessage) {
+    dialogId = previousBotMessage.dialogId;
+  }
+
+  const dialog = await dialogRepo.get(dialogId);
+  if (!dialog) {
+    throw new Error('Dialog not found');
+  }
+
+  // Get all previous messages in dialog
+  const previousUserMessages = await promptRepo.getListByDialogId(dialogId);
+  const previousBotMessages = await botReplyRepo.getListByDialogId(dialogId);
+  const previousMessages = [
+    ...previousUserMessages,
+    ...previousBotMessages,
+  ].sort(sortByCreatedAt);
+  // Assgign each message to user context or bot context
+  const previousMessagesContext = previousMessages.map((message) => {
+    if ((message as Prompt).userId === userId.toString()) {
+      return addUserContext(message.text);
+    }
+
+    return addAssistantContext(message.text);
+  });
+  // Add aggressive system prompt to the beginning of the context
+  previousMessagesContext.unshift(addSystemContext(aggressiveSystemPrompt));
 
   try {
     await context.replyWithChatAction('typing');
     const completition = await getSmartCompletion(
       prompt,
-      previousMessageContext,
+      previousMessagesContext,
     );
-    await context.reply(completition, {
-      reply_to_message_id: replyToMessageId,
+    const newBotMessage = await context.reply(completition, {
+      reply_to_message_id: messageId,
     });
+    const newBotMessageDate = newBotMessage.date;
+    const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
+
+    await botReplyRepo.create({
+      createdAt: new Date(newBotMessageDate),
+      dialogId: dialog.id,
+      id: newBotMessageId,
+      text: newBotMessage.text,
+    });
+
     await promptRepo.create({
+      createdAt: new Date(messageDate),
+      dialogId: dialog.id,
       result: completition,
       text: prompt,
       userId: userId.toString(),
     });
   } catch (error) {
     await context.reply(replies.error, {
-      reply_to_message_id: replyToMessageId,
+      reply_to_message_id: messageId,
     });
     throw error;
   }

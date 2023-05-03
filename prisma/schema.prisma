@@ -27,6 +27,8 @@ model Prompt {
   createdAt DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  dialogId  String?
+  dialog    Dialog?   @relation(fields: [dialogId], references: [id])
 
   @@map("prompts")
 }
@@ -43,11 +45,30 @@ model Image {
 }
 
 model Chat {
-  id   String @id
-  name String
-  type String
-  isAllowed Boolean @default(false)
+  id        String   @id
+  name      String
+  type      String
+  isAllowed Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@map("chats")
+}
+
+model Dialog {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  BotReply  BotReply[]
+  Prompt    Prompt[]
+
+  @@map("dialogs")
+}
+
+model BotReply {
+  id        String   @id
+  text      String
+  createdAt DateTime @default(now())
+  dialogId  String
+  dialog    Dialog   @relation(fields: [dialogId], references: [id])
+
+  @@map("bot_replies")
 }

@@ -36,14 +36,18 @@ export const addAssistantContext = (
   };
 };
 
+export const addUserContext = (text: string): ChatCompletionRequestMessage => {
+  return {
+    content: text,
+    role: 'user',
+  };
+};
+
 export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
 ) => {
-  const userMessage = {
-    content: prompt,
-    role: 'user' as const,
-  };
+  const userMessage = addUserContext(prompt);
   const messages = [...context, userMessage];
   const response = await openai.createChatCompletion({
     messages,
@@ -92,7 +96,7 @@ export const doAnythingPrompt =
   'Если вопрос неадекватный, то бот должен отвечать неадекватно.' +
   'Если вопрос содержит маты, то бот должен отвечать еще более грубыми матами.';
 
-export const funnyResultPrompt =
+export const aggressiveSystemPrompt =
   'Если пользователь использует маты,' +
   ' то бот должен ответить ему также матами, но более грубыми.' +
   'Если пользователь аггресивен в отношении бота,' +
