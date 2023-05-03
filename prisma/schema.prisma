@@ -29,7 +29,6 @@ model Prompt {
   user      User     @relation(fields: [userId], references: [id])
   dialogId  String?
   dialog    Dialog?   @relation(fields: [dialogId], references: [id])
-  idPerChat String?
 
   @@map("prompts")
 }
@@ -65,12 +64,11 @@ model Dialog {
 }
 
 model BotReply {
-  id        String   @id @default(cuid())
+  id        String   @id
   text      String
   createdAt DateTime @default(now())
   dialogId  String
   dialog    Dialog   @relation(fields: [dialogId], references: [id])
-  idPerChat String @unique
 
   @@map("bot_replies")
 }

@@ -243,10 +243,8 @@ bot.hears(textTriggerRegexp, async (context) => {
       reply_to_message_id: messageId,
     });
     const dialog = await dialogRepo.create();
-    const uniqueMessageId = `${chatId}_${messageId}`;
     await promptRepo.create({
       dialogId: dialog.id,
-      idPerChat: uniqueMessageId,
       result: completition,
       text: prompt,
       userId: userId.toString(),
@@ -255,7 +253,7 @@ bot.hears(textTriggerRegexp, async (context) => {
     const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
     await botReplyRepo.create({
       dialogId: dialog.id,
-      idPerChat: uniqueBotReplyId,
+      id: uniqueBotReplyId,
       text: completition,
     });
   } catch (error) {
@@ -418,7 +416,7 @@ bot.on('message:text', async (context) => {
   const prompt = preparePrompt(text);
 
   const uniqueMessageRepliedOnId = `${chatId}_${messageRepliedOn.message_id}`;
-  const previousBotMessage = await botReplyRepo.getByIdPerChat(
+  const previousBotMessage = await botReplyRepo.getOneById(
     uniqueMessageRepliedOnId,
   );
 
@@ -428,7 +426,7 @@ bot.on('message:text', async (context) => {
     dialogId = newDialog.id;
     await botReplyRepo.create({
       dialogId,
-      idPerChat: uniqueMessageRepliedOnId,
+      id: uniqueMessageRepliedOnId,
       text: originalText,
     });
   }
@@ -473,14 +471,12 @@ bot.on('message:text', async (context) => {
 
     await botReplyRepo.create({
       dialogId: dialog.id,
-      idPerChat: newBotMessageId,
+      id: newBotMessageId,
       text: newBotMessage.text,
     });
 
-    const uniqueMessageId = `${chatId}_${messageId}`;
     await promptRepo.create({
       dialogId: dialog.id,
-      idPerChat: uniqueMessageId,
       result: completition,
       text: prompt,
       userId: userId.toString(),
