@@ -381,49 +381,63 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  const originalText = messageRepliedOn!.text;
+  const originalText = messageRepliedOn.text;
 
   // If user replied to other user message
-  // if (repliedOnOthersMessage) {
-  //   // Check if user asked bot to take other user's message into account
-  //   const answerToReplyMatches = getAnswerToReplyMatches(text);
-  //   const shouldNotAnswerToReply = answerToReplyMatches === null;
-  //   if (shouldNotAnswerToReply) {
-  //     // Just return if not
-  //     return;
-  //   }
+  if (repliedOnOthersMessage) {
+    // Check if user asked bot to take other user's message into account
+    const answerToReplyMatches = getAnswerToReplyMatches(text);
+    const shouldNotAnswerToReply = answerToReplyMatches === null;
+    if (shouldNotAnswerToReply) {
+      // Just return if not
+      return;
+    }
 
-  //   const answerToReplyText = answerToReplyMatches[3];
-  //   const answerToReplyPrompt = preparePrompt(answerToReplyText);
-  //   const answerToReplyContext = [
-  //     addSystemContext(
-  //       `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
-  //     ),
-  //     addSystemContext(funnyResultPrompt),
-  //   ];
+    const answerToReplyText = answerToReplyMatches[3];
+    const answerToReplyPrompt = preparePrompt(answerToReplyText);
+    const answerToReplyContext = [
+      addSystemContext(
+        `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
+      ),
+      addSystemContext(aggressiveSystemPrompt),
+    ];
 
-  //   try {
-  //     await context.replyWithChatAction('typing');
-  //     const completition = await getSmartCompletion(
-  //       answerToReplyPrompt,
-  //       answerToReplyContext,
-  //     );
-  //     await context.reply(completition, {
-  //       reply_to_message_id: replyToMessageId,
-  //     });
-  //     await promptRepo.create({
-  //       result: completition,
-  //       text: answerToReplyPrompt,
-  //       userId: userId.toString(),
-  //     });
-  //     return;
-  //   } catch (error) {
-  //     await context.reply(replies.error, {
-  //       reply_to_message_id: replyToMessageId,
-  //     });
-  //     throw error;
-  //   }
-  // }
+    try {
+      await context.replyWithChatAction('typing');
+      const completition = await getSmartCompletion(
+        answerToReplyPrompt,
+        answerToReplyContext,
+      );
+      const botReplyOnOtherUserMessage = await context.reply(completition, {
+        reply_to_message_id: messageId,
+      });
+      const botReplyOnOtherUserMessageId = `${chatId}_${botReplyOnOtherUserMessage.message_id}`;
+      const botReplyOnOtherUserMessageDate = botReplyOnOtherUserMessage.date;
+
+      const newDialogForOtherUser = await dialogRepo.create();
+
+      await botReplyRepo.create({
+        createdAt: new Date(botReplyOnOtherUserMessageDate),
+        dialogId: newDialogForOtherUser.id,
+        id: botReplyOnOtherUserMessageId,
+        text: botReplyOnOtherUserMessage.text,
+      });
+
+      await promptRepo.create({
+        createdAt: new Date(messageDate),
+        dialogId: newDialogForOtherUser.id,
+        result: completition,
+        text: answerToReplyPrompt,
+        userId: userId.toString(),
+      });
+      return;
+    } catch (error) {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+      throw error;
+    }
+  }
 
   // If we got there, it means that user replied to our message,
   // and we should have it, or throw an error, because it's a bug
