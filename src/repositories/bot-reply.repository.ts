@@ -1,7 +1,7 @@
 import { type BotReply } from '@/database';
 import { database } from '@/database';
 
-export const create = async (data: Omit<BotReply, 'createdAt'>) =>
+export const create = async (data: BotReply) =>
   await database.botReply.create({ data });
 
 export const getOneById = async (id: string) =>

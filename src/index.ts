@@ -201,6 +201,7 @@ bot.hears(textTriggerRegexp, async (context) => {
   const text = match[3];
   const {
     message_id: messageId,
+    date: messageDate,
     from,
     chat: { id: chatId },
   } = message;
@@ -244,14 +245,17 @@ bot.hears(textTriggerRegexp, async (context) => {
     });
     const dialog = await dialogRepo.create();
     await promptRepo.create({
+      createdAt: new Date(messageDate),
       dialogId: dialog.id,
       result: completition,
       text: prompt,
       userId: userId.toString(),
     });
-    const { message_id: botReplyMessageId } = botReply;
+    const { message_id: botReplyMessageId, date: botReplyMessageDate } =
+      botReply;
     const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
     await botReplyRepo.create({
+      createdAt: new Date(botReplyMessageDate),
       dialogId: dialog.id,
       id: uniqueBotReplyId,
       text: completition,
@@ -274,6 +278,7 @@ bot.on('message:text', async (context) => {
     reply_to_message: messageRepliedOn,
     from,
     chat,
+    date: messageDate,
   } = context.message;
 
   const {
@@ -321,7 +326,10 @@ bot.on('message:text', async (context) => {
       'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
       `СЛОВ ${randomWords.join(',')} НА ФРАЗУ ПОЛЬЗОВАТЕЛЯ`;
 
-    const promptContext = [addSystemContext(withRandomWords)];
+    const promptContext = [
+      addSystemContext(aggressiveSystemPrompt),
+      addSystemContext(withRandomWords),
+    ];
     await context.replyWithChatAction('typing');
 
     try {
@@ -333,16 +341,19 @@ bot.on('message:text', async (context) => {
       const newBotMessage = await context.reply(completition, {
         reply_to_message_id: messageId,
       });
+      const botMessageDate = newBotMessage.date;
       const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
 
       const newEncounterDialog = await dialogRepo.create();
 
       await botReplyRepo.create({
+        createdAt: new Date(botMessageDate),
         dialogId: newEncounterDialog.id,
         id: newBotMessageId,
         text: newBotMessage.text,
       });
       await promptRepo.create({
+        createdAt: new Date(messageDate),
         dialogId: newEncounterDialog.id,
         result: completition,
         text: encounterPrompt,
@@ -437,6 +448,7 @@ bot.on('message:text', async (context) => {
     const newDialog = await dialogRepo.create();
     dialogId = newDialog.id;
     await botReplyRepo.create({
+      createdAt: new Date(),
       dialogId,
       id: uniqueMessageRepliedOnId,
       text: originalText,
@@ -479,15 +491,18 @@ bot.on('message:text', async (context) => {
     const newBotMessage = await context.reply(completition, {
       reply_to_message_id: messageId,
     });
+    const newBotMessageDate = newBotMessage.date;
     const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
 
     await botReplyRepo.create({
+      createdAt: new Date(newBotMessageDate),
       dialogId: dialog.id,
       id: newBotMessageId,
       text: newBotMessage.text,
     });
 
     await promptRepo.create({
+      createdAt: new Date(messageDate),
       dialogId: dialog.id,
       result: completition,
       text: prompt,
