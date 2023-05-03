@@ -289,8 +289,8 @@ bot.on('message:text', async (context) => {
   const botId = context.me.id;
   const shouldReplyRandomly = shouldMakeRandomEncounter();
   const notReply = messageRepliedOn === undefined;
-  const repliedOnMyMessage = messageRepliedOn?.from?.id === botId;
-  const repliedOnOthersMessage = !repliedOnMyMessage;
+  const repliedOnBotsMessage = messageRepliedOn?.from?.id === botId;
+  const repliedOnOthersMessage = !repliedOnBotsMessage;
   const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
   const askedInPrivate = context.hasChatType('private');
 
@@ -340,23 +340,18 @@ bot.on('message:text', async (context) => {
   //   }
   // }
 
-  // // If user has no access and asks the bot
-  // if (hasNoAccess && repliedOnMyMessage) {
-  //   await context.reply(replies.notAllowed, {
-  //     reply_to_message_id: replyToMessageId,
-  //   });
-  //   return;
-  // }
+  // // If user has no access and replied on bots message
+  if (hasNoAccess && repliedOnBotsMessage) {
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: replyToMessageId,
+    });
+    return;
+  }
 
-  // // If user has no access, ignore it
-  // if (hasNoAccess) {
-  //   return;
-  // }
-
-  // // If its not a reply, ignore it
-  // if (notReply) {
-  //   return;
-  // }
+  // // If user has no access or its not a reply, ignore it
+  if (hasNoAccess || notReply) {
+    return;
+  }
 
   const originalText = messageRepliedOn!.text;
 
