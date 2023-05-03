@@ -330,10 +330,9 @@ bot.on('message:text', async (context) => {
   if (shouldReplyRandomly && notReply) {
     // Forbid random encounters in private chats to prevent
     // access to the bot for non-allowed users
-    // TODO: uncomment when ready
-    // if (askedInPrivate) {
-    //   return;
-    // }
+    if (askedInPrivate) {
+      return;
+    }
 
     const encounterPrompt = preparePrompt(text);
     const randomWords = getRandomEncounterWords();
