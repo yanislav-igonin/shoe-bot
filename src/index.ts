@@ -181,7 +181,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     });
     const dialog = await dialogRepo.create();
     await promptRepo.create({
-      createdAt: new Date(messageDate),
+      createdAt: new Date(messageDate * 1_000),
       dialogId: dialog.id,
       result: completition,
       text: prompt,
@@ -191,7 +191,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
       botReply;
     const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
     await botReplyRepo.create({
-      createdAt: new Date(botReplyMessageDate),
+      createdAt: new Date(botReplyMessageDate * 1_000),
       dialogId: dialog.id,
       id: uniqueBotReplyId,
       text: completition,
@@ -260,7 +260,7 @@ bot.hears(textTriggerRegexp, async (context) => {
     });
     const dialog = await dialogRepo.create();
     await promptRepo.create({
-      createdAt: new Date(messageDate),
+      createdAt: new Date(messageDate * 1_000),
       dialogId: dialog.id,
       result: completition,
       text: prompt,
@@ -270,7 +270,7 @@ bot.hears(textTriggerRegexp, async (context) => {
       botReply;
     const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
     await botReplyRepo.create({
-      createdAt: new Date(botReplyMessageDate),
+      createdAt: new Date(botReplyMessageDate * 1_000),
       dialogId: dialog.id,
       id: uniqueBotReplyId,
       text: completition,
@@ -361,13 +361,13 @@ bot.on('message:text', async (context) => {
       const newEncounterDialog = await dialogRepo.create();
 
       await botReplyRepo.create({
-        createdAt: new Date(botMessageDate),
+        createdAt: new Date(botMessageDate * 1_000),
         dialogId: newEncounterDialog.id,
         id: newBotMessageId,
         text: newBotMessage.text,
       });
       await promptRepo.create({
-        createdAt: new Date(messageDate),
+        createdAt: new Date(messageDate * 1_000),
         dialogId: newEncounterDialog.id,
         result: completition,
         text: encounterPrompt,
@@ -431,14 +431,14 @@ bot.on('message:text', async (context) => {
       const newDialogForOtherUser = await dialogRepo.create();
 
       await botReplyRepo.create({
-        createdAt: new Date(botReplyOnOtherUserMessageDate),
+        createdAt: new Date(botReplyOnOtherUserMessageDate * 1_000),
         dialogId: newDialogForOtherUser.id,
         id: botReplyOnOtherUserMessageId,
         text: botReplyOnOtherUserMessage.text,
       });
 
       await promptRepo.create({
-        createdAt: new Date(messageDate),
+        createdAt: new Date(messageDate * 1_000),
         dialogId: newDialogForOtherUser.id,
         result: completition,
         text: answerToReplyPrompt,
@@ -523,14 +523,14 @@ bot.on('message:text', async (context) => {
     const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
 
     await botReplyRepo.create({
-      createdAt: new Date(newBotMessageDate),
+      createdAt: new Date(newBotMessageDate * 1_000),
       dialogId: dialog.id,
       id: newBotMessageId,
       text: newBotMessage.text,
     });
 
     await promptRepo.create({
-      createdAt: new Date(messageDate),
+      createdAt: new Date(messageDate * 1_000),
       dialogId: dialog.id,
       result: completition,
       text: prompt,
