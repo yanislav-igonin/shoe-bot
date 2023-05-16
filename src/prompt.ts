@@ -11,7 +11,7 @@ export const smartTextTriggerRegexp = isProduction()
 export const getCompletion = async (prompt: string) => {
   const response = await openai.createCompletion({
     max_tokens: 2_048,
-    model: 'gpt-3.5-turbo',
+    model: 'text-davinci-003',
     prompt,
   });
   const { text } = response.data.choices[0] as { text: string };
