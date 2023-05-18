@@ -8,7 +8,12 @@ import {
   imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
-import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
+import {
+  allowUserMiddleware,
+  chatMiddleware,
+  stateMiddleware,
+  userMiddleware,
+} from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
@@ -33,9 +38,10 @@ import {
   user as userRepo,
 } from '@/repositories';
 import { valueOrDefault, valueOrNull } from '@/values';
+import { type BotContext } from 'context';
 import { Bot, InputFile } from 'grammy';
 
-const bot = new Bot(config.botToken);
+const bot = new Bot<BotContext>(config.botToken);
 
 bot.catch((error) => {
   // @ts-expect-error Property 'response' does not exist on type '{}'.ts(2339)
@@ -48,8 +54,10 @@ bot.catch((error) => {
   logger.error(error);
 });
 
-bot.use(saveChatMiddleware);
-bot.use(saveUserMiddleware);
+bot.use(chatMiddleware);
+bot.use(stateMiddleware);
+bot.use(userMiddleware);
+bot.use(allowUserMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
