@@ -1,10 +1,10 @@
 -- CreateTable
 CREATE TABLE "images" (
-    "id" STRING NOT NULL,
-    "prompt" STRING NOT NULL,
-    "data" STRING NOT NULL,
+    "id" TEXT NOT NULL,
+    "prompt" TEXT NOT NULL,
+    "data" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "userId" STRING NOT NULL,
+    "userId" TEXT NOT NULL,
 
     CONSTRAINT "images_pkey" PRIMARY KEY ("id")
 );

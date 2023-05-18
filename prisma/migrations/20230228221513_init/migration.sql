@@ -1,10 +1,10 @@
 -- CreateTable
 CREATE TABLE "users" (
-    "id" STRING NOT NULL,
-    "username" STRING,
-    "firstName" STRING,
-    "lastName" STRING,
-    "language" STRING,
+    "id" TEXT NOT NULL,
+    "username" TEXT,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "language" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
@@ -12,11 +12,11 @@ CREATE TABLE "users" (
 
 -- CreateTable
 CREATE TABLE "prompts" (
-    "id" STRING NOT NULL,
-    "text" STRING NOT NULL,
-    "result" STRING NOT NULL,
+    "id" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
+    "result" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "userId" STRING NOT NULL,
+    "userId" TEXT NOT NULL,
 
     CONSTRAINT "prompts_pkey" PRIMARY KEY ("id")
 );
