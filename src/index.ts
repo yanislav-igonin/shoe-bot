@@ -8,12 +8,7 @@ import {
   imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
-import {
-  allowUserMiddleware,
-  chatMiddleware,
-  stateMiddleware,
-  userMiddleware,
-} from '@/middlewares';
+import { chatMiddleware, stateMiddleware, userMiddleware } from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
@@ -37,7 +32,7 @@ import {
   prompt as promptRepo,
   user as userRepo,
 } from '@/repositories';
-import { valueOrDefault, valueOrNull } from '@/values';
+import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
 import { Bot, InputFile } from 'grammy';
 
@@ -57,7 +52,6 @@ bot.catch((error) => {
 bot.use(chatMiddleware);
 bot.use(stateMiddleware);
 bot.use(userMiddleware);
-bot.use(allowUserMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -136,7 +130,11 @@ bot.hears(noTriggerRegexp, async (context) => {
  * Handling gpt-4 requests.
  */
 bot.hears(smartTextTriggerRegexp, async (context) => {
-  const { match, message } = context;
+  const {
+    match,
+    message,
+    state: { user: databaseUser },
+  } = context;
   if (!message) {
     return;
   }
@@ -157,7 +155,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = databaseUser.isAllowed === false;
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
@@ -216,7 +214,11 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
  * Handling text-davinci-003 requests.
  */
 bot.hears(textTriggerRegexp, async (context) => {
-  const { match, message } = context;
+  const {
+    match,
+    message,
+    state: { user: databaseUser },
+  } = context;
   if (!message) {
     return;
   }
@@ -237,7 +239,7 @@ bot.hears(textTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = databaseUser.isAllowed === false;
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
@@ -295,6 +297,9 @@ bot.hears(textTriggerRegexp, async (context) => {
  * For handling replies and random encounters
  */
 bot.on('message:text', async (context) => {
+  const {
+    state: { user: databaseUser },
+  } = context;
   const { text } = context.message;
   const {
     message_id: messageId,
@@ -319,7 +324,7 @@ bot.on('message:text', async (context) => {
   const notReply = messageRepliedOn === undefined;
   const repliedOnBotsMessage = messageRepliedOn?.from?.id === botId;
   const repliedOnOthersMessage = !repliedOnBotsMessage;
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = databaseUser.isAllowed === false;
   const askedInPrivate = context.hasChatType('private');
 
   let user = await userRepo.get(userId.toString());

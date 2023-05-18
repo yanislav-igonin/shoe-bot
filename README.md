@@ -10,8 +10,7 @@
 ```
 npm install
 ```
-2. Make `.env` file from `.env.example` and provide `BOT_TOKEN`, `OPENAI_API_KEY` and `ALLOWED_USERNAMES` values.
-  `ALLOWED_USERNAMES` is a comma-separated list of telegram usernames of users who can use bot.
+2. Make `.env` file from `.env.example` and provide `BOT_TOKEN` and `OPENAI_API_KEY`values.
 3. Run postgresql database via provided docker-compose file:
 ```
 docker compose up

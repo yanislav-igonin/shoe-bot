@@ -86,21 +86,3 @@ export const userMiddleware = async (
   // eslint-disable-next-line node/callback-return
   await next();
 };
-
-export const allowUserMiddleware = async (
-  context: BotContext,
-  next: NextFunction,
-) => {
-  const {
-    state: { user },
-  } = context;
-
-  const { isAllowed } = user;
-  if (!isAllowed) {
-    await context.reply('You are not allowed to use this bot.');
-    return;
-  }
-
-  // eslint-disable-next-line node/callback-return
-  await next();
-};
