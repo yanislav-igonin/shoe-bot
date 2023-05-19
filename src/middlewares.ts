@@ -5,6 +5,9 @@ import { type Context, type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 
+/**
+ * Makes state object inside the context to store some shit across the request.
+ */
 export const stateMiddleware = async (
   context: BotContext,
   next: NextFunction,
@@ -15,6 +18,9 @@ export const stateMiddleware = async (
   await next();
 };
 
+/**
+ * Saves chat to the DB.
+ */
 export const chatMiddleware = async (context: Context, next: NextFunction) => {
   const chatId = context.chat?.id;
   if (!chatId) {
@@ -42,6 +48,9 @@ export const chatMiddleware = async (context: Context, next: NextFunction) => {
   await next();
 };
 
+/**
+ * Saves/gets user from the DB and puts it to the context.
+ */
 export const userMiddleware = async (
   context: BotContext,
   next: NextFunction,
