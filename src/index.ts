@@ -395,7 +395,7 @@ bot.on('message:text', async (context) => {
     }
   }
 
-  // // If user has no access and replied on bots message
+  // If user has no access and replied on bots message
   if (hasNoAccess && repliedOnBotsMessage) {
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
@@ -403,7 +403,7 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  // // If user has no access or its not a reply, ignore it
+  // If user has no access or its not a reply, ignore it
   if (hasNoAccess || notReply) {
     return;
   }
@@ -472,7 +472,7 @@ bot.on('message:text', async (context) => {
     throw new Error('Message replied on is undefined');
   }
 
-  // If message replied on has no text (e.g.: replied on image), ignore it
+  // If message replied on something that has no text (e.g.: replied on image), ignore it
   if (!originalText) {
     return;
   }
