@@ -1,9 +1,9 @@
 -- AlterTable
-ALTER TABLE "prompts" ADD COLUMN     "dialogId" STRING;
+ALTER TABLE "prompts" ADD COLUMN     "dialogId" TEXT;
 
 -- CreateTable
 CREATE TABLE "dialogs" (
-    "id" STRING NOT NULL,
+    "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "dialogs_pkey" PRIMARY KEY ("id")
@@ -11,10 +11,10 @@ CREATE TABLE "dialogs" (
 
 -- CreateTable
 CREATE TABLE "bot_replies" (
-    "id" STRING NOT NULL,
-    "text" STRING NOT NULL,
+    "id" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "dialogId" STRING NOT NULL,
+    "dialogId" TEXT NOT NULL,
 
     CONSTRAINT "bot_replies_pkey" PRIMARY KEY ("id")
 );

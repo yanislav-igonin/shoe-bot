@@ -8,7 +8,7 @@ import {
   imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
-import { saveChatMiddleware, saveUserMiddleware } from '@/middlewares';
+import { chatMiddleware, stateMiddleware, userMiddleware } from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
@@ -32,10 +32,11 @@ import {
   prompt as promptRepo,
   user as userRepo,
 } from '@/repositories';
-import { valueOrDefault, valueOrNull } from '@/values';
+import { valueOrNull } from '@/values';
+import { type BotContext } from 'context';
 import { Bot, InputFile } from 'grammy';
 
-const bot = new Bot(config.botToken);
+const bot = new Bot<BotContext>(config.botToken);
 
 bot.catch((error) => {
   // @ts-expect-error Property 'response' does not exist on type '{}'.ts(2339)
@@ -48,8 +49,9 @@ bot.catch((error) => {
   logger.error(error);
 });
 
-bot.use(saveChatMiddleware);
-bot.use(saveUserMiddleware);
+bot.use(chatMiddleware);
+bot.use(stateMiddleware);
+bot.use(userMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -128,7 +130,11 @@ bot.hears(noTriggerRegexp, async (context) => {
  * Handling gpt-4 requests.
  */
 bot.hears(smartTextTriggerRegexp, async (context) => {
-  const { match, message } = context;
+  const {
+    match,
+    message,
+    state: { user: databaseUser },
+  } = context;
   if (!message) {
     return;
   }
@@ -149,7 +155,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = databaseUser.isAllowed === false;
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
@@ -208,7 +214,11 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
  * Handling text-davinci-003 requests.
  */
 bot.hears(textTriggerRegexp, async (context) => {
-  const { match, message } = context;
+  const {
+    match,
+    message,
+    state: { user: databaseUser },
+  } = context;
   if (!message) {
     return;
   }
@@ -229,7 +239,7 @@ bot.hears(textTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = databaseUser.isAllowed === false;
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
@@ -287,6 +297,9 @@ bot.hears(textTriggerRegexp, async (context) => {
  * For handling replies and random encounters
  */
 bot.on('message:text', async (context) => {
+  const {
+    state: { user: databaseUser },
+  } = context;
   const { text } = context.message;
   const {
     message_id: messageId,
@@ -311,7 +324,7 @@ bot.on('message:text', async (context) => {
   const notReply = messageRepliedOn === undefined;
   const repliedOnBotsMessage = messageRepliedOn?.from?.id === botId;
   const repliedOnOthersMessage = !repliedOnBotsMessage;
-  const hasNoAccess = !userRepo.hasAccess(valueOrDefault(username, ''));
+  const hasNoAccess = databaseUser.isAllowed === false;
   const askedInPrivate = context.hasChatType('private');
 
   let user = await userRepo.get(userId.toString());
@@ -382,7 +395,7 @@ bot.on('message:text', async (context) => {
     }
   }
 
-  // // If user has no access and replied on bots message
+  // If user has no access and replied on bots message
   if (hasNoAccess && repliedOnBotsMessage) {
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
@@ -390,7 +403,7 @@ bot.on('message:text', async (context) => {
     return;
   }
 
-  // // If user has no access or its not a reply, ignore it
+  // If user has no access or its not a reply, ignore it
   if (hasNoAccess || notReply) {
     return;
   }
@@ -459,7 +472,7 @@ bot.on('message:text', async (context) => {
     throw new Error('Message replied on is undefined');
   }
 
-  // If message replied on has no text (e.g.: replied on image), ignore it
+  // If message replied on something that has no text (e.g.: replied on image), ignore it
   if (!originalText) {
     return;
   }

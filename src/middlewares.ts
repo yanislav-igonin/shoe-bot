@@ -1,13 +1,27 @@
 import { chat as chatRepo, user as userRepo } from '@/repositories';
 import { valueOrNull } from '@/values';
+import { type BotContext } from 'context';
 import { type Context, type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 
-export const saveChatMiddleware = async (
-  context: Context,
+/**
+ * Makes state object inside the context to store some shit across the request.
+ */
+export const stateMiddleware = async (
+  context: BotContext,
   next: NextFunction,
 ) => {
+  // @ts-expect-error Property user   is missing in type {} but required in type
+  context.state = {};
+  // eslint-disable-next-line node/callback-return
+  await next();
+};
+
+/**
+ * Saves chat to the DB.
+ */
+export const chatMiddleware = async (context: Context, next: NextFunction) => {
   const chatId = context.chat?.id;
   if (!chatId) {
     // eslint-disable-next-line node/callback-return
@@ -34,8 +48,11 @@ export const saveChatMiddleware = async (
   await next();
 };
 
-export const saveUserMiddleware = async (
-  context: Context,
+/**
+ * Saves/gets user from the DB and puts it to the context.
+ */
+export const userMiddleware = async (
+  context: BotContext,
   next: NextFunction,
 ) => {
   const { from: user } = context;
@@ -49,6 +66,8 @@ export const saveUserMiddleware = async (
 
   const databaseUser = await userRepo.get(userId.toString());
   if (databaseUser) {
+    // eslint-disable-next-line require-atomic-updates
+    context.state.user = databaseUser;
     // eslint-disable-next-line node/callback-return
     await next();
     return;
@@ -68,7 +87,10 @@ export const saveUserMiddleware = async (
     lastName: valueOrNull(lastName),
     username: valueOrNull(username),
   };
-  await userRepo.create(toCreate);
+
+  const newUser = await userRepo.create(toCreate);
+  // eslint-disable-next-line require-atomic-updates
+  context.state.user = newUser;
 
   // eslint-disable-next-line node/callback-return
   await next();

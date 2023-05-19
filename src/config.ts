@@ -2,10 +2,6 @@ import { valueOrDefault, valueOrThrow } from './values';
 
 /* eslint-disable node/no-process-env */
 export const config = {
-  allowedUsernames: valueOrDefault(
-    process.env.ALLOWED_USERNAMES?.split(','),
-    [],
-  ),
   botToken: valueOrThrow(process.env.BOT_TOKEN, 'BOT_TOKEN is not set'),
   env: valueOrDefault(process.env.NODE_ENV, 'development'),
   openAiApiKey: valueOrThrow(
