@@ -17,6 +17,7 @@ import {
   doAnythingPrompt,
   getAnswerToReplyMatches,
   getCompletion,
+  getModelForTask,
   getRandomEncounterWords,
   getSmartCompletion,
   preparePrompt,
@@ -181,7 +182,8 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
 
   try {
     await context.replyWithChatAction('typing');
-    const completition = await getSmartCompletion(prompt, systemContext);
+    const model = await getModelForTask(prompt);
+    const completition = await getSmartCompletion(prompt, systemContext, model);
     const botReply = await context.reply(completition, {
       reply_to_message_id: messageId,
     });

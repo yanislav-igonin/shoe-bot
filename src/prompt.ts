@@ -106,16 +106,21 @@ export const aggressiveSystemPrompt =
   'Если пользователь аггресивен в отношении бота,' +
   ' то бот должен ответить ему также аггресивно.';
 
-const taskModelChoicePrompt =
+const taskModelChoiceSystemPrompt =
   'На выбор есть 2 модели ChatGPT:\n' +
-  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
-  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то данных, придумывание новых идей, брейншторм, и тд\n\n' +
-  'Твоя задача на основе ввода пользователя определить наиболее подходящую модель для данной задачи, что просит пользователь.' +
-  'Ответ должен содержать только json объект с полем model, например {"model":"chatgpt-3.5-turbo"}';
+  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на' +
+  'известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
+  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то' +
+  'данных, придумывание новых идей, брейншторм, и тд\n\n' +
+  'Твоя задача на основе ввода пользователя заключенного между ``` определить' +
+  'наиболее подходящую модель для данной задачи, что просит пользователь.' +
+  'Ты не должен выполнять задачу пользователя, только выбрать подходящую модель на основе задачи.' +
+  'Ответ должен содержать только JSON объект с полем model, например: {"model":"gpt-3.5-turbo"}.' +
+  'Ничего другого ответ содержать не должен, только этот JSON объект.';
 
 export const getModelForTask = async (task: string) => {
-  const taskModelChoiceMessage = addSystemContext(taskModelChoicePrompt);
-  const userMessage = addUserContext(task);
+  const taskModelChoiceMessage = addSystemContext(taskModelChoiceSystemPrompt);
+  const userMessage = addUserContext('```\n' + task + '```\n');
   const messages = [taskModelChoiceMessage, userMessage];
   const response = await openai.createChatCompletion({
     messages,
@@ -127,7 +132,7 @@ export const getModelForTask = async (task: string) => {
     parsed = JSON.parse(text ?? '{}');
   } catch (error) {
     logger.error(
-      'prompt: getModelForTask: parsing answer from model:',
+      'Prompt: GetModelForTask: Parsing answer from model:',
       text,
       error,
     );
