@@ -1,5 +1,6 @@
 import { openai } from '@/ai';
 import { config, isProduction } from '@/config';
+import { logger } from '@/logger';
 import { replies } from '@/replies';
 import { type ChatCompletionRequestMessage } from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
@@ -101,3 +102,34 @@ export const aggressiveSystemPrompt =
   ' то бот должен ответить ему также матами, но более грубыми.' +
   'Если пользователь аггресивен в отношении бота,' +
   ' то бот должен ответить ему также аггресивно.';
+
+const taskModelChoicePrompt =
+  'На выбор есть 2 модели ChatGPT:\n' +
+  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
+  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то данных, придумывание новых идей, брейншторм, и тд\n\n' +
+  'Твоя задача на основе ввода пользователя определить наиболее подходящую модель для данной задачи, что просит пользователь.' +
+  'Ответ должен содержать только json объект с полем model, например {"model":"chatgpt-3.5-turbo"}';
+
+export const getModelForTask = async (task: string) => {
+  const taskModelChoiceMessage = addSystemContext(taskModelChoicePrompt);
+  const userMessage = addUserContext(task);
+  const messages = [taskModelChoiceMessage, userMessage];
+  const response = await openai.createChatCompletion({
+    messages,
+    model: 'gpt-3.5-turbo',
+  });
+  const text = response.data.choices[0].message?.content;
+  let parsed = {} as { model: 'gpt-3.5-turbo' | 'gpt-4' };
+  try {
+    parsed = JSON.parse(text ?? '{}');
+  } catch (error) {
+    logger.error(
+      'prompt: getModelForTask: parsing answer from model:',
+      text,
+      error,
+    );
+    return 'gpt-3.5-turbo';
+  }
+
+  return parsed.model;
+};
