@@ -5,6 +5,8 @@ import { replies } from '@/replies';
 import { type ChatCompletionRequestMessage } from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
+type Model = 'gpt-3.5-turbo' | 'gpt-4';
+
 export const smartTextTriggerRegexp = isProduction()
   ? /^((барон ботинок,|baron shoe,) )(.+)/isu
   : /^((барон бомж,|baron hobo,) )(.+)/isu;
@@ -47,12 +49,13 @@ export const addUserContext = (text: string): ChatCompletionRequestMessage => {
 export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
+  model: Model = 'gpt-4',
 ) => {
   const userMessage = addUserContext(prompt);
   const messages = [...context, userMessage];
   const response = await openai.createChatCompletion({
     messages,
-    model: 'gpt-4',
+    model,
   });
   const text = response.data.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
@@ -119,7 +122,7 @@ export const getModelForTask = async (task: string) => {
     model: 'gpt-3.5-turbo',
   });
   const text = response.data.choices[0].message?.content;
-  let parsed = {} as { model: 'gpt-3.5-turbo' | 'gpt-4' };
+  let parsed = {} as { model: Model };
   try {
     parsed = JSON.parse(text ?? '{}');
   } catch (error) {
