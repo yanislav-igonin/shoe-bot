@@ -1,8 +1,11 @@
 import { openai } from '@/ai';
 import { config, isProduction } from '@/config';
+import { logger } from '@/logger';
 import { replies } from '@/replies';
 import { type ChatCompletionRequestMessage } from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
+
+type Model = 'gpt-3.5-turbo' | 'gpt-4';
 
 export const smartTextTriggerRegexp = isProduction()
   ? /^((барон ботинок,|baron shoe,) )(.+)/isu
@@ -46,12 +49,13 @@ export const addUserContext = (text: string): ChatCompletionRequestMessage => {
 export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
+  model: Model = 'gpt-4',
 ) => {
   const userMessage = addUserContext(prompt);
   const messages = [...context, userMessage];
   const response = await openai.createChatCompletion({
     messages,
-    model: 'gpt-4',
+    model,
   });
   const text = response.data.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
@@ -101,3 +105,39 @@ export const aggressiveSystemPrompt =
   ' то бот должен ответить ему также матами, но более грубыми.' +
   'Если пользователь аггресивен в отношении бота,' +
   ' то бот должен ответить ему также аггресивно.';
+
+const taskModelChoiceSystemPrompt =
+  'На выбор есть 2 модели ChatGPT:\n' +
+  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на' +
+  'известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
+  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то' +
+  'данных, придумывание новых идей, брейншторм, и тд\n\n' +
+  'Твоя задача на основе ввода пользователя заключенного между ``` определить' +
+  'наиболее подходящую модель для данной задачи, что просит пользователь.' +
+  'Ты не должен выполнять задачу пользователя, только выбрать подходящую модель на основе задачи.' +
+  'Ответ должен содержать только JSON объект с полем model, например: {"model":"gpt-3.5-turbo"}.' +
+  'Ничего другого ответ содержать не должен, только этот JSON объект.';
+
+export const getModelForTask = async (task: string) => {
+  const taskModelChoiceMessage = addSystemContext(taskModelChoiceSystemPrompt);
+  const userMessage = addUserContext('```\n' + task + '```\n');
+  const messages = [taskModelChoiceMessage, userMessage];
+  const response = await openai.createChatCompletion({
+    messages,
+    model: 'gpt-3.5-turbo',
+  });
+  const text = response.data.choices[0].message?.content;
+  let parsed = {} as { model: Model };
+  try {
+    parsed = JSON.parse(text ?? '{}');
+  } catch (error) {
+    logger.error(
+      'Prompt: GetModelForTask: Parsing answer from model:',
+      text,
+      error,
+    );
+    return 'gpt-3.5-turbo';
+  }
+
+  return parsed.model;
+};
