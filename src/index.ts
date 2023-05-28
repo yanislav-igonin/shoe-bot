@@ -36,6 +36,7 @@ import {
   dialog as dialogRepo,
   image as imageRepo,
   prompt as promptRepo,
+  stats as statsRepo,
   user as userRepo,
 } from '@/repositories';
 import { valueOrNull } from '@/values';
@@ -68,7 +69,17 @@ bot.command('help', async (context) => {
 });
 
 bot.command('stats', adminMiddleware, async (context) => {
-  await context.reply('stats');
+  const messagesForLastMonth =
+    await statsRepo.getPromptsCountForLastMonthGroupedByUser();
+
+  let text = 'Статистика за последний месяц:\n\n';
+  for (const stat of messagesForLastMonth) {
+    const { firstName, lastName, promptsCount, username } = stat;
+    const row = `${firstName} ${lastName} (@${username}): ${promptsCount}\n`;
+    text += row;
+  }
+
+  await context.reply(text);
 });
 
 bot.hears(imageTriggerRegexp, async (context) => {
