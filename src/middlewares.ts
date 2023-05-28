@@ -1,3 +1,4 @@
+import { config } from './config';
 import { chat as chatRepo, user as userRepo } from '@/repositories';
 import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
@@ -91,6 +92,24 @@ export const userMiddleware = async (
   const newUser = await userRepo.create(toCreate);
   // eslint-disable-next-line require-atomic-updates
   context.state.user = newUser;
+
+  // eslint-disable-next-line node/callback-return
+  await next();
+};
+
+export const adminMiddleware = async (
+  context: BotContext,
+  next: NextFunction,
+) => {
+  const {
+    user: { username },
+  } = context.state;
+  const { adminsUsernames } = config;
+  const isAllowed = adminsUsernames.includes(username ?? '');
+
+  if (!isAllowed) {
+    return;
+  }
 
   // eslint-disable-next-line node/callback-return
   await next();
