@@ -8,7 +8,12 @@ import {
   imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
-import { chatMiddleware, stateMiddleware, userMiddleware } from '@/middlewares';
+import {
+  adminMiddleware,
+  chatMiddleware,
+  stateMiddleware,
+  userMiddleware,
+} from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
@@ -31,6 +36,7 @@ import {
   dialog as dialogRepo,
   image as imageRepo,
   prompt as promptRepo,
+  stats as statsRepo,
   user as userRepo,
 } from '@/repositories';
 import { valueOrNull } from '@/values';
@@ -60,6 +66,29 @@ bot.command('start', async (context) => {
 
 bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
+});
+
+bot.command('stats', adminMiddleware, async (context) => {
+  const [promptsForLastMonth, imagesForLastMonth] = await Promise.all([
+    statsRepo.getPromptsCountForLastMonthGroupedByUser(),
+    statsRepo.getImagesCountForLastMonthGroupedByUser(),
+  ]);
+
+  let text = 'Статистика за последний месяц:\n\nПромты:\n\n';
+  for (const stat of promptsForLastMonth) {
+    const { firstName, lastName, promptsCount, username } = stat;
+    const row = `${firstName} ${lastName} (@${username}): ${promptsCount}\n`;
+    text += row;
+  }
+
+  text += '\nИзображения:\n\n';
+  for (const stat of imagesForLastMonth) {
+    const { firstName, lastName, imagesCount, username } = stat;
+    const row = `${firstName} ${lastName} (@${username}): ${imagesCount}\n`;
+    text += row;
+  }
+
+  await context.reply(text);
 });
 
 bot.hears(imageTriggerRegexp, async (context) => {
@@ -558,6 +587,10 @@ bot.on('message:text', async (context) => {
     throw error;
   }
 });
+
+/**
+ * Admin commands.
+ */
 
 const start = async () => {
   await database.$connect();
