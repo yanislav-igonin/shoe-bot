@@ -69,13 +69,22 @@ bot.command('help', async (context) => {
 });
 
 bot.command('stats', adminMiddleware, async (context) => {
-  const messagesForLastMonth =
-    await statsRepo.getPromptsCountForLastMonthGroupedByUser();
+  const [promptsForLastMonth, imagesForLastMonth] = await Promise.all([
+    statsRepo.getPromptsCountForLastMonthGroupedByUser(),
+    statsRepo.getImagesCountForLastMonthGroupedByUser(),
+  ]);
 
-  let text = 'Статистика за последний месяц:\n\n';
-  for (const stat of messagesForLastMonth) {
+  let text = 'Статистика за последний месяц:\n\nПромты:\n\n';
+  for (const stat of promptsForLastMonth) {
     const { firstName, lastName, promptsCount, username } = stat;
     const row = `${firstName} ${lastName} (@${username}): ${promptsCount}\n`;
+    text += row;
+  }
+
+  text += '\nИзображения:\n\n';
+  for (const stat of imagesForLastMonth) {
+    const { firstName, lastName, imagesCount, username } = stat;
+    const row = `${firstName} ${lastName} (@${username}): ${imagesCount}\n`;
     text += row;
   }
 

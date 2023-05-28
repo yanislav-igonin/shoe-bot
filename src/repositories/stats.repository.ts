@@ -1,7 +1,8 @@
 import { database } from '@/database';
 import { Prisma } from '@prisma/client';
+import { MONTH_MS } from 'date';
 
-type PromptCountResult = {
+type PromptsCountResult = {
   firstName: string;
   lastName: string;
   promptsCount: number;
@@ -9,8 +10,7 @@ type PromptCountResult = {
   username: string;
 };
 export const getPromptsCountForLastMonthGroupedByUser = async () => {
-  const MONTH = 30 * 24 * 60 * 60 * 1_000;
-  const minusMonth = new Date(Date.now() - MONTH);
+  const minusMonth = new Date(Date.now() - MONTH_MS);
   const query = Prisma.sql`
     SELECT 
       COUNT(p.id) as "promptsCount",
@@ -25,6 +25,33 @@ export const getPromptsCountForLastMonthGroupedByUser = async () => {
     GROUP BY p."userId", u.username, u."firstName", u."lastName"
     ORDER BY "promptsCount" DESC
   `;
-  const result = await database.$queryRaw<PromptCountResult[]>(query);
+  const result = await database.$queryRaw<PromptsCountResult[]>(query);
+  return result;
+};
+
+type ImagesCountResult = {
+  firstName: string;
+  imagesCount: number;
+  lastName: string;
+  userId: string;
+  username: string;
+};
+export const getImagesCountForLastMonthGroupedByUser = async () => {
+  const minusMonth = new Date(Date.now() - MONTH_MS);
+  const query = Prisma.sql`
+    SELECT 
+      COUNT(i.id) as "imagesCount",
+      u.username,
+      u."firstName",
+      u."lastName",
+      i."userId"
+    FROM images i
+    LEFT JOIN users u
+      ON i."userId" = u.id
+    WHERE i."createdAt" > ${minusMonth}
+    GROUP BY i."userId", u.username, u."firstName", u."lastName"
+    ORDER BY "imagesCount" DESC
+  `;
+  const result = await database.$queryRaw<ImagesCountResult[]>(query);
   return result;
 };
