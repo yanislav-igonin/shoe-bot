@@ -8,7 +8,12 @@ import {
   imageTriggerRegexp,
 } from '@/imageGeneration';
 import { logger } from '@/logger';
-import { chatMiddleware, stateMiddleware, userMiddleware } from '@/middlewares';
+import {
+  adminMiddleware,
+  chatMiddleware,
+  stateMiddleware,
+  userMiddleware,
+} from '@/middlewares';
 import {
   addAssistantContext,
   addSystemContext,
@@ -60,6 +65,10 @@ bot.command('start', async (context) => {
 
 bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
+});
+
+bot.command('stats', adminMiddleware, async (context) => {
+  await context.reply('stats');
 });
 
 bot.hears(imageTriggerRegexp, async (context) => {
@@ -558,6 +567,10 @@ bot.on('message:text', async (context) => {
     throw error;
   }
 });
+
+/**
+ * Admin commands.
+ */
 
 const start = async () => {
   await database.$connect();
