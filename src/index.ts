@@ -19,7 +19,7 @@ import {
   addSystemContext,
   addUserContext,
   aggressiveSystemPrompt,
-  // doAnythingPrompt,
+  doAnythingPrompt,
   getAnswerToReplyMatches,
   getCompletion,
   getModelForTask,
@@ -207,7 +207,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 
   const prompt = preparePrompt(text);
-  const systemContext = [addSystemContext(aggressiveSystemPrompt)];
+  const systemContext = [addSystemContext(doAnythingPrompt)];
 
   try {
     await context.replyWithChatAction('typing');
