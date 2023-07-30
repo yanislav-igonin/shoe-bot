@@ -451,7 +451,7 @@ bot.on('message:text', async (context) => {
     const answerToReplyPrompt = preparePrompt(answerToReplyText);
     const answerToReplyContext = [
       addSystemContext(
-        `Ты должен ответить на соощение предыдущего пользователя: ${originalText}`,
+        `Ты должен ответить на сообщение предыдущего пользователя: ${originalText}`,
       ),
       addSystemContext(aggressiveSystemPrompt),
     ];
