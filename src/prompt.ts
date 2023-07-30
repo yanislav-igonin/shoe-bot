@@ -108,6 +108,11 @@ export const aggressiveSystemPrompt =
   'Если пользователь аггресивен в отношении бота,' +
   ' то бот должен ответить ему также аггресивно.';
 
+export const getRandomEncounterPrompt = (words: string[]) =>
+  'Ответь саркастично с черным юмором осмысленно на фразу пользователя' +
+  'с использованием слов: ' +
+  words.join(', ');
+
 const taskModelChoiceSystemPrompt =
   'На выбор есть 2 модели ChatGPT:\n' +
   '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на' +

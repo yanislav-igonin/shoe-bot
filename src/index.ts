@@ -23,6 +23,7 @@ import {
   getAnswerToReplyMatches,
   getCompletion,
   getModelForTask,
+  getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
   preparePrompt,
@@ -380,14 +381,9 @@ bot.on('message:text', async (context) => {
 
     const encounterPrompt = preparePrompt(text);
     const randomWords = getRandomEncounterWords();
-    const withRandomWords =
-      'ОТВЕТЬ В СТИЛЕ ЧЕРНОГО ЮМОРА С ИСПОЛЬЗОВАНИЕМ' +
-      `СЛОВ ${randomWords.join(',')} НА ФРАЗУ ПОЛЬЗОВАТЕЛЯ`;
+    const withRandomWords = getRandomEncounterPrompt(randomWords);
 
-    const promptContext = [
-      addSystemContext(aggressiveSystemPrompt),
-      addSystemContext(withRandomWords),
-    ];
+    const promptContext = [addSystemContext(withRandomWords)];
     await context.replyWithChatAction('typing');
 
     try {
