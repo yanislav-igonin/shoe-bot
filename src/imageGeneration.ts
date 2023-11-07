@@ -14,7 +14,7 @@ export const generateImage = async (text: string) => {
   const response = await openai.createImage({
     prompt: text,
     response_format: 'b64_json',
-    size: '256x256',
+    size: '1024x1024',
   });
   return response.data.data[0].b64_json;
 };

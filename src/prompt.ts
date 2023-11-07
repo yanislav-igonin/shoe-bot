@@ -5,7 +5,7 @@ import { replies } from '@/replies';
 import { type ChatCompletionRequestMessage } from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
-type Model = 'gpt-3.5-turbo' | 'gpt-4';
+type Model = 'gpt-3.5-turbo' | 'gpt-4-1106-preview' | 'gpt-4';
 
 export const smartTextTriggerRegexp = isProduction()
   ? /^((барон ботинок,|baron shoe,) )(.+)/isu
@@ -49,7 +49,7 @@ export const addUserContext = (text: string): ChatCompletionRequestMessage => {
 export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = 'gpt-4',
+  model: Model = 'gpt-4-1106-preview',
 ) => {
   const userMessage = addUserContext(prompt);
   const messages = [...context, userMessage];
