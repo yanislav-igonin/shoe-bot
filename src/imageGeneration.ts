@@ -11,10 +11,11 @@ export const base64ToImage = (base64: string) => {
 };
 
 export const generateImage = async (text: string) => {
-  const response = await openai.createImage({
+  const response = await openai.images.generate({
+    model: 'dall-e-3',
     prompt: text,
     response_format: 'b64_json',
     size: '1024x1024',
   });
-  return response.data.data[0].b64_json;
+  return response.data[0].b64_json;
 };

@@ -1,7 +1,6 @@
 import { config } from '@/config';
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
-const configuration = new Configuration({
+export const openai = new OpenAI({
   apiKey: config.openAiApiKey,
 });
-export const openai = new OpenAIApi(configuration);

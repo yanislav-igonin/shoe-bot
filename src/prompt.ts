@@ -2,8 +2,11 @@ import { openai } from '@/ai';
 import { config, isProduction } from '@/config';
 import { logger } from '@/logger';
 import { replies } from '@/replies';
-import { type ChatCompletionRequestMessage } from 'openai';
+import type OpenAI from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
+
+type ChatCompletionRequestMessage =
+  OpenAI.Chat.Completions.CreateChatCompletionRequestMessage;
 
 type Model = 'gpt-3.5-turbo' | 'gpt-4-1106-preview' | 'gpt-4';
 
@@ -12,12 +15,12 @@ export const smartTextTriggerRegexp = isProduction()
   : /^((барон бомж,|baron hobo,) )(.+)/isu;
 
 export const getCompletion = async (prompt: string) => {
-  const response = await openai.createCompletion({
+  const response = await openai.completions.create({
     max_tokens: 2_048,
     model: 'text-davinci-003',
     prompt,
   });
-  const { text } = response.data.choices[0] as { text: string };
+  const { text } = response.choices[0];
   return text.trim() || replies.noAnswer;
 };
 
@@ -53,11 +56,11 @@ export const getSmartCompletion = async (
 ) => {
   const userMessage = addUserContext(prompt);
   const messages = [...context, userMessage];
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     messages,
     model,
   });
-  const text = response.data.choices[0].message?.content;
+  const text = response.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
 };
 
@@ -133,11 +136,11 @@ export const getModelForTask = async (task: string) => {
   const taskModelChoiceMessage = addSystemContext(taskModelChoiceSystemPrompt);
   const userMessage = addUserContext('```\n' + task + '```\n');
   const messages = [taskModelChoiceMessage, userMessage];
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     messages,
     model: 'gpt-3.5-turbo',
   });
-  const text = response.data.choices[0].message?.content;
+  const text = response.choices[0].message?.content;
   let parsed = {} as { model: Model };
   try {
     parsed = JSON.parse(text ?? '{}');
