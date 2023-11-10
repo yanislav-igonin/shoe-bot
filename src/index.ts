@@ -27,6 +27,7 @@ import {
   getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
+  markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
   smartTextTriggerRegexp,
@@ -210,10 +211,11 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 
   const prompt = preparePrompt(text);
-
   const task = await chooseTask(prompt);
-
-  const systemContext = [addSystemContext(doAnythingPrompt)];
+  const systemContext = [
+    addSystemContext(doAnythingPrompt),
+    addSystemContext(markdownRulesPrompt),
+  ];
 
   const textController = async () => {
     await context.replyWithChatAction('typing');
@@ -617,8 +619,13 @@ bot.on('message:text', async (context) => {
 
     return addAssistantContext(message.text);
   });
+
   // Add aggressive system prompt to the beginning of the context
-  previousMessagesContext.unshift(addSystemContext(aggressiveSystemPrompt));
+  previousMessagesContext.unshift(
+    addSystemContext(doAnythingPrompt),
+    addSystemContext(aggressiveSystemPrompt),
+    addSystemContext(markdownRulesPrompt),
+  );
 
   try {
     await context.replyWithChatAction('typing');

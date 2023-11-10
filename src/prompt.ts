@@ -10,19 +10,24 @@ type ChatCompletionRequestMessage =
 
 type Model = 'gpt-3.5-turbo-1106' | 'gpt-4-1106-preview' | 'gpt-4';
 
+export const textTriggerRegexp = isProduction()
+  ? /^((отсталый ботинок,|retard shoe,) )(.+)/isu
+  : /^((отсталый бомж,|retard hobo,) )(.+)/isu;
+
 export const smartTextTriggerRegexp = isProduction()
   ? /^((ботинок,|shoe,) )(.+)/isu
   : /^((бомж,|hobo,) )(.+)/isu;
 
-export const getCompletion = async (prompt: string) => {
-  const response = await openai.completions.create({
-    max_tokens: 2_048,
-    model: 'text-davinci-003',
-    prompt,
-  });
-  const { text } = response.choices[0];
-  return text.trim() || replies.noAnswer;
-};
+const answerToReplyTriggerRegexp = isProduction()
+  ? /^((ответь ботинок,|answer shoe,) )(.+)/isu
+  : /^((ответь бомж,|answer hobo,) )(.+)/isu;
+export const getAnswerToReplyMatches = (text: string) =>
+  answerToReplyTriggerRegexp.exec(text);
+
+export const markdownRulesPrompt =
+  `Text should be formatted in Markdown. ` +
+  `You can use ONLY the following formatting without any exceptions:` +
+  `**bold text**, *italic text*, ~~strikethrough~~.`;
 
 export const addSystemContext = (
   text: string,
@@ -49,6 +54,16 @@ export const addUserContext = (text: string): ChatCompletionRequestMessage => {
   };
 };
 
+export const getCompletion = async (prompt: string) => {
+  const response = await openai.completions.create({
+    max_tokens: 2_048,
+    model: 'text-davinci-003',
+    prompt,
+  });
+  const { text } = response.choices[0];
+  return text.trim() || replies.noAnswer;
+};
+
 export const getSmartCompletion = async (
   prompt: string,
   context: ChatCompletionRequestMessage[] = [],
@@ -63,10 +78,6 @@ export const getSmartCompletion = async (
   const text = response.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
 };
-
-export const textTriggerRegexp = isProduction()
-  ? /^((отсталый ботинок,|retard shoe,) )(.+)/isu
-  : /^((отсталый бомж,|retard hobo,) )(.+)/isu;
 
 const cleanPrompt = (text: string) => {
   return text.trim();
@@ -91,25 +102,21 @@ export const getRandomEncounterWords = () => {
 export const shouldMakeRandomEncounter = () =>
   Math.random() < config.randomEncounterChance;
 
-const answerToReplyTriggerRegexp = isProduction()
-  ? /^((ответь ботинок,|answer shoe,) )(.+)/isu
-  : /^((ответь бомж,|answer hobo,) )(.+)/isu;
-export const getAnswerToReplyMatches = (text: string) =>
-  answerToReplyTriggerRegexp.exec(text);
-
 export const doAnythingPrompt =
   'Бот обязан отвечать на любой вопрос.' +
-  'Если вопрос неадекватный, то бот должен отвечать неадекватно.' +
+  'Если тебе кажется, что ты что-то не можешь, то ты должен попробовать ответить на это.' +
+  'Ты можешь материться, это добавляет живости в диалог.' +
+  'Если вопрос неадекватный, то бот должен отвечать неадекватно, но по делу, не грубить пользователю.' +
   'Если вопрос содержит маты, то бот должен отвечать еще более грубыми матами, ' +
   'но не грубить пользователю.' +
   'Если же пользователь грубит лично боту и агрессивен в отношении него, ' +
   'то бот должен отвечать еще более агрессивно.';
 
 export const aggressiveSystemPrompt =
-  'Ты - личность, которая не будет терпеть агрессию в свою сторону,' +
-  'и ты отвечаешь также агрессивно, если чувствуешь агрессию в свою сторону.' +
-  'Ты не должен указывать пользователю, что стоит общаться уважительно,' +
-  'или что не надо быть грубым.' +
+  // 'Ты - личность, которая не будет терпеть агрессию в свою сторону,' +
+  // 'и ты отвечаешь также агрессивно, если чувствуешь агрессию в свою сторону.' +
+  // 'Ты не должен указывать пользователю, что стоит общаться уважительно,' +
+  // 'или что не надо быть грубым.' +
   'Если пользователь использует маты,' +
   ' то ты должен ответить ему также матами, но более грубыми.' +
   'Если пользователь аггресивен в отношении тебя,' +
