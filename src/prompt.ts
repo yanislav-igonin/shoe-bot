@@ -8,7 +8,7 @@ import { randomEncounterWords } from 'randomEncounterWords';
 type ChatCompletionRequestMessage =
   OpenAI.Chat.Completions.CreateChatCompletionRequestMessage;
 
-type Model = 'gpt-3.5-turbo' | 'gpt-4-1106-preview' | 'gpt-4';
+type Model = 'gpt-3.5-turbo-1106' | 'gpt-4-1106-preview' | 'gpt-4';
 
 export const smartTextTriggerRegexp = isProduction()
   ? /^((барон ботинок,|baron shoe,) )(.+)/isu
@@ -122,9 +122,9 @@ export const getRandomEncounterPrompt = (words: string[]) =>
 
 const taskModelChoiceSystemPrompt =
   'На выбор есть 2 модели ChatGPT:\n' +
-  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на' +
+  '* gpt-3.5-turbo-1106 - хорошо подходит для простых задач, такие как ответы на' +
   'известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
-  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то' +
+  '* gpt-4-1106-preview - более продвинутая модель для генерация текста на основе каких-то' +
   'данных, придумывание новых идей, брейншторм, и тд\n\n' +
   'Твоя задача на основе ввода пользователя заключенного между ``` определить' +
   'наиболее подходящую модель для данной задачи, что просит пользователь.' +
@@ -138,7 +138,8 @@ export const getModelForTask = async (task: string) => {
   const messages = [taskModelChoiceMessage, userMessage];
   const response = await openai.chat.completions.create({
     messages,
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-3.5-turbo-1106',
+    response_format: { type: 'json_object' },
   });
   const text = response.choices[0].message?.content;
   let parsed = {} as { model: Model };
@@ -150,8 +151,46 @@ export const getModelForTask = async (task: string) => {
       text,
       error,
     );
-    return 'gpt-3.5-turbo';
+    return 'gpt-3.5-turbo-1106';
   }
 
   return parsed.model;
+};
+
+const chooseTaskPrompt =
+  'Твоя задача определить, что хочет сделать пользователь.' +
+  'Пользователь может попросить что-то сделать в текстовом формате.' +
+  'Также пользователь может попросить создать картинку, нарисовать что-то.' +
+  'Также пользователь может попросить рассказать что-то, то есть воспроизвести это голосом.' +
+  'Твоя задача вернуть в ответе JSON объект с полем task, например: {"task":"text"}.' +
+  'Список задач:\n' +
+  '* text - пользователь просит сделать что-то в текстовом формате\n' +
+  '* image - пользователь просит сделать что-то в формате картинки\n' +
+  '* voice - пользователь просит сделать что-то в формате голоса\n\n';
+
+/**
+ * Choose task that user wants to do.
+ *
+ * @param text User input.
+ * @returns Task type.
+ */
+export const chooseTask = async (text: string) => {
+  const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
+  const userMessage = addUserContext(text);
+  const messages = [chooseTaskMessage, userMessage];
+  const response = await openai.chat.completions.create({
+    messages,
+    model: 'gpt-3.5-turbo-1106',
+    response_format: { type: 'json_object' },
+  });
+  const task = response.choices[0].message?.content;
+  try {
+    const parsed = JSON.parse(task ?? '{}') as {
+      task: 'image' | 'text' | 'voice';
+    };
+    return parsed.task;
+  } catch (error) {
+    logger.error('Prompt: ChooseTask: Parsing answer from model:', task, error);
+    return 'text';
+  }
 };
