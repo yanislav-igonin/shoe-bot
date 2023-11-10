@@ -4,8 +4,8 @@ import { InputFile } from 'grammy';
 export const generateVoice = async (text: string) => {
   const response = await openai.audio.speech.create({
     input: text,
-    model: 'tts-1-hd',
-    response_format: 'aac',
+    model: 'tts-1',
+    response_format: 'mp3',
     voice: 'fable',
   });
   return new InputFile(
