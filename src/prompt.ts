@@ -11,8 +11,8 @@ type ChatCompletionRequestMessage =
 type Model = 'gpt-3.5-turbo-1106' | 'gpt-4-1106-preview' | 'gpt-4';
 
 export const smartTextTriggerRegexp = isProduction()
-  ? /^((барон ботинок,|baron shoe,) )(.+)/isu
-  : /^((барон бомж,|baron hobo,) )(.+)/isu;
+  ? /^((ботинок,|shoe,) )(.+)/isu
+  : /^((бомж,|hobo,) )(.+)/isu;
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.completions.create({
@@ -65,8 +65,8 @@ export const getSmartCompletion = async (
 };
 
 export const textTriggerRegexp = isProduction()
-  ? /^((ботинок,|shoe,) )(.+)/isu
-  : /^((бомж,|hobo,) )(.+)/isu;
+  ? /^((отсталый ботинок,|retard shoe,) )(.+)/isu
+  : /^((отсталый бомж,|retard hobo,) )(.+)/isu;
 
 const cleanPrompt = (text: string) => {
   return text.trim();
