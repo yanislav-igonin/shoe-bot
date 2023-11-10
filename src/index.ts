@@ -2,11 +2,7 @@ import { sortByCreatedAt } from './date';
 import { config } from '@/config';
 import { type Prompt } from '@/database';
 import { database } from '@/database';
-import {
-  base64ToImage,
-  generateImage,
-  imageTriggerRegexp,
-} from '@/imageGeneration';
+import { base64ToImage, generateImage } from '@/imageGeneration';
 import { logger } from '@/logger';
 import {
   adminMiddleware,
@@ -93,47 +89,6 @@ bot.command('stats', adminMiddleware, async (context) => {
   }
 
   await context.reply(text);
-});
-
-bot.hears(imageTriggerRegexp, async (context) => {
-  const { message, match } = context;
-  if (!message) {
-    return;
-  }
-
-  const prompt = match[3].trim();
-  const { message_id: replyToMessageId } = message;
-
-  await context.replyWithChatAction('upload_photo');
-
-  try {
-    const imageBase64 = await generateImage(prompt);
-    if (!imageBase64) {
-      await context.reply(replies.error, {
-        reply_to_message_id: replyToMessageId,
-      });
-      logger.error('Failed to generate image');
-      return;
-    }
-
-    const buffer = base64ToImage(imageBase64);
-    const file = new InputFile(buffer, 'image.png');
-
-    await context.replyWithPhoto(file, {
-      reply_to_message_id: replyToMessageId,
-    });
-
-    await imageRepo.create({
-      data: imageBase64,
-      prompt,
-      userId: message.from.id.toString(),
-    });
-  } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: replyToMessageId,
-    });
-    throw error;
-  }
 });
 
 const yesTriggerRegexp = /^да$/iu;

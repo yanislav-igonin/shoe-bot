@@ -2,6 +2,7 @@ import { openai } from '@/ai';
 import { config, isProduction } from '@/config';
 import { logger } from '@/logger';
 import { replies } from '@/replies';
+// eslint-disable-next-line import/no-named-as-default
 import type OpenAI from 'openai';
 import { randomEncounterWords } from 'randomEncounterWords';
 
