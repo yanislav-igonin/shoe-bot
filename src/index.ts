@@ -2,11 +2,7 @@ import { sortByCreatedAt } from './date';
 import { config } from '@/config';
 import { type Prompt } from '@/database';
 import { database } from '@/database';
-import {
-  base64ToImage,
-  generateImage,
-  imageTriggerRegexp,
-} from '@/imageGeneration';
+import { base64ToImage, generateImage } from '@/imageGeneration';
 import { logger } from '@/logger';
 import {
   adminMiddleware,
@@ -19,6 +15,7 @@ import {
   addSystemContext,
   addUserContext,
   aggressiveSystemPrompt,
+  chooseTask,
   doAnythingPrompt,
   getAnswerToReplyMatches,
   getCompletion,
@@ -26,6 +23,7 @@ import {
   getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
+  markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
   smartTextTriggerRegexp,
@@ -43,6 +41,7 @@ import {
 import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
 import { Bot, InputFile } from 'grammy';
+import { generateVoice } from 'voice';
 
 const bot = new Bot<BotContext>(config.botToken);
 
@@ -90,47 +89,6 @@ bot.command('stats', adminMiddleware, async (context) => {
   }
 
   await context.reply(text);
-});
-
-bot.hears(imageTriggerRegexp, async (context) => {
-  const { message, match } = context;
-  if (!message) {
-    return;
-  }
-
-  const prompt = match[3].trim();
-  const { message_id: replyToMessageId } = message;
-
-  await context.replyWithChatAction('upload_photo');
-
-  try {
-    const imageBase64 = await generateImage(prompt);
-    if (!imageBase64) {
-      await context.reply(replies.error, {
-        reply_to_message_id: replyToMessageId,
-      });
-      logger.error('Failed to generate image');
-      return;
-    }
-
-    const buffer = base64ToImage(imageBase64);
-    const file = new InputFile(buffer, 'image.png');
-
-    await context.replyWithPhoto(file, {
-      reply_to_message_id: replyToMessageId,
-    });
-
-    await imageRepo.create({
-      data: imageBase64,
-      prompt,
-      userId: message.from.id.toString(),
-    });
-  } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: replyToMessageId,
-    });
-    throw error;
-  }
 });
 
 const yesTriggerRegexp = /^да$/iu;
@@ -208,9 +166,13 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
   }
 
   const prompt = preparePrompt(text);
-  const systemContext = [addSystemContext(doAnythingPrompt)];
+  const task = await chooseTask(prompt);
+  const systemContext = [
+    addSystemContext(doAnythingPrompt),
+    addSystemContext(markdownRulesPrompt),
+  ];
 
-  try {
+  const textController = async () => {
     await context.replyWithChatAction('typing');
     const model = await getModelForTask(prompt);
     const completition = await getSmartCompletion(prompt, systemContext, model);
@@ -234,6 +196,71 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
       id: uniqueBotReplyId,
       text: completition,
     });
+  };
+
+  const imageController = async () => {
+    await context.replyWithChatAction('upload_photo');
+
+    const imageBase64 = await generateImage(prompt);
+    if (!imageBase64) {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+      logger.error('Failed to generate image');
+      return;
+    }
+
+    const buffer = base64ToImage(imageBase64);
+    const file = new InputFile(buffer, 'image.png');
+
+    await context.replyWithPhoto(file, {
+      reply_to_message_id: messageId,
+    });
+
+    await imageRepo.create({
+      data: imageBase64,
+      prompt,
+      userId: message.from.id.toString(),
+    });
+  };
+
+  const voiceController = async () => {
+    await context.replyWithChatAction('record_voice');
+
+    const model = await getModelForTask(prompt);
+    const completition = await getSmartCompletion(prompt, systemContext, model);
+    const voice = await generateVoice(completition);
+
+    const audio = await context.api.sendVoice(chatId, voice, {
+      reply_to_message_id: messageId,
+    });
+
+    const dialog = await dialogRepo.create();
+    await promptRepo.create({
+      createdAt: new Date(messageDate * 1_000),
+      dialogId: dialog.id,
+      result: completition,
+      text: prompt,
+      userId: userId.toString(),
+    });
+    const { message_id: audioMessageId, date: audioMessageDate } = audio;
+    const uniqueAudioId = `${chatId}_${audioMessageId}`;
+    await botReplyRepo.create({
+      createdAt: new Date(audioMessageDate * 1_000),
+      dialogId: dialog.id,
+      id: uniqueAudioId,
+      text: completition,
+    });
+  };
+
+  const controllers = {
+    image: imageController,
+    text: textController,
+    voice: voiceController,
+  };
+
+  try {
+    await controllers[task]();
   } catch (error) {
     await context.reply(replies.error, {
       reply_to_message_id: messageId,
@@ -547,8 +574,13 @@ bot.on('message:text', async (context) => {
 
     return addAssistantContext(message.text);
   });
+
   // Add aggressive system prompt to the beginning of the context
-  previousMessagesContext.unshift(addSystemContext(aggressiveSystemPrompt));
+  previousMessagesContext.unshift(
+    addSystemContext(doAnythingPrompt),
+    addSystemContext(aggressiveSystemPrompt),
+    addSystemContext(markdownRulesPrompt),
+  );
 
   try {
     await context.replyWithChatAction('typing');

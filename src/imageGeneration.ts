@@ -1,9 +1,4 @@
 import { openai } from '@/ai';
-import { isProduction } from '@/config';
-
-export const imageTriggerRegexp = isProduction()
-  ? /((граф ботинок,|graph shoe,) )(.+)/isu
-  : /((граф бомж,|graph hobo,) )(.+)/isu;
 
 // eslint-disable-next-line canonical/id-match
 export const base64ToImage = (base64: string) => {
@@ -15,7 +10,7 @@ export const generateImage = async (text: string) => {
     model: 'dall-e-3',
     prompt: text,
     response_format: 'b64_json',
-    size: '1024x1024',
+    size: '1792x1024',
   });
   return response.data[0].b64_json;
 };
