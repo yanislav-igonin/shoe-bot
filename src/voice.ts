@@ -5,6 +5,7 @@ export const generateVoice = async (text: string) => {
   const response = await openai.audio.speech.create({
     input: text,
     model: 'tts-1-hd',
+    response_format: 'aac',
     voice: 'fable',
   });
   return new InputFile(
