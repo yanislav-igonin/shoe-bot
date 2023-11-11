@@ -8,15 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id
+  id        String    @id
   username  String?
   firstName String?
   lastName  String?
   language  String?
-  isAllowed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isAllowed Boolean   @default(false)
+  createdAt DateTime  @default(now())
   prompts   Prompt[]
   Images    Image[]
+  messages  Message[]
 
   @@map("users")
 }
@@ -29,7 +30,7 @@ model Prompt {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   dialogId  String?
-  dialog    Dialog?   @relation(fields: [dialogId], references: [id])
+  dialog    Dialog?  @relation(fields: [dialogId], references: [id])
 
   @@map("prompts")
 }
@@ -46,11 +47,12 @@ model Image {
 }
 
 model Chat {
-  id        String   @id
+  id        String    @id
   name      String
   type      String
-  isAllowed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  messages  Message[]
+  isAllowed Boolean   @default(false)
+  createdAt DateTime  @default(now())
 
   @@map("chats")
 }
@@ -72,4 +74,21 @@ model BotReply {
   dialog    Dialog   @relation(fields: [dialogId], references: [id])
 
   @@map("bot_replies")
+}
+
+model Message {
+  id          Int       @id @default(autoincrement())
+  text        String?
+  createdAt   DateTime  @default(now())
+  chatId      String
+  chat        Chat      @relation(fields: [chatId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  tgPhotoId   String?
+  tgMessageId String   @unique /// Made of chatId + tgMessageId
+  replyToId   Int?
+  replyTo     Message?  @relation("Replies", fields: [replyToId], references: [id])
+  replies     Message[] @relation("Replies")
+
+  @@map("messages")
 }
