@@ -7,7 +7,9 @@ CREATE TABLE "messages" (
     "userId" TEXT NOT NULL,
     "tgPhotoId" TEXT,
     "tgMessageId" TEXT NOT NULL,
+    "tgVoiceId" TEXT,
     "replyToId" INTEGER,
+    "dialogId" TEXT NOT NULL,
 
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
 );
@@ -23,3 +25,6 @@ ALTER TABLE "messages" ADD CONSTRAINT "messages_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_replyToId_fkey" FOREIGN KEY ("replyToId") REFERENCES "messages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "messages" ADD CONSTRAINT "messages_dialogId_fkey" FOREIGN KEY ("dialogId") REFERENCES "dialogs"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

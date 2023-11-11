@@ -62,6 +62,7 @@ model Dialog {
   createdAt DateTime   @default(now())
   BotReply  BotReply[]
   Prompt    Prompt[]
+  messages  Message[]
 
   @@map("dialogs")
 }
@@ -85,10 +86,13 @@ model Message {
   userId      String
   user        User      @relation(fields: [userId], references: [id])
   tgPhotoId   String?
-  tgMessageId String   @unique /// Made of chatId + tgMessageId
+  tgMessageId String    @unique /// Made of chatId + tgMessageId
+  tVoiceId    String?
   replyToId   Int?
   replyTo     Message?  @relation("Replies", fields: [replyToId], references: [id])
   replies     Message[] @relation("Replies")
+  dialogId    String
+  dialog      Dialog    @relation(fields: [dialogId], references: [id])
 
   @@map("messages")
 }

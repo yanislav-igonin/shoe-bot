@@ -10,3 +10,7 @@ export {
 } from '@prisma/client';
 
 export const database = new PrismaClient();
+
+export const messageModel = database.message;
+export const userModel = database.user;
+export const dialogModel = database.dialog;
