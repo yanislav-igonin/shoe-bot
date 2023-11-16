@@ -147,7 +147,7 @@ export const getShictureDescription = async () => {
     'Придумай очень короткое странное задание для художника с использованием следующих слов: ' +
     words.join(', ') +
     '. Результат должен содержать только формулировку, а в конце добавить " в стиле ", но сам стиль не добавлять, например ' +
-    '"Нарисуй картину с большими... в стиле ".';
+    '"Нарисуй картину с большими... в стиле "';
   const description = await getSmartCompletion(prompt);
   const withStyle = description + ' ' + getShictureStyle();
   return withStyle;
