@@ -128,6 +128,31 @@ export const getRandomEncounterPrompt = (words: string[]) =>
   'с использованием слов: ' +
   words.join(', ');
 
+export const getShictureStyle = () => {
+  const styles = [
+    'картины "Сатурн, пожирающий своего сына"',
+    'картины "Сад земных наслаждений"',
+    'картин Эдварда Мунка',
+    'Хаяо Миядзаки',
+    'Лавкрафта',
+    'Дзюндзи Ито',
+  ];
+  const randomIndex = Math.floor(Math.random() * styles.length);
+  return styles[randomIndex];
+};
+
+export const getShictureDescription = async () => {
+  const words = getRandomEncounterWords();
+  const prompt =
+    'Придумай очень короткое странное задание для художника с использованием следующих слов: ' +
+    words.join(', ') +
+    '. Результат должен содержать только формулировку, а в конце добавить " в стиле ", но сам стиль не добавлять, например ' +
+    '"Нарисуй картину с большими... в стиле ".';
+  const description = await getSmartCompletion(prompt);
+  const withStyle = description + ' ' + getShictureStyle();
+  return withStyle;
+};
+
 const taskModelChoiceSystemPrompt =
   'На выбор есть 2 модели ChatGPT:\n' +
   '* gpt-3.5-turbo-1106 - хорошо подходит для простых задач, такие как ответы на' +
