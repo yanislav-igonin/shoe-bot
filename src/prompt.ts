@@ -131,24 +131,55 @@ export const getRandomEncounterPrompt = (words: string[]) =>
 export const getShictureStyle = () => {
   const styles = [
     'картины "Сатурн, пожирающий своего сына"',
-    'картины "Сад земных наслаждений"',
-    'картин Эдварда Мунка',
+    'картины "Данте и Вергилий в аду"',
+    'картины "Gallowgate Lard"',
+    'картины "Проигрыш разума перед материей"',
+    'картины "Руки противятся ему"',
+    'картины "Крик"',
     'Хаяо Миядзаки',
     'Лавкрафта',
+    'киберпанка',
+    'соларпанка',
+    'советского плаката',
+    'дизельпанка',
+    'стимпанка',
     'Дзюндзи Ито',
+    'обложки игры Doom',
+    'манги Berserk',
+    'манги JoJo',
+    'картины "Последний день Помпеи"',
+    'работ Ганса Рудольфа Гигера',
+    'древнеегипетской фрески',
   ];
   const randomIndex = Math.floor(Math.random() * styles.length);
   return styles[randomIndex];
 };
 
 export const getShictureDescription = async () => {
-  const words = getRandomEncounterWords();
   const prompt =
-    'Придумай очень короткое странное задание для художника с использованием следующих слов: ' +
-    words.join(', ') +
-    '. Результат должен содержать только формулировку, а в конце добавить " в стиле ", но сам стиль не добавлять, например ' +
-    '"Нарисуй картину с большими... в стиле "';
-  const description = await getSmartCompletion(prompt);
+    'Придумай очень короткое интересное задание для художника.' +
+    'Описание может содержать реальных существовавших людей, персонажей фильмов, кино, аниме, сериалов.' +
+    'Количество персонажей (если они присутствуют) не должно превышать 3.' +
+    'Будь креативен, но не зацикливайся на кошках, часах, Шерлоке Холмсе и Гарри Поттере.' +
+    'Придумывай часто жуткие, мерзкие и пугающие описания.' +
+    'Например: "нарисуй деда мороза пожирающего санта клауса в стиле картины "сатурн пожирающий своего сына".' +
+    'Результат должен содержать только формулировку, а в конце добавить " в стиле ",' +
+    'но сам стиль не добавлять, я добавлю его после сам, например: ' +
+    'Нарисуй картину с большими в стиле ';
+  let description = await getSmartCompletion(prompt);
+  const lastFewCharacters = description.slice(-3);
+
+  // Remove trailing dot
+  if (lastFewCharacters.includes('.')) {
+    const dotIndex = description.lastIndexOf('.');
+    description = description.slice(0, dotIndex);
+  }
+
+  // Add style if not present
+  if (!description.includes('в стиле')) {
+    description += ' в стиле ';
+  }
+
   const withStyle = description + ' ' + getShictureStyle();
   return withStyle;
 };
