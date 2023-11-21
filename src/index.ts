@@ -203,6 +203,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     const model = await getModelForTask(prompt);
     const completition = await getSmartCompletion(prompt, systemContext, model);
     const botReply = await context.reply(completition, {
+      parse_mode: 'Markdown',
       reply_to_message_id: messageId,
     });
     const dialog = await dialogRepo.create();
@@ -615,6 +616,7 @@ bot.on('message:text', async (context) => {
       previousMessagesContext,
     );
     const newBotMessage = await context.reply(completition, {
+      parse_mode: 'Markdown',
       reply_to_message_id: messageId,
     });
     const newBotMessageDate = newBotMessage.date;
