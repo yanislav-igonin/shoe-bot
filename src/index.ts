@@ -1,8 +1,5 @@
-import { sortByCreatedAt } from './date';
 import { config } from '@/config';
-import { type Prompt } from '@/database';
 import { database } from '@/database';
-import { base64ToImage, generateImage } from '@/imageGeneration';
 import { logger } from '@/logger';
 import {
   adminMiddleware,
@@ -10,34 +7,8 @@ import {
   stateMiddleware,
   userMiddleware,
 } from '@/middlewares';
-import {
-  addAssistantContext,
-  addSystemContext,
-  addUserContext,
-  aggressiveSystemPrompt,
-  chooseTask,
-  doAnythingPrompt,
-  getAnswerToReplyMatches,
-  getCompletion,
-  getModelForTask,
-  getRandomEncounterPrompt,
-  getRandomEncounterWords,
-  getShictureDescription,
-  getSmartCompletion,
-  markdownRulesPrompt,
-  preparePrompt,
-  shouldMakeRandomEncounter,
-  smartTextTriggerRegexp,
-  textTriggerRegexp,
-} from '@/prompt';
+import { smartTextTriggerRegexp, textTriggerRegexp } from '@/prompt';
 import { replies } from '@/replies';
-import {
-  botReply as botReplyRepo,
-  dialog as dialogRepo,
-  image as imageRepo,
-  prompt as promptRepo,
-  stats as statsRepo,
-} from '@/repositories';
 import { type BotContext } from 'context';
 import {
   retardTriggerController,
@@ -46,9 +17,7 @@ import {
   statsController,
   textController,
 } from 'controllers';
-import { type HearsContext } from 'grammy';
-import { Bot, InputFile } from 'grammy';
-import { generateVoice } from 'voice';
+import { Bot } from 'grammy';
 
 const bot = new Bot<BotContext>(config.botToken);
 
