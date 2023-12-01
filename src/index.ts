@@ -41,6 +41,7 @@ import {
 import { type BotContext } from 'context';
 import {
   retardTriggerController,
+  shictureController,
   smartTriggerController,
   statsController,
   textController,
@@ -74,30 +75,7 @@ bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
 
-bot.command('shicture', async (context) => {
-  let prompt = '';
-  try {
-    await context.replyWithChatAction('upload_photo');
-
-    prompt = await getShictureDescription();
-
-    const imageBase64 = await generateImage(prompt);
-    if (!imageBase64) {
-      await context.reply(replies.error);
-      logger.error('Failed to generate image');
-      return;
-    }
-
-    const buffer = base64ToImage(imageBase64);
-    const file = new InputFile(buffer, 'image.png');
-
-    await context.replyWithPhoto(file, { caption: prompt });
-  } catch (error) {
-    await context.reply((error as Error).message ?? replies.error);
-    await context.reply(prompt);
-    throw error;
-  }
-});
+bot.command('shicture', shictureController);
 
 bot.command('stats', adminMiddleware, statsController);
 
