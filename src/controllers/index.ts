@@ -1,2 +1,2 @@
-export * from './smartText.controller';
-// export * from './text.controller';
+export * from './retardTrigger.controller';
+export * from './smartTrigger.controller';

@@ -1,14 +1,16 @@
-import { preparePrompt, getCompletion } from "@/prompt";
-import { replies } from "@/replies";
-import { BotContext } from "context";
-import { HearsContext } from "grammy";
+import { getCompletion, preparePrompt } from '@/prompt';
+import { replies } from '@/replies';
 import {
   botReply as botReplyRepo,
   dialog as dialogRepo,
   prompt as promptRepo,
 } from '@/repositories';
+import { type BotContext } from 'context';
+import { type HearsContext } from 'grammy';
 
-export const textController = async (context: HearsContext<BotContext>) => {
+export const retardTriggerController = async (
+  context: HearsContext<BotContext>,
+) => {
   const {
     match,
     message,
@@ -69,3 +71,4 @@ export const textController = async (context: HearsContext<BotContext>) => {
     });
     throw error;
   }
+};

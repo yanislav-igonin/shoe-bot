@@ -22,7 +22,7 @@ import { type HearsContext } from 'grammy';
 import { InputFile } from 'grammy';
 import { generateVoice } from 'voice';
 
-export const smartTextController = async (
+export const smartTriggerController = async (
   context: HearsContext<BotContext>,
 ) => {
   const {

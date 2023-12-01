@@ -39,7 +39,7 @@ import {
   stats as statsRepo,
 } from '@/repositories';
 import { type BotContext } from 'context';
-import { smartTextController } from 'controllers';
+import { retardTriggerController, smartTriggerController } from 'controllers';
 import { type HearsContext } from 'grammy';
 import { Bot, InputFile } from 'grammy';
 import { generateVoice } from 'voice';
@@ -144,15 +144,15 @@ bot.hears(noTriggerRegexp, async (context) => {
 /**
  * Handling gpt-4 requests.
  */
-bot.hears(smartTextTriggerRegexp, smartTextController);
+bot.hears(smartTextTriggerRegexp, smartTriggerController);
 
 /**
  * Handling text-davinci-003 requests.
  */
-bot.hears(textTriggerRegexp, async (context) => 
+bot.hears(textTriggerRegexp, retardTriggerController);
 
 /**
- * For handling replies and random encounters
+ * For handling replies, private messages and random encounters
  */
 bot.on('message:text', async (context) => {
   const {
@@ -181,7 +181,7 @@ bot.on('message:text', async (context) => {
 
   if (askedInPrivate) {
     // @ts-expect-error Context narrowed type mismatch
-    await smartTextController(context);
+    await smartTriggerController(context);
     return;
   }
 
