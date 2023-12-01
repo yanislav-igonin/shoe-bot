@@ -161,7 +161,7 @@ const smartTextController = async (context: HearsContext<BotContext>) => {
   const { id: userId } = from;
 
   const hasAccess =
-    databaseUser.isAllowed === false ||
+    databaseUser.isAllowed ||
     config.adminsUsernames.includes(databaseUser.username ?? '');
 
   if (!hasAccess) {
