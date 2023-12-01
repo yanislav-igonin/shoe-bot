@@ -158,13 +158,7 @@ const smartTextController = async (context: HearsContext<BotContext>) => {
     chat: { id: chatId },
   } = message;
 
-  const {
-    id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
-    username,
-  } = from;
+  const { id: userId } = from;
 
   const hasAccess =
     databaseUser.isAllowed === false ||
