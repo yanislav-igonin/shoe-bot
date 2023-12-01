@@ -41,6 +41,7 @@ import {
 } from '@/repositories';
 import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
+import { type HearsContext } from 'grammy';
 import { Bot, InputFile } from 'grammy';
 import { generateVoice } from 'voice';
 
@@ -141,10 +142,7 @@ bot.hears(noTriggerRegexp, async (context) => {
   await context.reply(replies.no, { reply_to_message_id: replyToMessageId });
 });
 
-/**
- * Handling gpt-4 requests.
- */
-bot.hears(smartTextTriggerRegexp, async (context) => {
+const smartTextController = async (context: HearsContext<BotContext>) => {
   const {
     match,
     message,
@@ -154,7 +152,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     return;
   }
 
-  const text = match[3];
+  const text = (match ? match[3] : message.text) ?? '';
   const {
     message_id: messageId,
     from,
@@ -170,7 +168,9 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     username,
   } = from;
 
-  const hasNoAccess = databaseUser.isAllowed === false;
+  const hasAccess =
+    databaseUser.isAllowed === false ||
+    config.adminsUsernames.includes(databaseUser.username ?? '');
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
@@ -183,7 +183,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     });
   }
 
-  if (hasNoAccess) {
+  if (!hasAccess) {
     // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
@@ -294,7 +294,12 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     });
     throw error;
   }
-});
+};
+
+/**
+ * Handling gpt-4 requests.
+ */
+bot.hears(smartTextTriggerRegexp, smartTextController);
 
 /**
  * Handling text-davinci-003 requests.
@@ -412,6 +417,12 @@ bot.on('message:text', async (context) => {
   const repliedOnOthersMessage = !repliedOnBotsMessage;
   const hasNoAccess = databaseUser.isAllowed === false;
   const askedInPrivate = context.hasChatType('private');
+
+  if (askedInPrivate) {
+    // @ts-expect-error Context narrowed type mismatch
+    await smartTextController(context);
+    return;
+  }
 
   let user = await userRepo.get(userId.toString());
   if (!user) {
