@@ -37,10 +37,9 @@ import {
   image as imageRepo,
   prompt as promptRepo,
   stats as statsRepo,
-  user as userRepo,
 } from '@/repositories';
-import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
+import { type HearsContext } from 'grammy';
 import { Bot, InputFile } from 'grammy';
 import { generateVoice } from 'voice';
 
@@ -141,10 +140,7 @@ bot.hears(noTriggerRegexp, async (context) => {
   await context.reply(replies.no, { reply_to_message_id: replyToMessageId });
 });
 
-/**
- * Handling gpt-4 requests.
- */
-bot.hears(smartTextTriggerRegexp, async (context) => {
+const smartTextController = async (context: HearsContext<BotContext>) => {
   const {
     match,
     message,
@@ -154,7 +150,7 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     return;
   }
 
-  const text = match[3];
+  const text = (match ? match[3] : message.text) ?? '';
   const {
     message_id: messageId,
     from,
@@ -162,28 +158,13 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     chat: { id: chatId },
   } = message;
 
-  const {
-    id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
-    username,
-  } = from;
+  const { id: userId } = from;
 
-  const hasNoAccess = databaseUser.isAllowed === false;
+  const hasAccess =
+    databaseUser.isAllowed === false ||
+    config.adminsUsernames.includes(databaseUser.username ?? '');
 
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(firstName),
-      id: userId.toString(),
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      username: valueOrNull(username),
-    });
-  }
-
-  if (hasNoAccess) {
+  if (!hasAccess) {
     // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
@@ -294,7 +275,12 @@ bot.hears(smartTextTriggerRegexp, async (context) => {
     });
     throw error;
   }
-});
+};
+
+/**
+ * Handling gpt-4 requests.
+ */
+bot.hears(smartTextTriggerRegexp, smartTextController);
 
 /**
  * Handling text-davinci-003 requests.
@@ -317,26 +303,9 @@ bot.hears(textTriggerRegexp, async (context) => {
     chat: { id: chatId },
   } = message;
 
-  const {
-    id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
-    username,
-  } = from;
+  const { id: userId } = from;
 
   const hasNoAccess = databaseUser.isAllowed === false;
-
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(firstName),
-      id: userId.toString(),
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      username: valueOrNull(username),
-    });
-  }
 
   if (hasNoAccess) {
     // If user has no access and just wrote a message with trigger
@@ -395,13 +364,7 @@ bot.on('message:text', async (context) => {
     date: messageDate,
   } = context.message;
 
-  const {
-    id: userId,
-    first_name: userFirstName,
-    language_code: userLanguage,
-    last_name: userLastName,
-    username,
-  } = from;
+  const { id: userId } = from;
 
   const { id: chatId } = chat;
 
@@ -413,15 +376,10 @@ bot.on('message:text', async (context) => {
   const hasNoAccess = databaseUser.isAllowed === false;
   const askedInPrivate = context.hasChatType('private');
 
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(userFirstName),
-      id: userId.toString(),
-      language: valueOrNull(userLanguage),
-      lastName: valueOrNull(userLastName),
-      username: valueOrNull(username),
-    });
+  if (askedInPrivate) {
+    // @ts-expect-error Context narrowed type mismatch
+    await smartTextController(context);
+    return;
   }
 
   // Random encounter, shouldn't be triggered on reply.
