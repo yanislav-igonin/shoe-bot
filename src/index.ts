@@ -37,9 +37,7 @@ import {
   image as imageRepo,
   prompt as promptRepo,
   stats as statsRepo,
-  user as userRepo,
 } from '@/repositories';
-import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
 import { type HearsContext } from 'grammy';
 import { Bot, InputFile } from 'grammy';
@@ -171,17 +169,6 @@ const smartTextController = async (context: HearsContext<BotContext>) => {
   const hasAccess =
     databaseUser.isAllowed === false ||
     config.adminsUsernames.includes(databaseUser.username ?? '');
-
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(firstName),
-      id: userId.toString(),
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      username: valueOrNull(username),
-    });
-  }
 
   if (!hasAccess) {
     // If user has no access and just wrote a message with trigger
@@ -322,26 +309,9 @@ bot.hears(textTriggerRegexp, async (context) => {
     chat: { id: chatId },
   } = message;
 
-  const {
-    id: userId,
-    first_name: firstName,
-    language_code: language,
-    last_name: lastName,
-    username,
-  } = from;
+  const { id: userId } = from;
 
   const hasNoAccess = databaseUser.isAllowed === false;
-
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(firstName),
-      id: userId.toString(),
-      language: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      username: valueOrNull(username),
-    });
-  }
 
   if (hasNoAccess) {
     // If user has no access and just wrote a message with trigger
@@ -400,13 +370,7 @@ bot.on('message:text', async (context) => {
     date: messageDate,
   } = context.message;
 
-  const {
-    id: userId,
-    first_name: userFirstName,
-    language_code: userLanguage,
-    last_name: userLastName,
-    username,
-  } = from;
+  const { id: userId } = from;
 
   const { id: chatId } = chat;
 
@@ -422,17 +386,6 @@ bot.on('message:text', async (context) => {
     // @ts-expect-error Context narrowed type mismatch
     await smartTextController(context);
     return;
-  }
-
-  let user = await userRepo.get(userId.toString());
-  if (!user) {
-    user = await userRepo.create({
-      firstName: valueOrNull(userFirstName),
-      id: userId.toString(),
-      language: valueOrNull(userLanguage),
-      lastName: valueOrNull(userLastName),
-      username: valueOrNull(username),
-    });
   }
 
   // Random encounter, shouldn't be triggered on reply.
