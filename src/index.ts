@@ -1,15 +1,9 @@
-import { config } from '@/config';
-import { database } from '@/database';
-import { logger } from '@/logger';
 import {
   adminMiddleware,
   chatMiddleware,
   stateMiddleware,
   userMiddleware,
 } from '@/middlewares';
-import { smartTextTriggerRegexp, textTriggerRegexp } from '@/prompt';
-import { replies } from '@/replies';
-import { type BotContext } from 'context';
 import {
   imageController,
   retardTriggerController,
@@ -19,6 +13,12 @@ import {
   textController,
 } from 'controllers';
 import { Bot } from 'grammy';
+import { config } from 'lib/config';
+import { type BotContext } from 'lib/context';
+import { database } from 'lib/database';
+import { logger } from 'lib/logger';
+import { smartTextTriggerRegexp, textTriggerRegexp } from 'lib/prompt';
+import { replies } from 'lib/replies';
 
 const bot = new Bot<BotContext>(config.botToken);
 

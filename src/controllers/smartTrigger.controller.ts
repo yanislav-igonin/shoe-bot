@@ -1,6 +1,15 @@
-import { config } from '@/config';
-import { base64ToImage, generateImage } from '@/imageGeneration';
-import { logger } from '@/logger';
+import {
+  botReply as botReplyRepo,
+  dialog as dialogRepo,
+  image as imageRepo,
+  prompt as promptRepo,
+} from '@/repositories';
+import { type HearsContext } from 'grammy';
+import { InputFile } from 'grammy';
+import { config } from 'lib/config';
+import { type BotContext } from 'lib/context';
+import { base64ToImage, generateImage } from 'lib/imageGeneration';
+import { logger } from 'lib/logger';
 import {
   addSystemContext,
   chooseTask,
@@ -9,18 +18,9 @@ import {
   getSmartCompletion,
   markdownRulesPrompt,
   preparePrompt,
-} from '@/prompt';
-import { replies } from '@/replies';
-import {
-  botReply as botReplyRepo,
-  dialog as dialogRepo,
-  image as imageRepo,
-  prompt as promptRepo,
-} from '@/repositories';
-import { type BotContext } from 'context';
-import { type HearsContext } from 'grammy';
-import { InputFile } from 'grammy';
-import { generateVoice } from 'voice';
+} from 'lib/prompt';
+import { replies } from 'lib/replies';
+import { generateVoice } from 'lib/voice';
 
 export const smartTriggerController = async (
   context: HearsContext<BotContext>,

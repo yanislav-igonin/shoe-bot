@@ -1,5 +1,5 @@
-import { type BotContext } from 'context';
 import { type Filter } from 'grammy';
+import { type BotContext } from 'lib/context';
 
 export const imageController = async (
   context: Filter<BotContext, 'message:photo'>,

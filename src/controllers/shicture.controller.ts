@@ -1,10 +1,10 @@
-import { base64ToImage, generateImage } from '@/imageGeneration';
-import { logger } from '@/logger';
-import { getShictureDescription } from '@/prompt';
-import { replies } from '@/replies';
-import { type BotContext } from 'context';
 import { type CommandContext } from 'grammy';
 import { InputFile } from 'grammy';
+import { type BotContext } from 'lib/context';
+import { base64ToImage, generateImage } from 'lib/imageGeneration';
+import { logger } from 'lib/logger';
+import { getShictureDescription } from 'lib/prompt';
+import { replies } from 'lib/replies';
 
 export const shictureController = async (
   context: CommandContext<BotContext>,

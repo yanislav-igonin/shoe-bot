@@ -1,6 +1,6 @@
-import { database } from '@/database';
 import { Prisma } from '@prisma/client';
-import { MONTH_MS } from 'date';
+import { database } from 'lib/database';
+import { MONTH_MS } from 'lib/date';
 
 type PromptsCountResult = {
   firstName: string;

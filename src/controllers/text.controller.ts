@@ -12,16 +12,16 @@ import {
   markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
-} from '@/prompt';
-import { replies } from '@/replies';
+} from 'lib/prompt';
+import { replies } from 'lib/replies';
 import {
   botReply as botReplyRepo,
   dialog as dialogRepo,
   prompt as promptRepo,
 } from '@/repositories';
 import { type Prompt } from '@prisma/client';
-import { type BotContext } from 'context';
-import { sortByCreatedAt } from 'date';
+import { type BotContext } from 'lib/context';
+import { sortByCreatedAt } from 'lib/date';
 import { type Filter } from 'grammy';
 
 export const textController = async (

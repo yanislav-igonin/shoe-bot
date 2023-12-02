@@ -1,5 +1,5 @@
 import { stats as statsRepo } from '@/repositories';
-import { type BotContext } from 'context';
+import { type BotContext } from 'lib/context';
 import { type CommandContext } from 'grammy';
 
 export const statsController = async (context: CommandContext<BotContext>) => {
