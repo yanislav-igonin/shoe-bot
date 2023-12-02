@@ -52,7 +52,6 @@ export const textController = async (
   const askedInPrivate = context.hasChatType('private');
 
   if (askedInPrivate) {
-    // @ts-expect-error Context narrowed type mismatch
     await smartTriggerController(context);
     return;
   }

@@ -76,7 +76,7 @@ bot.hears(noTriggerRegexp, async (context) => {
 /**
  * Handling gpt-4 requests.
  */
-bot.hears(smartTextTriggerRegexp, smartTriggerController);
+bot.on('message:text').hears(smartTextTriggerRegexp, smartTriggerController);
 
 /**
  * Handling text-davinci-003 requests.
