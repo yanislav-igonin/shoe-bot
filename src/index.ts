@@ -33,8 +33,8 @@ bot.catch((error) => {
   logger.error(error);
 });
 
-bot.use(chatMiddleware);
 bot.use(stateMiddleware);
+bot.use(chatMiddleware);
 bot.use(userMiddleware);
 
 bot.command('start', async (context) => {

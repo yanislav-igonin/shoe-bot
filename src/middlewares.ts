@@ -1,7 +1,7 @@
 import { config } from './lib/config';
 import { database } from './lib/database';
-import { chat as chatRepo, user as userRepo } from '@/repositories';
-import { type Context, type NextFunction } from 'grammy';
+import { type NewChat, type NewUser } from '@prisma/client';
+import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 import { type BotContext } from 'lib/context';
@@ -23,7 +23,10 @@ export const stateMiddleware = async (
 /**
  * Saves chat to the DB.
  */
-export const chatMiddleware = async (context: Context, next: NextFunction) => {
+export const chatMiddleware = async (
+  context: BotContext,
+  next: NextFunction,
+) => {
   const chatId = context.chat?.id;
   if (!chatId) {
     // eslint-disable-next-line node/callback-return
@@ -31,25 +34,31 @@ export const chatMiddleware = async (context: Context, next: NextFunction) => {
     return;
   }
 
-  const chat = await chatRepo.get(chatId.toString());
+  const chat = await database.newChat.findFirst({
+    where: { tgId: chatId.toString() },
+  });
   if (chat) {
     const newName = (context.chat as TelegramChat.GroupChat).title ?? 'user';
-    await database.chat.update({
+    await database.newChat.update({
       data: { name: newName },
-      where: { id: chatId.toString() },
+      where: { id: chat.id },
     });
+    // eslint-disable-next-line require-atomic-updates
+    context.state.chat = chat;
     // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
 
   const name = (context.chat as TelegramChat.GroupChat).title ?? 'user';
-  const toCreate = {
-    id: chatId.toString(),
+  const toCreate: Omit<NewChat, 'createdAt' | 'id'> = {
     name,
+    tgId: chatId.toString(),
     type: context.chat?.type,
   };
-  await chatRepo.create(toCreate);
+  const newChat = await database.newChat.create({ data: toCreate });
+  // eslint-disable-next-line require-atomic-updates
+  context.state.chat = newChat;
 
   // eslint-disable-next-line node/callback-return
   await next();
@@ -69,18 +78,20 @@ export const userMiddleware = async (
     return;
   }
 
-  const { id: userId } = user;
+  const { id: tgUserId } = user;
 
-  const databaseUser = await userRepo.get(userId.toString());
+  const databaseUser = await database.newUser.findFirst({
+    where: { tgId: tgUserId.toString() },
+  });
   if (databaseUser) {
-    await database.user.update({
+    await database.newUser.update({
       data: {
         firstName: valueOrNull(user.first_name),
-        language: valueOrNull(user.language_code),
+        languageCode: valueOrNull(user.language_code),
         lastName: valueOrNull(user.last_name),
         username: valueOrNull(user.username),
       },
-      where: { id: userId.toString() },
+      where: { id: databaseUser.id },
     });
     // eslint-disable-next-line require-atomic-updates
     context.state.user = databaseUser;
@@ -96,15 +107,15 @@ export const userMiddleware = async (
     username,
   } = user;
 
-  const toCreate = {
+  const toCreate: Omit<NewUser, 'createdAt' | 'id' | 'isAllowed'> = {
     firstName: valueOrNull(firstName),
-    id: userId.toString(),
-    language: valueOrNull(language),
+    languageCode: valueOrNull(language),
     lastName: valueOrNull(lastName),
+    tgId: tgUserId.toString(),
     username: valueOrNull(username),
   };
 
-  const newUser = await userRepo.create(toCreate);
+  const newUser = await database.newUser.create({ data: toCreate });
   // eslint-disable-next-line require-atomic-updates
   context.state.user = newUser;
 
