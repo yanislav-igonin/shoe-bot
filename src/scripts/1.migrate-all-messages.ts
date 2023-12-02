@@ -1,10 +1,10 @@
 // eslint-disable-next-line canonical/filename-match-regex
 import {
-  type ChatType,
-  type Message,
-  type MessageType,
-  type NewChat,
-  type NewDialog,
+  // type ChatType,
+  // type Message,
+  // type MessageType,
+  // type NewChat,
+  // type NewDialog,
   type NewUser,
 } from '@prisma/client';
 import { database } from 'lib/database';
