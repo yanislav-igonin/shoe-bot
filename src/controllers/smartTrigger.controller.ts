@@ -45,7 +45,7 @@ export const smartTriggerController = async (
   const { id: userId } = from;
 
   const hasAccess =
-    databaseUser.isAllowed === false ||
+    databaseUser.isAllowed ||
     config.adminsUsernames.includes(databaseUser.username ?? '');
 
   if (!hasAccess) {
