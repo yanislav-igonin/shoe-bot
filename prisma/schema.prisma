@@ -117,10 +117,9 @@ model NewChat {
 
 model NewDialog {
   id        Int       @id @default(autoincrement())
-  oldId     String
   createdAt DateTime  @default(now())
-  chatId    Int?
-  chat      NewChat?  @relation(fields: [chatId], references: [id])
+  chatId    Int
+  chat      NewChat  @relation(fields: [chatId], references: [id])
   messages  Message[]
 
   @@map("new_dialogs")

@@ -1,6 +1,7 @@
 import {
   adminMiddleware,
   chatMiddleware,
+  dialogMiddleware,
   stateMiddleware,
   userMiddleware,
 } from '@/middlewares';
@@ -35,6 +36,7 @@ bot.catch((error) => {
 
 bot.use(stateMiddleware);
 bot.use(chatMiddleware);
+bot.use(dialogMiddleware);
 bot.use(userMiddleware);
 
 bot.command('start', async (context) => {
