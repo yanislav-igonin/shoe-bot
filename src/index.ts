@@ -5,7 +5,7 @@ import {
   userMiddleware,
 } from '@/middlewares';
 import {
-  imageController,
+  // imageController,
   retardTriggerController,
   shictureController,
   smartTriggerController,
@@ -87,7 +87,7 @@ bot.hears(textTriggerRegexp, retardTriggerController);
  * For handling replies, private messages and random encounters
  */
 bot.on('message:text', textController);
-bot.on('message:photo', imageController);
+// bot.on('message:photo', imageController);
 
 /**
  * Admin commands.
