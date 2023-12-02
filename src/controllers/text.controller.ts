@@ -1,3 +1,4 @@
+import { smartTriggerController } from './smartTrigger.controller';
 import {
   addAssistantContext,
   addSystemContext,
