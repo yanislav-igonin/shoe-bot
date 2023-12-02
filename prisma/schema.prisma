@@ -77,22 +77,29 @@ model BotReply {
   @@map("bot_replies")
 }
 
+enum MessageType {
+  TEXT
+  PHOTO
+  VOICE
+}
+
 model Message {
-  id          Int       @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   text        String?
-  createdAt   DateTime  @default(now())
+  type        MessageType
   chatId      String
-  chat        Chat      @relation(fields: [chatId], references: [id])
+  chat        Chat        @relation(fields: [chatId], references: [id])
   userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  dialogId    String
+  dialog      Dialog      @relation(fields: [dialogId], references: [id])
   tgPhotoId   String?
-  tgMessageId String    @unique /// Made of chatId + tgMessageId
+  tgMessageId String      @unique /// Made of chatId + tgMessageId
   tgVoiceId   String?
   replyToId   Int?
-  replyTo     Message?  @relation("Replies", fields: [replyToId], references: [id])
-  replies     Message[] @relation("Replies")
-  dialogId    String
-  dialog      Dialog    @relation(fields: [dialogId], references: [id])
+  replyTo     Message?    @relation("Replies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("Replies")
+  createdAt   DateTime    @default(now())
 
   @@map("messages")
 }
