@@ -1,4 +1,5 @@
 import { config } from './config';
+import { database } from './database';
 import { chat as chatRepo, user as userRepo } from '@/repositories';
 import { valueOrNull } from '@/values';
 import { type BotContext } from 'context';
@@ -32,6 +33,11 @@ export const chatMiddleware = async (context: Context, next: NextFunction) => {
 
   const chat = await chatRepo.get(chatId.toString());
   if (chat) {
+    const newName = (context.chat as TelegramChat.GroupChat).title ?? 'user';
+    await database.chat.update({
+      data: { name: newName },
+      where: { id: chatId.toString() },
+    });
     // eslint-disable-next-line node/callback-return
     await next();
     return;
@@ -67,6 +73,15 @@ export const userMiddleware = async (
 
   const databaseUser = await userRepo.get(userId.toString());
   if (databaseUser) {
+    await database.user.update({
+      data: {
+        firstName: valueOrNull(user.first_name),
+        language: valueOrNull(user.language_code),
+        lastName: valueOrNull(user.last_name),
+        username: valueOrNull(user.username),
+      },
+      where: { id: userId.toString() },
+    });
     // eslint-disable-next-line require-atomic-updates
     context.state.user = databaseUser;
     // eslint-disable-next-line node/callback-return
