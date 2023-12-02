@@ -141,7 +141,7 @@ model Message {
   dialogId    Int?
   dialog      NewDialog?  @relation(fields: [dialogId], references: [id])
   tgPhotoId   String?
-  tgMessageId String?
+  tgMessageId String
   tgVoiceId   String?
   replyToId   Int?
   replyTo     Message?    @relation("Replies", fields: [replyToId], references: [id])
