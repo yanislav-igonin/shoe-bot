@@ -103,13 +103,14 @@ export const smartTriggerController = async (
     const botReply = await context.replyWithPhoto(file, {
       reply_to_message_id: messageId,
     });
-
+    const botMessageId = botReply.message_id.toString();
+    const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
     await database.message.create({
       data: {
         dialogId: dialog.id,
         replyToId: newUserMessage.id,
-        tgMessageId: botReply.message_id.toString(),
-        tgPhotoId: botReply.photo[0].file_id,
+        tgMessageId: botMessageId,
+        tgPhotoId: botFileId,
         type: MessageType.photo,
         userId: config.botId,
       },
