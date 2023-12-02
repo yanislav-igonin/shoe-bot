@@ -1,4 +1,5 @@
 // eslint-disable-next-line canonical/filename-match-regex
+import { type Message, type MessageType } from '@prisma/client';
 import { type NewUser } from '@prisma/client';
 import { type NewDialog } from '@prisma/client';
 import { type ChatType, type NewChat } from '@prisma/client';
@@ -66,6 +67,11 @@ const run = async () => {
   await database.newDialog.createMany({
     data: newDialogs,
   });
+  const createdNewDialogs = await database.newDialog.findMany();
+  const oldIdDialogIdMap = createdNewDialogs.reduce((accumulator, dialog) => {
+    accumulator[dialog.oldId] = dialog.id;
+    return accumulator;
+  }, {} as Record<string, number>);
 
   const userMessages = await database.prompt.findMany();
   const botMessages = await database.botReply.findMany();
@@ -74,6 +80,17 @@ const run = async () => {
   const messages = [...userMessages, ...botMessages, ...images];
   messages.sort((a, b) => {
     return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  const newMessages = messages.map((message) => {
+    let type: MessageType;
+    let newMessage: Message;
+    // Prompt message
+    // if (message.text && message.reply) {
+    //   newMessage.createdAt = message.createdAt;
+    //   newMessage.dialogId = message.dialogId ? oldIdDialogIdMap[message.dialogId] : null;
+    //   newMessage.
+    // };
   });
 };
 

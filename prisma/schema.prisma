@@ -112,7 +112,7 @@ model NewChat {
 
 model NewDialog {
   id        Int       @id @default(autoincrement())
-  oldId     String?
+  oldId     String
   createdAt DateTime  @default(now())
   chatId    Int?
   chat      NewChat?  @relation(fields: [chatId], references: [id])
@@ -122,9 +122,9 @@ model NewDialog {
 }
 
 enum MessageType {
-  TEXT
-  PHOTO
-  VOICE
+  text
+  photo
+  voice
 }
 
 model Message {
@@ -136,7 +136,7 @@ model Message {
   dialogId    Int?
   dialog      NewDialog?  @relation(fields: [dialogId], references: [id])
   tgPhotoId   String?
-  tgMessageId String
+  tgMessageId String?
   tgVoiceId   String?
   replyToId   Int?
   replyTo     Message?    @relation("Replies", fields: [replyToId], references: [id])
