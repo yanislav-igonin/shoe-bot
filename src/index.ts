@@ -49,8 +49,6 @@ bot.command('help', async (context) => {
 
 bot.command('shicture', shictureController);
 
-bot.command('stats', adminMiddleware, statsController);
-
 const yesTriggerRegexp = /^да$/iu;
 bot.hears(yesTriggerRegexp, async (context) => {
   const { message } = context;
@@ -94,6 +92,7 @@ bot.on('message:text', textController);
 /**
  * Admin commands.
  */
+bot.command('stats', adminMiddleware, statsController);
 
 const start = async () => {
   await database.$connect();
