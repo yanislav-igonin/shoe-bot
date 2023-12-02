@@ -74,14 +74,14 @@ bot.hears(noTriggerRegexp, async (context) => {
 });
 
 /**
+ * Handling text-davinci-003 requests.
+ */
+bot.on('message:text').hears(textTriggerRegexp, retardTriggerController);
+
+/**
  * Handling gpt-4 requests.
  */
 bot.on('message:text').hears(smartTextTriggerRegexp, smartTriggerController);
-
-/**
- * Handling text-davinci-003 requests.
- */
-bot.hears(textTriggerRegexp, retardTriggerController);
 
 /**
  * For handling replies, private messages and random encounters

@@ -1,44 +1,45 @@
-import {
-  botReply as botReplyRepo,
-  dialog as dialogRepo,
-  prompt as promptRepo,
-} from '@/repositories';
-import { type HearsContext } from 'grammy';
+import { MessageType } from '@prisma/client';
+import { type Filter } from 'grammy';
+import { hasAccess } from 'lib/access';
+import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
+import { database } from 'lib/database';
 import { getCompletion, preparePrompt } from 'lib/prompt';
 import { replies } from 'lib/replies';
 
 export const retardTriggerController = async (
-  context: HearsContext<BotContext>,
+  context: Filter<BotContext, 'message:text'>,
 ) => {
   const {
     match,
     message,
-    state: { user: databaseUser },
+    state: { user, dialog },
   } = context;
-  if (!message) {
+
+  if (!match) {
     return;
   }
 
   const text = match[3];
-  const {
-    message_id: messageId,
-    date: messageDate,
-    from,
-    chat: { id: chatId },
-  } = message;
+  const { message_id: messageId } = message;
 
-  const { id: userId } = from;
-
-  const hasNoAccess = databaseUser.isAllowed === false;
-
-  if (hasNoAccess) {
+  if (!hasAccess(user)) {
     // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
     });
     return;
   }
+
+  const newUserMessage = await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      text,
+      tgMessageId: messageId.toString(),
+      type: MessageType.text,
+      userId: user.id,
+    },
+  });
 
   const prompt = preparePrompt(text);
 
@@ -48,22 +49,16 @@ export const retardTriggerController = async (
     const botReply = await context.reply(completition, {
       reply_to_message_id: messageId,
     });
-    const dialog = await dialogRepo.create();
-    await promptRepo.create({
-      createdAt: new Date(messageDate * 1_000),
-      dialogId: dialog.id,
-      result: completition,
-      text: prompt,
-      userId: userId.toString(),
-    });
-    const { message_id: botReplyMessageId, date: botReplyMessageDate } =
-      botReply;
-    const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
-    await botReplyRepo.create({
-      createdAt: new Date(botReplyMessageDate * 1_000),
-      dialogId: dialog.id,
-      id: uniqueBotReplyId,
-      text: completition,
+
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
     });
   } catch (error) {
     await context.reply(replies.error, {
