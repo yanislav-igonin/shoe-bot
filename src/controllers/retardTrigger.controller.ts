@@ -1,12 +1,12 @@
-import { getCompletion, preparePrompt } from 'lib/prompt';
-import { replies } from 'lib/replies';
 import {
   botReply as botReplyRepo,
   dialog as dialogRepo,
   prompt as promptRepo,
 } from '@/repositories';
-import { type BotContext } from 'lib/context';
 import { type HearsContext } from 'grammy';
+import { type BotContext } from 'lib/context';
+import { getCompletion, preparePrompt } from 'lib/prompt';
+import { replies } from 'lib/replies';
 
 export const retardTriggerController = async (
   context: HearsContext<BotContext>,

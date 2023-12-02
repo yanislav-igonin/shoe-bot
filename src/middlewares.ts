@@ -1,11 +1,11 @@
-import { database } from './lib/database';
 import { config } from './lib/config';
+import { database } from './lib/database';
 import { chat as chatRepo, user as userRepo } from '@/repositories';
-import { valueOrNull } from 'lib/values';
-import { type BotContext } from 'lib/context';
 import { type Context, type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
+import { type BotContext } from 'lib/context';
+import { valueOrNull } from 'lib/values';
 
 /**
  * Makes state object inside the context to store some shit across the request.
