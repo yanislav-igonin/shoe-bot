@@ -12,9 +12,7 @@ export const shictureController = async (
   let prompt = '';
   try {
     await context.replyWithChatAction('upload_photo');
-
     prompt = await getShictureDescription();
-
     const imageBase64 = await generateImage(prompt);
     if (!imageBase64) {
       await context.reply(replies.error);
@@ -24,7 +22,6 @@ export const shictureController = async (
 
     const buffer = base64ToImage(imageBase64);
     const file = new InputFile(buffer, 'image.png');
-
     await context.replyWithPhoto(file, { caption: prompt });
   } catch (error) {
     await context.reply((error as Error).message ?? replies.error);
