@@ -13,18 +13,16 @@ export const shictureController = async (
   try {
     await context.replyWithChatAction('upload_photo');
     prompt = await getShictureDescription();
-    await context.reply(prompt);
+    const imageBase64 = await generateImage(prompt);
+    if (!imageBase64) {
+      await context.reply(replies.error);
+      logger.error('Failed to generate image');
+      return;
+    }
 
-    // const imageBase64 = await generateImage(prompt);
-    // if (!imageBase64) {
-    //   await context.reply(replies.error);
-    //   logger.error('Failed to generate image');
-    //   return;
-    // }
-
-    // const buffer = base64ToImage(imageBase64);
-    // const file = new InputFile(buffer, 'image.png');
-    // await context.replyWithPhoto(file, { caption: prompt });
+    const buffer = base64ToImage(imageBase64);
+    const file = new InputFile(buffer, 'image.png');
+    await context.replyWithPhoto(file, { caption: prompt });
   } catch (error) {
     await context.reply((error as Error).message ?? replies.error);
     await context.reply(prompt);
