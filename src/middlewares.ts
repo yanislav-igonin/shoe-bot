@@ -1,11 +1,6 @@
 import { config } from './lib/config';
 import { database } from './lib/database';
-import {
-  MessageType,
-  type NewChat,
-  type NewDialog,
-  type NewUser,
-} from '@prisma/client';
+import { type NewChat, type NewDialog, type NewUser } from '@prisma/client';
 import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
