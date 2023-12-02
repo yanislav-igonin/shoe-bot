@@ -79,15 +79,15 @@ model BotReply {
 // NEEW MODELS
 
 model NewUser {
-  id        Int       @id @default(autoincrement())
-  username  String?
-  firstName String?
-  lastName  String?
-  languageCode  String?
-  tgId      String
-  isAllowed Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  messages  Message[]
+  id           Int       @id @default(autoincrement())
+  username     String?
+  firstName    String?
+  lastName     String?
+  languageCode String?
+  tgId         String
+  isAllowed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  messages     Message[]
 
   @@map("new_users")
 }
