@@ -8,16 +8,15 @@ datasource db {
 }
 
 model User {
-  id        String    @id
+  id        String   @id
   username  String?
   firstName String?
   lastName  String?
   language  String?
-  isAllowed Boolean   @default(false)
-  createdAt DateTime  @default(now())
+  isAllowed Boolean  @default(false)
+  createdAt DateTime @default(now())
   prompts   Prompt[]
   Images    Image[]
-  Message   Message[]
 
   @@map("users")
 }
@@ -47,12 +46,11 @@ model Image {
 }
 
 model Chat {
-  id        String    @id
+  id        String   @id
   name      String
   type      String
-  isAllowed Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  Message   Message[]
+  isAllowed Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@map("chats")
 }
@@ -62,7 +60,6 @@ model Dialog {
   createdAt DateTime   @default(now())
   BotReply  BotReply[]
   Prompt    Prompt[]
-  Message   Message[]
 
   @@map("dialogs")
 }
@@ -77,6 +74,53 @@ model BotReply {
   @@map("bot_replies")
 }
 
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+
+model NewUser {
+  id        Int       @id @default(autoincrement())
+  username  String?
+  firstName String?
+  lastName  String?
+  languageCode  String?
+  tgId      String
+  isAllowed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  messages  Message[]
+
+  @@map("new_users")
+}
+
+enum ChatType {
+  private
+  group
+  supergroup
+  channel
+}
+
+model NewChat {
+  id        Int         @id @default(autoincrement())
+  name      String
+  type      ChatType
+  tgId      String
+  createdAt DateTime    @default(now())
+  dialogs   NewDialog[]
+
+  @@map("new_chats")
+}
+
+model NewDialog {
+  id        Int       @id @default(autoincrement())
+  oldId     String?
+  createdAt DateTime  @default(now())
+  chatId    Int?
+  chat      NewChat?  @relation(fields: [chatId], references: [id])
+  messages  Message[]
+
+  @@map("new_dialogs")
+}
+
 enum MessageType {
   TEXT
   PHOTO
@@ -87,14 +131,12 @@ model Message {
   id          Int         @id @default(autoincrement())
   text        String?
   type        MessageType
-  chatId      String
-  chat        Chat        @relation(fields: [chatId], references: [id])
-  userId      String
-  user        User        @relation(fields: [userId], references: [id])
-  dialogId    String
-  dialog      Dialog      @relation(fields: [dialogId], references: [id])
+  userId      Int
+  user        NewUser     @relation(fields: [userId], references: [id])
+  dialogId    Int?
+  dialog      NewDialog?  @relation(fields: [dialogId], references: [id])
   tgPhotoId   String?
-  tgMessageId String      @unique /// Made of chatId + tgMessageId
+  tgMessageId String
   tgVoiceId   String?
   replyToId   Int?
   replyTo     Message?    @relation("Replies", fields: [replyToId], references: [id])
