@@ -1,4 +1,4 @@
-import { openai } from '@/ai';
+import { openai } from 'lib/ai';
 import { InputFile } from 'grammy';
 
 export const generateVoice = async (text: string) => {

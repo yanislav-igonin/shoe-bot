@@ -1,10 +1,10 @@
-import { openai } from '@/ai';
-import { config, isProduction } from '@/config';
-import { logger } from '@/logger';
-import { replies } from '@/replies';
+import { openai } from 'lib/ai';
+import { config, isProduction } from 'lib/config';
+import { logger } from 'lib/logger';
+import { randomEncounterWords } from 'lib/randomEncounterWords';
+import { replies } from 'lib/replies';
 // eslint-disable-next-line import/no-named-as-default
 import type OpenAI from 'openai';
-import { randomEncounterWords } from 'randomEncounterWords';
 
 type ChatCompletionRequestMessage =
   OpenAI.Chat.Completions.CreateChatCompletionRequestMessage;

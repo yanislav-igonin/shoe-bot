@@ -1,4 +1,4 @@
-import { openai } from '@/ai';
+import { openai } from 'lib/ai';
 
 // eslint-disable-next-line canonical/id-match
 export const base64ToImage = (base64: string) => {

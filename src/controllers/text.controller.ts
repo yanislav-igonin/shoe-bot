@@ -1,5 +1,14 @@
 import { smartTriggerController } from './smartTrigger.controller';
 import {
+  botReply as botReplyRepo,
+  dialog as dialogRepo,
+  prompt as promptRepo,
+} from '@/repositories';
+import { type Prompt } from '@prisma/client';
+import { type Filter } from 'grammy';
+import { type BotContext } from 'lib/context';
+import { sortByCreatedAt } from 'lib/date';
+import {
   addAssistantContext,
   addSystemContext,
   addUserContext,
@@ -12,17 +21,8 @@ import {
   markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
-} from '@/prompt';
-import { replies } from '@/replies';
-import {
-  botReply as botReplyRepo,
-  dialog as dialogRepo,
-  prompt as promptRepo,
-} from '@/repositories';
-import { type Prompt } from '@prisma/client';
-import { type BotContext } from 'context';
-import { sortByCreatedAt } from 'date';
-import { type Filter } from 'grammy';
+} from 'lib/prompt';
+import { replies } from 'lib/replies';
 
 export const textController = async (
   context: Filter<BotContext, 'message:text'>,

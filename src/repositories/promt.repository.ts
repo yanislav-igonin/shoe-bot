@@ -1,5 +1,5 @@
-import { type Prompt } from '@/database';
-import { database } from '@/database';
+import { type Prompt } from 'lib/database';
+import { database } from 'lib/database';
 
 export const create = async (data: Omit<Prompt, 'id'>) =>
   await database.prompt.create({ data });
