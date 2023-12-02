@@ -11,6 +11,7 @@ import { smartTextTriggerRegexp, textTriggerRegexp } from '@/prompt';
 import { replies } from '@/replies';
 import { type BotContext } from 'context';
 import {
+  imageController,
   retardTriggerController,
   shictureController,
   smartTriggerController,
@@ -86,6 +87,7 @@ bot.hears(textTriggerRegexp, retardTriggerController);
  * For handling replies, private messages and random encounters
  */
 bot.on('message:text', textController);
+bot.on('message:photo', imageController);
 
 /**
  * Admin commands.
