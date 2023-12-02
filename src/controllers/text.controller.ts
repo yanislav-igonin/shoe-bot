@@ -23,6 +23,69 @@ import {
 import { replies } from 'lib/replies';
 // import { valueOrNull } from 'lib/values';
 
+const randomReplyController = async (
+  context: Filter<BotContext, 'message:text'>,
+) => {
+  const {
+    state: { user, dialog },
+  } = context;
+  const { text } = context.message;
+  const { message_id: messageId } = context.message;
+  const askedInPrivate = context.hasChatType('private');
+
+  // Forbid random encounters in private chats to prevent
+  // access to the bot for non-allowed users
+  if (askedInPrivate) {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  const newUserMessage = await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      text,
+      tgMessageId: messageId.toString(),
+      type: MessageType.text,
+      userId: user.id,
+    },
+  });
+
+  const encounterPrompt = preparePrompt(text);
+  const randomWords = getRandomEncounterWords();
+  const withRandomWords = getRandomEncounterPrompt(randomWords);
+
+  const promptContext = [addSystemContext(withRandomWords)];
+  await context.replyWithChatAction('typing');
+
+  try {
+    const completition = await getSmartCompletion(
+      encounterPrompt,
+      promptContext,
+    );
+
+    const botReply = await context.reply(completition, {
+      parse_mode: 'Markdown',
+      reply_to_message_id: messageId,
+    });
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
+    });
+    return;
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: messageId,
+    });
+    throw error;
+  }
+};
+
 export const textController = async (
   context: Filter<BotContext, 'message:text'>,
 ) => {
@@ -50,57 +113,8 @@ export const textController = async (
   // Random encounter, shouldn't be triggered on reply.
   // Triggered by chance, replies to any message just4lulz
   if (shouldReplyRandomly && notReply) {
-    // Forbid random encounters in private chats to prevent
-    // access to the bot for non-allowed users
-    if (askedInPrivate) {
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-shadow
-    const newUserMessage = await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        text,
-        tgMessageId: messageId.toString(),
-        type: MessageType.text,
-        userId: user.id,
-      },
-    });
-
-    const encounterPrompt = preparePrompt(text);
-    const randomWords = getRandomEncounterWords();
-    const withRandomWords = getRandomEncounterPrompt(randomWords);
-
-    const promptContext = [addSystemContext(withRandomWords)];
-    await context.replyWithChatAction('typing');
-
-    try {
-      const completition = await getSmartCompletion(
-        encounterPrompt,
-        promptContext,
-      );
-
-      const botReply = await context.reply(completition, {
-        parse_mode: 'Markdown',
-        reply_to_message_id: messageId,
-      });
-      await database.message.create({
-        data: {
-          dialogId: dialog.id,
-          replyToId: newUserMessage.id,
-          text: completition,
-          tgMessageId: botReply.message_id.toString(),
-          type: MessageType.text,
-          userId: config.botId,
-        },
-      });
-      return;
-    } catch (error) {
-      await context.reply(replies.error, {
-        reply_to_message_id: messageId,
-      });
-      throw error;
-    }
+    await randomReplyController(context);
+    return;
   }
 
   // If user has no access and replied on bots message
