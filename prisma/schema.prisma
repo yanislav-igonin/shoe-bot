@@ -8,15 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id
+  id        String    @id
   username  String?
   firstName String?
   lastName  String?
   language  String?
-  isAllowed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isAllowed Boolean   @default(false)
+  createdAt DateTime  @default(now())
   prompts   Prompt[]
   Images    Image[]
+  Message   Message[]
 
   @@map("users")
 }
@@ -46,11 +47,12 @@ model Image {
 }
 
 model Chat {
-  id        String   @id
+  id        String    @id
   name      String
   type      String
-  isAllowed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isAllowed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  Message   Message[]
 
   @@map("chats")
 }
@@ -60,6 +62,7 @@ model Dialog {
   createdAt DateTime   @default(now())
   BotReply  BotReply[]
   Prompt    Prompt[]
+  Message   Message[]
 
   @@map("dialogs")
 }
@@ -74,22 +77,22 @@ model BotReply {
   @@map("bot_replies")
 }
 
-// model Message {
-//   id          Int       @id @default(autoincrement())
-//   text        String?
-//   createdAt   DateTime  @default(now())
-//   chatId      String
-//   chat        Chat      @relation(fields: [chatId], references: [id])
-//   userId      String
-//   user        User      @relation(fields: [userId], references: [id])
-//   tgPhotoId   String?
-//   tgMessageId String    @unique /// Made of chatId + tgMessageId
-//   tVoiceId    String?
-//   replyToId   Int?
-//   replyTo     Message?  @relation("Replies", fields: [replyToId], references: [id])
-//   replies     Message[] @relation("Replies")
-//   dialogId    String
-//   dialog      Dialog    @relation(fields: [dialogId], references: [id])
+model Message {
+  id          Int       @id @default(autoincrement())
+  text        String?
+  createdAt   DateTime  @default(now())
+  chatId      String
+  chat        Chat      @relation(fields: [chatId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  tgPhotoId   String?
+  tgMessageId String    @unique /// Made of chatId + tgMessageId
+  tgVoiceId   String?
+  replyToId   Int?
+  replyTo     Message?  @relation("Replies", fields: [replyToId], references: [id])
+  replies     Message[] @relation("Replies")
+  dialogId    String
+  dialog      Dialog    @relation(fields: [dialogId], references: [id])
 
-//   @@map("messages")
-// }
+  @@map("messages")
+}
