@@ -1,5 +1,5 @@
-import { type BotReply } from '@/database';
-import { database } from '@/database';
+import { type BotReply } from 'lib/database';
+import { database } from 'lib/database';
 
 export const create = async (data: BotReply) =>
   await database.botReply.create({ data });

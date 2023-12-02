@@ -1,4 +1,4 @@
-import { database } from '@/database';
+import { database } from 'lib/database';
 
 export const create = async () => await database.dialog.create({ data: {} });
 

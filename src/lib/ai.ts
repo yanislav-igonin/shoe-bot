@@ -1,4 +1,5 @@
-import { config } from '@/config';
+import { config } from 'lib/config';
+// eslint-disable-next-line import/no-named-as-default
 import OpenAI from 'openai';
 
 export const openai = new OpenAI({

@@ -1,5 +1,5 @@
-import { type User } from '@/database';
-import { database } from '@/database';
+import { type User } from 'lib/database';
+import { database } from 'lib/database';
 
 export const get = async (id: string) =>
   await database.user.findUnique({ where: { id } });
