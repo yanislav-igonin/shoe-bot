@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch 'src/**/*.*' --exec 'ts-node -r dotenv/config -r tsconfig-paths/register src/index.ts'",
-    "runScript": "nodemon --watch 'src/**/*.*' --exec 'ts-node -r dotenv/config -r tsconfig-paths/register src/scripts/1.migrate-all-messages.ts'",
+    "runScript": "ts-node -r dotenv/config -r tsconfig-paths/register src/scripts/1.migrate-all-messages.ts",
     "lint": "eslint --ext .ts src",
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsc-alias",
