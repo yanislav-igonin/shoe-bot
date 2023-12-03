@@ -39,6 +39,9 @@ export const smartTriggerController = async (
     return;
   }
 
+  const prompt = preparePrompt(text);
+  const task = await chooseTask(prompt);
+
   const previousMessage = await database.message.findFirst({
     where: {
       tgMessageId: replyToMessage?.message_id.toString() ?? '0',
@@ -52,13 +55,11 @@ export const smartTriggerController = async (
       replyToId,
       text,
       tgMessageId: messageId.toString(),
-      type: MessageType.text,
+      type: task,
       userId: user.id,
     },
   });
 
-  const prompt = preparePrompt(text);
-  const task = await chooseTask(prompt);
   const systemContext = [
     addSystemContext(doAnythingPrompt),
     addSystemContext(markdownRulesPrompt),
@@ -111,7 +112,7 @@ export const smartTriggerController = async (
         replyToId: newUserMessage.id,
         tgMessageId: botMessageId,
         tgPhotoId: botFileId,
-        type: MessageType.photo,
+        type: MessageType.image,
         userId: config.botId,
       },
     });

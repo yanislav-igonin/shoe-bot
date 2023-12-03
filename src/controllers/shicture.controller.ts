@@ -37,7 +37,7 @@ export const shictureController = async (
       dialogId: dialog.id,
       text: message.text,
       tgMessageId: messageId.toString(),
-      type: MessageType.text,
+      type: MessageType.image,
       userId: user.id,
     },
   });
@@ -68,7 +68,7 @@ export const shictureController = async (
         text: prompt,
         tgMessageId: botMessageId,
         tgPhotoId: botFileId,
-        type: MessageType.photo,
+        type: MessageType.image,
         userId: config.botId,
       },
     });
@@ -82,7 +82,7 @@ export const shictureController = async (
         replyToId: newUserMessage.id,
         text: prompt,
         tgMessageId: botReply.message_id.toString(),
-        type: MessageType.photo,
+        type: MessageType.image,
         userId: config.botId,
       },
     });

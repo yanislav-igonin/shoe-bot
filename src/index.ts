@@ -42,12 +42,11 @@ bot.use(userMiddleware);
 bot.command('start', async (context) => {
   await context.reply(replies.start);
 });
-
 bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
-
 bot.command('shicture', shictureController);
+bot.command('stats', adminMiddleware, statsController);
 
 const yesTriggerRegexp = /^да$/iu;
 bot.hears(yesTriggerRegexp, async (context) => {
@@ -88,11 +87,6 @@ bot.on('message:text').hears(smartTextTriggerRegexp, smartTriggerController);
  */
 bot.on('message:text', textController);
 // bot.on('message:photo', imageController);
-
-/**
- * Admin commands.
- */
-bot.command('stats', adminMiddleware, statsController);
 
 const start = async () => {
   await database.$connect();
