@@ -133,6 +133,7 @@ export const smartTriggerController = async (
       data: {
         dialogId: dialog.id,
         replyToId: newUserMessage.id,
+        text: completition,
         tgMessageId: botReply.message_id.toString(),
         tgVoiceId: botReply.voice.file_id,
         type: MessageType.voice,

@@ -105,7 +105,7 @@ export const textController = async (
   const hasAccess = userHasAccess(user);
   const askedInPrivate = context.hasChatType('private');
 
-  if (askedInPrivate) {
+  if (askedInPrivate && notReply) {
     await smartTriggerController(context);
     return;
   }
@@ -129,8 +129,6 @@ export const textController = async (
   if (!hasAccess || notReply) {
     return;
   }
-
-  const replyToMessageText = replyToMessage.text;
 
   // TODO: Fix answer on other user message
   // If user replied to other user message
@@ -219,11 +217,6 @@ export const textController = async (
   //     throw error;
   //   }
   // }
-
-  // If message replied on something that has no text (e.g.: replied on image), ignore it
-  if (!replyToMessageText) {
-    return;
-  }
 
   const prompt = preparePrompt(text);
 
