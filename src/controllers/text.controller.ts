@@ -1,20 +1,18 @@
+/* eslint-disable complexity */
 import { smartTriggerController } from './smartTrigger.controller';
-import {
-  botReply as botReplyRepo,
-  dialog as dialogRepo,
-  prompt as promptRepo,
-} from '@/repositories';
-import { type Prompt } from '@prisma/client';
+import { MessageType } from '@prisma/client';
 import { type Filter } from 'grammy';
+import { userHasAccess } from 'lib/access';
+import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
-import { sortByCreatedAt } from 'lib/date';
+import { database } from 'lib/database';
 import {
   addAssistantContext,
   addSystemContext,
   addUserContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
-  getAnswerToReplyMatches,
+  // getAnswerToReplyMatches,
   getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
@@ -23,36 +21,91 @@ import {
   shouldMakeRandomEncounter,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
+// import { valueOrNull } from 'lib/values';
+
+const randomReplyController = async (
+  context: Filter<BotContext, 'message:text'>,
+) => {
+  const {
+    state: { user, dialog },
+  } = context;
+  const { text } = context.message;
+  const { message_id: messageId } = context.message;
+  const askedInPrivate = context.hasChatType('private');
+
+  // Forbid random encounters in private chats to prevent
+  // access to the bot for non-allowed users
+  if (askedInPrivate) {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  const newUserMessage = await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      text,
+      tgMessageId: messageId.toString(),
+      type: MessageType.text,
+      userId: user.id,
+    },
+  });
+
+  const encounterPrompt = preparePrompt(text);
+  const randomWords = getRandomEncounterWords();
+  const withRandomWords = getRandomEncounterPrompt(randomWords);
+
+  const promptContext = [addSystemContext(withRandomWords)];
+  await context.replyWithChatAction('typing');
+
+  try {
+    const completition = await getSmartCompletion(
+      encounterPrompt,
+      promptContext,
+    );
+
+    const botReply = await context.reply(completition, {
+      parse_mode: 'Markdown',
+      reply_to_message_id: messageId,
+    });
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
+    });
+    return;
+  } catch (error) {
+    await context.reply(replies.error, {
+      reply_to_message_id: messageId,
+    });
+    throw error;
+  }
+};
 
 export const textController = async (
   context: Filter<BotContext, 'message:text'>,
 ) => {
   const {
-    state: { user: databaseUser },
+    state: { user, dialog },
   } = context;
   const { text } = context.message;
-  const {
-    message_id: messageId,
-    reply_to_message: messageRepliedOn,
-    from,
-    chat,
-    date: messageDate,
-  } = context.message;
-
-  const { id: userId } = from;
-
-  const { id: chatId } = chat;
+  const { message_id: messageId, reply_to_message: replyToMessage } =
+    context.message;
 
   const botId = context.me.id;
   const shouldReplyRandomly = shouldMakeRandomEncounter();
-  const notReply = messageRepliedOn === undefined;
-  const repliedOnBotsMessage = messageRepliedOn?.from?.id === botId;
-  const repliedOnOthersMessage = !repliedOnBotsMessage;
-  const hasNoAccess = databaseUser.isAllowed === false;
+  const notReply = replyToMessage === undefined;
+  const repliedOnBotsMessage = replyToMessage?.from?.id === botId;
+  // const repliedOnMessageId = replyToMessage?.message_id;
+  // const repliedOnOthersMessage = !repliedOnBotsMessage;
+  const hasAccess = userHasAccess(user);
   const askedInPrivate = context.hasChatType('private');
 
-  if (askedInPrivate) {
-    // @ts-expect-error Context narrowed type mismatch
+  if (askedInPrivate && notReply) {
     await smartTriggerController(context);
     return;
   }
@@ -60,57 +113,12 @@ export const textController = async (
   // Random encounter, shouldn't be triggered on reply.
   // Triggered by chance, replies to any message just4lulz
   if (shouldReplyRandomly && notReply) {
-    // Forbid random encounters in private chats to prevent
-    // access to the bot for non-allowed users
-    if (askedInPrivate) {
-      return;
-    }
-
-    const encounterPrompt = preparePrompt(text);
-    const randomWords = getRandomEncounterWords();
-    const withRandomWords = getRandomEncounterPrompt(randomWords);
-
-    const promptContext = [addSystemContext(withRandomWords)];
-    await context.replyWithChatAction('typing');
-
-    try {
-      const completition = await getSmartCompletion(
-        encounterPrompt,
-        promptContext,
-      );
-
-      const newBotMessage = await context.reply(completition, {
-        reply_to_message_id: messageId,
-      });
-      const botMessageDate = newBotMessage.date;
-      const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
-
-      const newEncounterDialog = await dialogRepo.create();
-
-      await botReplyRepo.create({
-        createdAt: new Date(botMessageDate * 1_000),
-        dialogId: newEncounterDialog.id,
-        id: newBotMessageId,
-        text: newBotMessage.text,
-      });
-      await promptRepo.create({
-        createdAt: new Date(messageDate * 1_000),
-        dialogId: newEncounterDialog.id,
-        result: completition,
-        text: encounterPrompt,
-        userId: userId.toString(),
-      });
-      return;
-    } catch (error) {
-      await context.reply(replies.error, {
-        reply_to_message_id: messageId,
-      });
-      throw error;
-    }
+    await randomReplyController(context);
+    return;
   }
 
   // If user has no access and replied on bots message
-  if (hasNoAccess && repliedOnBotsMessage) {
+  if (!hasAccess && repliedOnBotsMessage) {
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
     });
@@ -118,121 +126,134 @@ export const textController = async (
   }
 
   // If user has no access or its not a reply, ignore it
-  if (hasNoAccess || notReply) {
+  if (!hasAccess || notReply) {
     return;
   }
 
-  const originalText = messageRepliedOn.text;
-
+  // TODO: Fix answer on other user message
   // If user replied to other user message
-  if (repliedOnOthersMessage) {
-    // Check if user asked bot to take other user's message into account
-    const answerToReplyMatches = getAnswerToReplyMatches(text);
-    const shouldNotAnswerToReply = answerToReplyMatches === null;
-    if (shouldNotAnswerToReply) {
-      // Just return if not
-      return;
-    }
+  // if (repliedOnOthersMessage) {
+  //   // Check if user asked bot to take other user's message into account
+  //   const answerToReplyMatches = getAnswerToReplyMatches(text);
+  //   const shouldNotAnswerToReply = answerToReplyMatches === null;
+  //   if (shouldNotAnswerToReply) {
+  //     // Just return if not
+  //     return;
+  //   }
 
-    const answerToReplyText = answerToReplyMatches[3];
-    const answerToReplyPrompt = preparePrompt(answerToReplyText);
-    const answerToReplyContext = [
-      addSystemContext(
-        `Ты должен ответить на сообщение предыдущего пользователя: ${originalText}`,
-      ),
-      addSystemContext(aggressiveSystemPrompt),
-    ];
+  //   const tgUserToAnswer = replyToMessage.from;
+  //   if (!tgUserToAnswer) {
+  //     throw new Error('User replied on is undefined');
+  //   }
 
-    try {
-      await context.replyWithChatAction('typing');
-      const completition = await getSmartCompletion(
-        answerToReplyPrompt,
-        answerToReplyContext,
-      );
-      const botReplyOnOtherUserMessage = await context.reply(completition, {
-        reply_to_message_id: messageId,
-      });
-      const botReplyOnOtherUserMessageId = `${chatId}_${botReplyOnOtherUserMessage.message_id}`;
-      const botReplyOnOtherUserMessageDate = botReplyOnOtherUserMessage.date;
+  //   let userToAnswer = await database.newUser.findFirst({
+  //     where: { tgId: replyToMessage.from?.id.toString() },
+  //   });
+  //   if (!userToAnswer) {
+  //     userToAnswer = await database.newUser.create({
+  //       data: {
+  //         firstName: valueOrNull(tgUserToAnswer.first_name),
+  //         languageCode: valueOrNull(tgUserToAnswer.language_code),
+  //         lastName: valueOrNull(tgUserToAnswer.last_name),
+  //         tgId: tgUserToAnswer.id.toString(),
+  //         username: valueOrNull(tgUserToAnswer.username),
+  //       },
+  //     });
+  //   }
 
-      const newDialogForOtherUser = await dialogRepo.create();
+  //   const previousMessage = await database.message.create({
+  //     data: {
+  //       dialogId: dialog.id,
+  //       text: replyToMessageText,
+  //       tgMessageId: replyToMessage.message_id.toString(),
+  //       type: MessageType.text,
+  //       userId: userToAnswer.id,
+  //     },
+  //   });
 
-      await botReplyRepo.create({
-        createdAt: new Date(botReplyOnOtherUserMessageDate * 1_000),
-        dialogId: newDialogForOtherUser.id,
-        id: botReplyOnOtherUserMessageId,
-        text: botReplyOnOtherUserMessage.text,
-      });
+  //   const answerToReplyText = answerToReplyMatches[3];
+  //   const answerTextWithOriginalMessage = `${answerToReplyText}\n\n${replyToMessageText}`;
+  //   const answerToReplyPrompt = preparePrompt(answerTextWithOriginalMessage);
+  //   const answerToReplyContext = [
+  //     addSystemContext(aggressiveSystemPrompt),
+  //     addUserContext(replyToMessageText as string),
+  //   ];
 
-      await promptRepo.create({
-        createdAt: new Date(messageDate * 1_000),
-        dialogId: newDialogForOtherUser.id,
-        result: completition,
-        text: answerToReplyPrompt,
-        userId: userId.toString(),
-      });
-      return;
-    } catch (error) {
-      await context.reply(replies.error, {
-        reply_to_message_id: messageId,
-      });
-      throw error;
-    }
-  }
+  //   const newUserMessage = await database.message.create({
+  //     data: {
+  //       dialogId: dialog.id,
+  //       replyToId: previousMessage.id,
+  //       text,
+  //       tgMessageId: messageId.toString(),
+  //       type: MessageType.text,
+  //       userId: user.id,
+  //     },
+  //   });
 
-  // If we got there, it means that user replied to our message,
-  // and we should have it, or throw an error, because it's a bug
-  if (!messageRepliedOn) {
-    throw new Error('Message replied on is undefined');
-  }
-
-  // If message replied on something that has no text (e.g.: replied on image), ignore it
-  if (!originalText) {
-    return;
-  }
+  //   try {
+  //     await context.replyWithChatAction('typing');
+  //     const completition = await getSmartCompletion(
+  //       answerToReplyPrompt,
+  //       answerToReplyContext,
+  //     );
+  //     const botReply = await context.reply(completition, {
+  //       reply_to_message_id: messageId,
+  //     });
+  //     await database.message.create({
+  //       data: {
+  //         dialogId: dialog.id,
+  //         replyToId: newUserMessage.id,
+  //         text: completition,
+  //         tgMessageId: botReply.message_id.toString(),
+  //         type: MessageType.text,
+  //         userId: config.botId,
+  //       },
+  //     });
+  //     return;
+  //   } catch (error) {
+  //     await context.reply(replies.error, {
+  //       reply_to_message_id: messageId,
+  //     });
+  //     throw error;
+  //   }
+  // }
 
   const prompt = preparePrompt(text);
 
-  const uniqueMessageRepliedOnId = `${chatId}_${messageRepliedOn.message_id}`;
-  const previousBotMessage = await botReplyRepo.getOneById(
-    uniqueMessageRepliedOnId,
-  );
-
-  let dialogId = '';
-  if (!previousBotMessage) {
-    const newDialog = await dialogRepo.create();
-    dialogId = newDialog.id;
-    await botReplyRepo.create({
-      createdAt: new Date(),
-      dialogId,
-      id: uniqueMessageRepliedOnId,
-      text: originalText,
-    });
+  const previousMessage = await database.message.findFirst({
+    where: {
+      tgMessageId: replyToMessage?.message_id.toString() ?? '0',
+    },
+  });
+  if (!previousMessage) {
+    await context.reply(replies.noPreviosData);
+    return;
   }
 
-  if (previousBotMessage) {
-    dialogId = previousBotMessage.dialogId;
-  }
-
-  const dialog = await dialogRepo.get(dialogId);
-  if (!dialog) {
-    throw new Error('Dialog not found');
-  }
+  const newUserMessage = await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      replyToId: previousMessage.id,
+      text,
+      tgMessageId: messageId.toString(),
+      type: MessageType.text,
+      userId: user.id,
+    },
+  });
 
   // Get all previous messages in dialog
-  const previousUserMessages = await promptRepo.getListByDialogId(dialogId);
-  const previousBotMessages = await botReplyRepo.getListByDialogId(dialogId);
-  const previousMessages = [
-    ...previousUserMessages,
-    ...previousBotMessages,
-  ].sort(sortByCreatedAt);
+  const messagesInDialog = await database.message.findMany({
+    where: {
+      dialogId: dialog.id,
+    },
+  });
   // Assgign each message to user context or bot context
-  const previousMessagesContext = previousMessages.map((message) => {
-    if ((message as Prompt).userId === userId.toString()) {
-      return addUserContext(message.text);
+  const previousMessagesContext = messagesInDialog.map((message) => {
+    if (message.userId === config.botId) {
+      return addAssistantContext(message.text ?? '');
     }
 
-    return addAssistantContext(message.text);
+    return addUserContext(message.text ?? '');
   });
 
   // Add aggressive system prompt to the beginning of the context
@@ -244,30 +265,25 @@ export const textController = async (
 
   try {
     await context.replyWithChatAction('typing');
+    // TODO: Maybe choose model here also
     const completition = await getSmartCompletion(
       prompt,
       previousMessagesContext,
     );
-    const newBotMessage = await context.reply(completition, {
+    const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
     });
-    const newBotMessageDate = newBotMessage.date;
-    const newBotMessageId = `${newBotMessage.chat.id}_${newBotMessage.message_id}`;
 
-    await botReplyRepo.create({
-      createdAt: new Date(newBotMessageDate * 1_000),
-      dialogId: dialog.id,
-      id: newBotMessageId,
-      text: newBotMessage.text,
-    });
-
-    await promptRepo.create({
-      createdAt: new Date(messageDate * 1_000),
-      dialogId: dialog.id,
-      result: completition,
-      text: prompt,
-      userId: userId.toString(),
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
     });
   } catch (error) {
     await context.reply(replies.error, {

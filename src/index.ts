@@ -1,6 +1,7 @@
 import {
   adminMiddleware,
   chatMiddleware,
+  dialogMiddleware,
   stateMiddleware,
   userMiddleware,
 } from '@/middlewares';
@@ -33,20 +34,18 @@ bot.catch((error) => {
   logger.error(error);
 });
 
-bot.use(chatMiddleware);
 bot.use(stateMiddleware);
+bot.use(chatMiddleware);
+bot.use(dialogMiddleware);
 bot.use(userMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
 });
-
 bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
-
 bot.command('shicture', shictureController);
-
 bot.command('stats', adminMiddleware, statsController);
 
 const yesTriggerRegexp = /^да$/iu;
@@ -74,24 +73,20 @@ bot.hears(noTriggerRegexp, async (context) => {
 });
 
 /**
- * Handling gpt-4 requests.
- */
-bot.hears(smartTextTriggerRegexp, smartTriggerController);
-
-/**
  * Handling text-davinci-003 requests.
  */
-bot.hears(textTriggerRegexp, retardTriggerController);
+bot.on('message:text').hears(textTriggerRegexp, retardTriggerController);
+
+/**
+ * Handling gpt-4 requests.
+ */
+bot.on('message:text').hears(smartTextTriggerRegexp, smartTriggerController);
 
 /**
  * For handling replies, private messages and random encounters
  */
 bot.on('message:text', textController);
 // bot.on('message:photo', imageController);
-
-/**
- * Admin commands.
- */
 
 const start = async () => {
   await database.$connect();

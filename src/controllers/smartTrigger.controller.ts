@@ -1,13 +1,10 @@
-import {
-  botReply as botReplyRepo,
-  dialog as dialogRepo,
-  image as imageRepo,
-  prompt as promptRepo,
-} from '@/repositories';
-import { type HearsContext } from 'grammy';
+import { MessageType } from '@prisma/client';
+import { type Filter } from 'grammy';
 import { InputFile } from 'grammy';
+import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
+import { database } from 'lib/database';
 import { base64ToImage, generateImage } from 'lib/imageGeneration';
 import { logger } from 'lib/logger';
 import {
@@ -23,32 +20,18 @@ import { replies } from 'lib/replies';
 import { generateVoice } from 'lib/voice';
 
 export const smartTriggerController = async (
-  context: HearsContext<BotContext>,
+  context: Filter<BotContext, 'message:text'>,
 ) => {
   const {
     match,
     message,
-    state: { user: databaseUser },
+    state: { user, dialog },
   } = context;
-  if (!message) {
-    return;
-  }
 
   const text = (match ? match[3] : message.text) ?? '';
-  const {
-    message_id: messageId,
-    from,
-    date: messageDate,
-    chat: { id: chatId },
-  } = message;
+  const { message_id: messageId, reply_to_message: replyToMessage } = message;
 
-  const { id: userId } = from;
-
-  const hasAccess =
-    databaseUser.isAllowed ||
-    config.adminsUsernames.includes(databaseUser.username ?? '');
-
-  if (!hasAccess) {
+  if (!userHasAccess(user)) {
     // If user has no access and just wrote a message with trigger
     await context.reply(replies.notAllowed, {
       reply_to_message_id: messageId,
@@ -58,6 +41,25 @@ export const smartTriggerController = async (
 
   const prompt = preparePrompt(text);
   const task = await chooseTask(prompt);
+
+  const previousMessage = await database.message.findFirst({
+    where: {
+      tgMessageId: replyToMessage?.message_id.toString() ?? '0',
+    },
+  });
+  const replyToId = previousMessage?.id ?? null;
+
+  const newUserMessage = await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      replyToId,
+      text,
+      tgMessageId: messageId.toString(),
+      type: task,
+      userId: user.id,
+    },
+  });
+
   const systemContext = [
     addSystemContext(doAnythingPrompt),
     addSystemContext(markdownRulesPrompt),
@@ -71,22 +73,16 @@ export const smartTriggerController = async (
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
     });
-    const dialog = await dialogRepo.create();
-    await promptRepo.create({
-      createdAt: new Date(messageDate * 1_000),
-      dialogId: dialog.id,
-      result: completition,
-      text: prompt,
-      userId: userId.toString(),
-    });
-    const { message_id: botReplyMessageId, date: botReplyMessageDate } =
-      botReply;
-    const uniqueBotReplyId = `${chatId}_${botReplyMessageId}`;
-    await botReplyRepo.create({
-      createdAt: new Date(botReplyMessageDate * 1_000),
-      dialogId: dialog.id,
-      id: uniqueBotReplyId,
-      text: completition,
+
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
     });
   };
 
@@ -105,14 +101,20 @@ export const smartTriggerController = async (
     const buffer = base64ToImage(imageBase64);
     const file = new InputFile(buffer, 'image.png');
 
-    await context.replyWithPhoto(file, {
+    const botReply = await context.replyWithPhoto(file, {
       reply_to_message_id: messageId,
     });
-
-    await imageRepo.create({
-      data: imageBase64,
-      prompt,
-      userId: message.from.id.toString(),
+    const botMessageId = botReply.message_id.toString();
+    const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        tgMessageId: botMessageId,
+        tgPhotoId: botFileId,
+        type: MessageType.image,
+        userId: config.botId,
+      },
     });
   };
 
@@ -123,25 +125,20 @@ export const smartTriggerController = async (
     const completition = await getSmartCompletion(prompt, systemContext, model);
     const voice = await generateVoice(completition);
 
-    const audio = await context.api.sendVoice(chatId, voice, {
+    const botReply = await context.replyWithVoice(voice, {
       reply_to_message_id: messageId,
     });
 
-    const dialog = await dialogRepo.create();
-    await promptRepo.create({
-      createdAt: new Date(messageDate * 1_000),
-      dialogId: dialog.id,
-      result: completition,
-      text: prompt,
-      userId: userId.toString(),
-    });
-    const { message_id: audioMessageId, date: audioMessageDate } = audio;
-    const uniqueAudioId = `${chatId}_${audioMessageId}`;
-    await botReplyRepo.create({
-      createdAt: new Date(audioMessageDate * 1_000),
-      dialogId: dialog.id,
-      id: uniqueAudioId,
-      text: completition,
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        tgVoiceId: botReply.voice.file_id,
+        type: MessageType.voice,
+        userId: config.botId,
+      },
     });
   };
 

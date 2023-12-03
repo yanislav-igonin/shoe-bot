@@ -1,9 +1,10 @@
+import { type NewChat, type NewDialog, type NewUser } from '@prisma/client';
 import { type Context } from 'grammy';
-import { type Chat, type User } from 'lib/database';
 
 export type BotContext = Context & {
   state: {
-    chat: Chat;
-    user: User;
+    chat: NewChat;
+    dialog: NewDialog;
+    user: NewUser;
   };
 };

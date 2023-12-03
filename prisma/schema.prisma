@@ -29,7 +29,7 @@ model Prompt {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   dialogId  String?
-  dialog    Dialog?   @relation(fields: [dialogId], references: [id])
+  dialog    Dialog?  @relation(fields: [dialogId], references: [id])
 
   @@map("prompts")
 }
@@ -72,4 +72,80 @@ model BotReply {
   dialog    Dialog   @relation(fields: [dialogId], references: [id])
 
   @@map("bot_replies")
+}
+
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+// NEEW MODELS
+
+model NewUser {
+  id           Int       @id @default(autoincrement())
+  username     String?
+  firstName    String?
+  lastName     String?
+  languageCode String?
+  tgId         String    @unique
+  isAllowed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  messages     Message[]
+
+  @@map("new_users")
+}
+
+enum ChatType {
+  private
+  group
+  supergroup
+  channel
+}
+
+model NewChat {
+  id        Int         @id @default(autoincrement())
+  name      String
+  type      ChatType
+  tgId      String
+  createdAt DateTime    @default(now())
+  dialogs   NewDialog[]
+
+  @@map("new_chats")
+}
+
+model NewDialog {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  chatId    Int
+  chat      NewChat  @relation(fields: [chatId], references: [id])
+  messages  Message[]
+
+  @@map("new_dialogs")
+}
+
+enum MessageType {
+  text
+  image
+  voice
+}
+
+model Message {
+  id          Int         @id @default(autoincrement())
+  text        String?
+  type        MessageType
+  userId      Int
+  user        NewUser     @relation(fields: [userId], references: [id])
+  dialogId    Int?
+  dialog      NewDialog?  @relation(fields: [dialogId], references: [id])
+  tgPhotoId   String?
+  tgMessageId String
+  tgVoiceId   String?
+  replyToId   Int?
+  replyTo     Message?    @relation("Replies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("Replies")
+  createdAt   DateTime    @default(now())
+
+  @@map("messages")
 }
