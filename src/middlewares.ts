@@ -93,6 +93,13 @@ export const dialogMiddleware = async (
     return;
   }
 
+  const replyOnBotMessage = replyToMessage.from?.is_bot;
+  if (!replyOnBotMessage) {
+    // Do nothing if user replied to a message that is not from the bot
+    // TODO: Add a reply to the user so bot will be able to answer on text from different users message
+    return;
+  }
+
   const previousMessage = await database.message.findFirst({
     where: { tgMessageId: replyToMessage.message_id.toString() },
   });
@@ -104,7 +111,7 @@ export const dialogMiddleware = async (
   }
 
   const dialog = await database.newDialog.findFirst({
-    where: { id: previousMessage.dialogId ?? undefined },
+    where: { id: previousMessage?.dialogId ?? undefined },
   });
   if (!dialog) {
     newDialog = await database.newDialog.create({
