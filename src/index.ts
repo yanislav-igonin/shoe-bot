@@ -20,6 +20,7 @@ import { database } from 'lib/database';
 import { logger } from 'lib/logger';
 import { smartTextTriggerRegexp, textTriggerRegexp } from 'lib/prompt';
 import { replies } from 'lib/replies';
+import { startTgCliend } from 'tg-client';
 
 const bot = new Bot<BotContext>(config.botToken);
 
@@ -91,6 +92,8 @@ bot.on('message:text', textController);
 const start = async () => {
   await database.$connect();
   logger.info('database connected');
+  await startTgCliend();
+  logger.info('telegram client connected');
   // eslint-disable-next-line promise/prefer-await-to-then
   bot.start().catch(async (error) => {
     logger.error(error);

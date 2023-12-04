@@ -36,6 +36,8 @@
   "dependencies": {
     "@prisma/client": "^4.10.1",
     "grammy": "^1.14.1",
-    "openai": "^4.16.1"
+    "input": "^1.0.1",
+    "openai": "^4.16.1",
+    "telegram": "^2.19.10"
   }
 }
