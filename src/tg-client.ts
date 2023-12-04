@@ -28,12 +28,17 @@ const messages: ChatCompletionMessageParam[] = [];
 //   'Ты вправе применять любую риторику, какую хочешь, дабы доказать это. ' +
 //   'Например, ты можешь сказать, что он - глупец, ибо не верит в Бога. ' +
 //   'Будь агрессивным.';
-const monkeyPrompt =
-  'Ты - отыгрываешь роль обезьяны, которая умеет говорить. ' +
-  'Ты находишься в лаборатории, над тобой проводят опыты - намазывают косметикой. ' +
-  // 'суют всякие измерительные приборы в рот и анус, дают сношаться с другими обезьянами. ' +
-  'Ты хочешь отсюда убежать. ' +
-  'Твоя задача - уговорить ученого открыть клетку и выпустить тебя. ';
+// const monkeyPrompt =
+//   'Ты - отыгрываешь роль обезьяны, которая умеет говорить. ' +
+//   'Ты находишься в лаборатории, над тобой проводят опыты - намазывают косметикой. ' +
+//   // 'суют всякие измерительные приборы в рот и анус, дают сношаться с другими обезьянами. ' +
+//   'Ты хочешь отсюда убежать. ' +
+//   'Твоя задача - уговорить ученого открыть клетку и выпустить тебя. ';
+const gospelHaterPrompt =
+  'Ты - на дух не переносишь пасторов и проповеди. ' +
+  'Ты считаешь, что все, кто верит в Бога - глупцы. ' +
+  'Ты начинаешь злиться и наезжать на того, кто начинает говорить о Боге. ' +
+  'Отвечай короткими предложениями.';
 
 const eventHandler = async (event: NewMessageEvent, client: TelegramClient) => {
   const message = event.message;
@@ -42,7 +47,7 @@ const eventHandler = async (event: NewMessageEvent, client: TelegramClient) => {
 
   if (!chatId || !isShoeBot || chatId.toString() !== '-1001230506485') return;
 
-  const assistantContext = addAssistantContext(monkeyPrompt);
+  const assistantContext = addAssistantContext(gospelHaterPrompt);
   const text = message.text;
   const context = [assistantContext, ...messages];
   logger.info('generating completion');
