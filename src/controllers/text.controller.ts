@@ -1,27 +1,30 @@
 /* eslint-disable complexity */
+import { telegram } from '../telegram';
 import { smartTriggerController } from './smartTrigger.controller';
+import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
-import { type Filter } from 'grammy';
+import { type Filter, InputFile } from 'grammy';
 import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
+import { base64ToImage, generateImage } from 'lib/imageGeneration';
+import { logger } from 'lib/logger';
 import {
   addAssistantContext,
+  addContext,
   addSystemContext,
-  addUserContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
-  // getAnswerToReplyMatches,
   getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
   markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
+  understandImage,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
-// import { valueOrNull } from 'lib/values';
 
 const randomReplyController = async (
   context: Filter<BotContext, 'message:text'>,
@@ -84,6 +87,90 @@ const randomReplyController = async (
     });
     throw error;
   }
+};
+
+const getImagesMapById = async (messages: Message[]) => {
+  // eslint-disable-next-line unicorn/no-array-reduce
+  const tgImagesInDialog = messages.reduce<
+    Array<{ messageId: number; tgPhotoId: string }>
+  >((accumulator, message) => {
+    if (!message.tgPhotoId) return accumulator;
+
+    accumulator.push({
+      messageId: message.id,
+      tgPhotoId: message.tgPhotoId,
+    });
+    return accumulator;
+  }, []);
+  const tgImagesUrlsInDialog = await Promise.all(
+    tgImagesInDialog.map(async (index) => {
+      const file = await telegram.getFile(index.tgPhotoId);
+      const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+      return {
+        messageId: index.messageId,
+        url,
+      };
+    }),
+  );
+  // eslint-disable-next-line unicorn/no-array-reduce
+  const tgImagesMapById = tgImagesUrlsInDialog.reduce<Record<number, string>>(
+    (accumulator, current) => {
+      accumulator[current.messageId] = current.url;
+      return accumulator;
+    },
+    {},
+  );
+  return tgImagesMapById;
+};
+
+const generateBetterImageController = async (
+  context: Filter<BotContext, 'message:text'>,
+  messages: Message[],
+  newUserMessage: Message,
+) => {
+  await context.replyWithChatAction('upload_photo');
+
+  const { dialog } = context.state;
+  const text = context.message.text;
+  const { message_id: messageId } = context.message;
+
+  const tgImagesMapById = await getImagesMapById(messages);
+  const imageMessages = messages.filter((message) => message.tgPhotoId);
+  const lastImageMessage = imageMessages[imageMessages.length - 1];
+  const whatsOnImage = await understandImage(lastImageMessage, tgImagesMapById);
+
+  const upgradedContext = await getSmartCompletion(text, [
+    addAssistantContext(whatsOnImage),
+    addSystemContext(
+      'Результат должен быть новым четким описанием того, что попросили изменить.',
+    ),
+  ]);
+  const imageBase64 = await generateImage(upgradedContext);
+  if (!imageBase64) {
+    await context.reply(replies.error, {
+      reply_to_message_id: messageId,
+    });
+    logger.error('Failed to generate image');
+    return;
+  }
+
+  const buffer = base64ToImage(imageBase64);
+  const file = new InputFile(buffer, 'image.png');
+  const botReply = await context.replyWithPhoto(file, {
+    reply_to_message_id: messageId,
+  });
+  const botMessageId = botReply.message_id.toString();
+  const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
+  await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      replyToId: newUserMessage.id,
+      tgMessageId: botMessageId,
+      tgPhotoId: botFileId,
+      type: MessageType.image,
+      userId: config.botId,
+    },
+  });
 };
 
 export const textController = async (
@@ -247,15 +334,19 @@ export const textController = async (
       dialogId: dialog.id,
     },
   });
+
+  const hasImages = messagesInDialog.some((message) => message.tgPhotoId);
+  if (hasImages) {
+    await generateBetterImageController(
+      context,
+      messagesInDialog,
+      newUserMessage,
+    );
+    return;
+  }
+
   // Assgign each message to user context or bot context
-  const previousMessagesContext = messagesInDialog.map((message) => {
-    if (message.userId === config.botId) {
-      return addAssistantContext(message.text ?? '');
-    }
-
-    return addUserContext(message.text ?? '');
-  });
-
+  const previousMessagesContext = messagesInDialog.map(addContext([]));
   // Add aggressive system prompt to the beginning of the context
   previousMessagesContext.unshift(
     addSystemContext(doAnythingPrompt),
@@ -265,10 +356,10 @@ export const textController = async (
 
   try {
     await context.replyWithChatAction('typing');
-    // TODO: Maybe choose model here also
     const completition = await getSmartCompletion(
       prompt,
       previousMessagesContext,
+      hasImages ? 'gpt-4-vision-preview' : 'gpt-4-1106-preview',
     );
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
