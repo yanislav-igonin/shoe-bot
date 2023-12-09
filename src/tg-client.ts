@@ -18,9 +18,8 @@ import { StringSession } from 'telegram/sessions';
 
 const apiId = 21_533_341;
 const apiHash = '691caea58771632e7b0bbdba90b5b646';
-const stringSession = new StringSession(
-  '1AgAOMTQ5LjE1NC4xNjcuNDEBu2Rii14BFp3GMQtTxeWbDIP98nYnhl39o+EVGcJPVdE0HgLyi5EQ5AHHu5r69ERJlD0lJo6PMCgfGFISYlujTF9fnAqQOL6Im+uyrw4SfSj82f0JHTA+pgkpncm+AVgmXZ4kkVZOhopz0swJvpYtf9oDPmeLmO4GzJycbi0buWbm1JxW2xgWhMS7DR+Wm6FQ43K0pO5OyCMeqQ14mtXBWd8MtcpevkJYxtDD8Ct14K780x/zbqnf/MMu2/mhxMKywtQtlSJH//3LUYe3kzU+VLSNLd01Xpg005jm0AOpctfXfeNxsIoRDNUM1wxS5HjDtF1DMGcAzSJzYW5PqJ+ensY=',
-); // fill this later with the value from session.save()
+// eslint-disable-next-line node/no-process-env
+const stringSession = new StringSession(process.env.TG_SESSION_TOKEN); // fill this later with the value from session.save()
 
 const messages: ChatCompletionMessageParam[] = [];
 
