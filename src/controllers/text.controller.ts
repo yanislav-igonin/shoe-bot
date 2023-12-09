@@ -1,5 +1,7 @@
 /* eslint-disable complexity */
+import { telegram } from '../telegram';
 import { smartTriggerController } from './smartTrigger.controller';
+import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
 import { type Filter } from 'grammy';
 import { userHasAccess } from 'lib/access';
@@ -7,9 +9,8 @@ import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
 import {
-  addAssistantContext,
+  addContext,
   addSystemContext,
-  addUserContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
   // getAnswerToReplyMatches,
@@ -84,6 +85,40 @@ const randomReplyController = async (
     });
     throw error;
   }
+};
+
+const getImagesMapById = async (messages: Message[]) => {
+  // eslint-disable-next-line unicorn/no-array-reduce
+  const tgImagesInDialog = messages.reduce<
+    Array<{ messageId: number; tgPhotoId: string }>
+  >((accumulator, message) => {
+    if (!message.tgPhotoId) return accumulator;
+
+    accumulator.push({
+      messageId: message.id,
+      tgPhotoId: message.tgPhotoId,
+    });
+    return accumulator;
+  }, []);
+  const tgImagesUrlsInDialog = await Promise.all(
+    tgImagesInDialog.map(async (index) => {
+      const file = await telegram.getFile(index.tgPhotoId);
+      const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+      return {
+        messageId: index.messageId,
+        url,
+      };
+    }),
+  );
+  // eslint-disable-next-line unicorn/no-array-reduce
+  const tgImagesMapById = tgImagesUrlsInDialog.reduce<Record<number, string>>(
+    (accumulator, current) => {
+      accumulator[current.messageId] = current.url;
+      return accumulator;
+    },
+    {},
+  );
+  return tgImagesMapById;
 };
 
 export const textController = async (
@@ -247,14 +282,13 @@ export const textController = async (
       dialogId: dialog.id,
     },
   });
-  // Assgign each message to user context or bot context
-  const previousMessagesContext = messagesInDialog.map((message) => {
-    if (message.userId === config.botId) {
-      return addAssistantContext(message.text ?? '');
-    }
 
-    return addUserContext(message.text ?? '');
-  });
+  const tgImagesMapById = await getImagesMapById(messagesInDialog);
+
+  // Assgign each message to user context or bot context
+  const previousMessagesContext = messagesInDialog.map(
+    addContext(tgImagesMapById),
+  );
 
   // Add aggressive system prompt to the beginning of the context
   previousMessagesContext.unshift(

@@ -1,3 +1,4 @@
+import { type Message } from '@prisma/client';
 import { openai } from 'lib/ai';
 import { config, isProduction } from 'lib/config';
 import { logger } from 'lib/logger';
@@ -7,7 +8,13 @@ import { replies } from 'lib/replies';
 import type OpenAI from 'openai';
 
 type ChatCompletionRequestMessage =
-  OpenAI.Chat.Completions.CreateChatCompletionRequestMessage;
+  OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
+enum ContextRole {
+  Assistant = 'assistant',
+  System = 'system',
+  User = 'user',
+}
 
 type Model =
   | 'gpt-3.5-turbo-1106'
@@ -43,20 +50,73 @@ export const addSystemContext = (
 };
 
 export const addAssistantContext = (
-  text: string,
+  message: Message,
+  imagesMap: Record<number, string> = {},
 ): ChatCompletionRequestMessage => {
+  if (message.text && message.tgPhotoId) {
+    return {
+      // @ts-expect-error Stupid typings
+      content: [
+        { text: message.text, type: 'text' },
+        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+      ],
+      role: ContextRole.Assistant,
+    };
+  }
+
+  if (message.tgPhotoId) {
+    return {
+      // @ts-expect-error Stupid typings
+      content: [
+        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+      ],
+      role: ContextRole.Assistant,
+    };
+  }
+
   return {
-    content: text,
-    role: 'assistant',
+    content: message.text,
+    role: ContextRole.Assistant,
   };
 };
 
-export const addUserContext = (text: string): ChatCompletionRequestMessage => {
+export const addUserContext = (
+  message: Message,
+  imagesMap: Record<number, string> = {},
+): ChatCompletionRequestMessage => {
+  if (message.text && message.tgPhotoId) {
+    return {
+      content: [
+        { text: message.text, type: 'text' },
+        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+      ],
+      role: ContextRole.User,
+    };
+  }
+
+  if (message.tgPhotoId) {
+    return {
+      content: [
+        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+      ],
+      role: ContextRole.User,
+    };
+  }
+
   return {
-    content: text,
-    role: 'user',
+    content: message.text,
+    role: ContextRole.User,
   };
 };
+
+export const addContext =
+  (imagesMap: Record<number, string>) => (message: Message) => {
+    if (message.userId === config.botId) {
+      return addAssistantContext(message, imagesMap);
+    }
+
+    return addUserContext(message, imagesMap);
+  };
 
 export const getCompletion = async (prompt: string) => {
   const response = await openai.completions.create({
