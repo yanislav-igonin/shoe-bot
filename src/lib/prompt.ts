@@ -50,9 +50,16 @@ export const addSystemContext = (
 };
 
 export const addAssistantContext = (
-  message: Message,
+  message: Message | string,
   imagesMap: Record<number, string> = {},
 ): ChatCompletionRequestMessage => {
+  if (typeof message === 'string') {
+    return {
+      content: message,
+      role: ContextRole.Assistant,
+    };
+  }
+
   if (message.text && message.tgPhotoId) {
     return {
       // @ts-expect-error Stupid typings
@@ -81,14 +88,24 @@ export const addAssistantContext = (
 };
 
 export const addUserContext = (
-  message: Message,
+  message: Message | string,
   imagesMap: Record<number, string> = {},
 ): ChatCompletionRequestMessage => {
+  if (typeof message === 'string') {
+    return {
+      content: message,
+      role: ContextRole.User,
+    };
+  }
+
   if (message.text && message.tgPhotoId) {
     return {
       content: [
         { text: message.text, type: 'text' },
-        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+        {
+          image_url: { detail: 'high', url: imagesMap[message.id] },
+          type: 'image_url',
+        },
       ],
       role: ContextRole.User,
     };
@@ -97,7 +114,10 @@ export const addUserContext = (
   if (message.tgPhotoId) {
     return {
       content: [
-        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+        {
+          image_url: { detail: 'high', url: imagesMap[message.id] },
+          type: 'image_url',
+        },
       ],
       role: ContextRole.User,
     };
@@ -129,18 +149,34 @@ export const getCompletion = async (prompt: string) => {
 };
 
 export const getSmartCompletion = async (
-  prompt: string,
+  message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
   model: Model = 'gpt-4-1106-preview',
 ) => {
-  const userMessage = addUserContext(prompt);
+  const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
+  const maxTokens = model === 'gpt-4-vision-preview' ? 2_048 : null;
   const response = await openai.chat.completions.create({
+    max_tokens: maxTokens,
     messages,
     model,
   });
   const text = response.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
+};
+
+export const understandImage = async (
+  message: Message,
+  imagesMap: Record<number, string>,
+) => {
+  const userContext = addUserContext(message, imagesMap);
+  const messages = [userContext];
+  const response = await getSmartCompletion(
+    'Что изображено на картинке?',
+    messages,
+    'gpt-4-vision-preview',
+  );
+  return response;
 };
 
 const cleanPrompt = (text: string) => {

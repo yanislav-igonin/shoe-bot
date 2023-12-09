@@ -3,14 +3,18 @@ import { telegram } from '../telegram';
 import { smartTriggerController } from './smartTrigger.controller';
 import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
-import { type Filter } from 'grammy';
+import { type Filter, InputFile } from 'grammy';
 import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
+import { base64ToImage, generateImage } from 'lib/imageGeneration';
+import { logger } from 'lib/logger';
 import {
+  addAssistantContext,
   addContext,
   addSystemContext,
+  addUserContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
   // getAnswerToReplyMatches,
@@ -20,6 +24,7 @@ import {
   markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
+  understandImage,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
 // import { valueOrNull } from 'lib/values';
@@ -119,6 +124,56 @@ const getImagesMapById = async (messages: Message[]) => {
     {},
   );
   return tgImagesMapById;
+};
+
+const generateBetterImageController = async (
+  context: Filter<BotContext, 'message:text'>,
+  messages: Message[],
+  newUserMessage: Message,
+) => {
+  await context.replyWithChatAction('upload_photo');
+
+  const { dialog } = context.state;
+  const text = context.message.text;
+  const { message_id: messageId } = context.message;
+
+  const tgImagesMapById = await getImagesMapById(messages);
+  const imageMessages = messages.filter((message) => message.tgPhotoId);
+  const lastImageMessage = imageMessages[imageMessages.length - 1];
+  const whatsOnImage = await understandImage(lastImageMessage, tgImagesMapById);
+
+  const upgradedContext = await getSmartCompletion(text, [
+    addAssistantContext(whatsOnImage),
+    addSystemContext(
+      'Результат должен быть новым четким описанием того, что попросили изменить',
+    ),
+  ]);
+  const imageBase64 = await generateImage(upgradedContext);
+  if (!imageBase64) {
+    await context.reply(replies.error, {
+      reply_to_message_id: messageId,
+    });
+    logger.error('Failed to generate image');
+    return;
+  }
+
+  const buffer = base64ToImage(imageBase64);
+  const file = new InputFile(buffer, 'image.png');
+  const botReply = await context.replyWithPhoto(file, {
+    reply_to_message_id: messageId,
+  });
+  const botMessageId = botReply.message_id.toString();
+  const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
+  await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      replyToId: newUserMessage.id,
+      tgMessageId: botMessageId,
+      tgPhotoId: botFileId,
+      type: MessageType.image,
+      userId: config.botId,
+    },
+  });
 };
 
 export const textController = async (
@@ -283,13 +338,18 @@ export const textController = async (
     },
   });
 
-  const tgImagesMapById = await getImagesMapById(messagesInDialog);
+  const hasImages = messagesInDialog.some((message) => message.tgPhotoId);
+  if (hasImages) {
+    await generateBetterImageController(
+      context,
+      messagesInDialog,
+      newUserMessage,
+    );
+    return;
+  }
 
   // Assgign each message to user context or bot context
-  const previousMessagesContext = messagesInDialog.map(
-    addContext(tgImagesMapById),
-  );
-
+  const previousMessagesContext = messagesInDialog.map(addContext([]));
   // Add aggressive system prompt to the beginning of the context
   previousMessagesContext.unshift(
     addSystemContext(doAnythingPrompt),
@@ -299,10 +359,10 @@ export const textController = async (
 
   try {
     await context.replyWithChatAction('typing');
-    // TODO: Maybe choose model here also
     const completition = await getSmartCompletion(
       prompt,
       previousMessagesContext,
+      hasImages ? 'gpt-4-vision-preview' : 'gpt-4-1106-preview',
     );
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
