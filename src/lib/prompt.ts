@@ -172,7 +172,7 @@ export const understandImage = async (
   const userContext = addUserContext(message, imagesMap);
   const messages = [userContext];
   const response = await getSmartCompletion(
-    'Что изображено на картинке?',
+    'Что изображено на картинке? Результат должен являться описанием всех деталей картинки.',
     messages,
     'gpt-4-vision-preview',
   );

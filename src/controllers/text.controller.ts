@@ -14,10 +14,8 @@ import {
   addAssistantContext,
   addContext,
   addSystemContext,
-  addUserContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
-  // getAnswerToReplyMatches,
   getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
@@ -27,7 +25,6 @@ import {
   understandImage,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
-// import { valueOrNull } from 'lib/values';
 
 const randomReplyController = async (
   context: Filter<BotContext, 'message:text'>,
@@ -145,7 +142,7 @@ const generateBetterImageController = async (
   const upgradedContext = await getSmartCompletion(text, [
     addAssistantContext(whatsOnImage),
     addSystemContext(
-      'Результат должен быть новым четким описанием того, что попросили изменить',
+      'Результат должен быть новым четким описанием того, что попросили изменить.',
     ),
   ]);
   const imageBase64 = await generateImage(upgradedContext);
