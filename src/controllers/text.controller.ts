@@ -125,17 +125,44 @@ const getImagesMapById = async (messages: Message[]) => {
 
 const generateBetterImageController = async (
   context: Filter<BotContext, 'message:text'>,
-  messages: Message[],
-  newUserMessage: Message,
 ) => {
   await context.replyWithChatAction('upload_photo');
 
-  const { dialog } = context.state;
+  const { dialog, user } = context.state;
   const text = context.message.text;
-  const { message_id: messageId } = context.message;
+  const { message_id: messageId, reply_to_message: replyToMessage } =
+    context.message;
 
-  const tgImagesMapById = await getImagesMapById(messages);
-  const imageMessages = messages.filter((message) => message.tgPhotoId);
+  const previousMessage = await database.message.findFirst({
+    where: {
+      tgMessageId: replyToMessage?.message_id.toString() ?? '0',
+    },
+  });
+  if (!previousMessage) {
+    await context.reply(replies.noPreviosData);
+    return;
+  }
+
+  const newUserMessage = await database.message.create({
+    data: {
+      dialogId: dialog.id,
+      replyToId: previousMessage.id,
+      text,
+      tgMessageId: messageId.toString(),
+      type: MessageType.image,
+      userId: user.id,
+    },
+  });
+
+  // Get all previous messages in dialog
+  const messagesInDialog = await database.message.findMany({
+    where: {
+      dialogId: dialog.id,
+    },
+  });
+
+  const tgImagesMapById = await getImagesMapById(messagesInDialog);
+  const imageMessages = messagesInDialog.filter((message) => message.tgPhotoId);
   const lastImageMessage = imageMessages[imageMessages.length - 1];
   const whatsOnImage = await understandImage(lastImageMessage, tgImagesMapById);
 
@@ -307,6 +334,20 @@ export const textController = async (
 
   const prompt = preparePrompt(text);
 
+  const hasImages =
+    (
+      await database.message.findMany({
+        where: {
+          dialogId: dialog.id,
+          type: MessageType.image,
+        },
+      })
+    ).length > 0;
+  if (hasImages) {
+    await generateBetterImageController(context);
+    return;
+  }
+
   const previousMessage = await database.message.findFirst({
     where: {
       tgMessageId: replyToMessage?.message_id.toString() ?? '0',
@@ -334,16 +375,6 @@ export const textController = async (
       dialogId: dialog.id,
     },
   });
-
-  const hasImages = messagesInDialog.some((message) => message.tgPhotoId);
-  if (hasImages) {
-    await generateBetterImageController(
-      context,
-      messagesInDialog,
-      newUserMessage,
-    );
-    return;
-  }
 
   // Assgign each message to user context or bot context
   const previousMessagesContext = messagesInDialog.map(addContext([]));
