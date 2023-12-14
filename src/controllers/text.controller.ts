@@ -10,12 +10,14 @@ import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
 import { base64ToImage, generateImage } from 'lib/imageGeneration';
 import { logger } from 'lib/logger';
+import { type Model } from 'lib/prompt';
 import {
   addAssistantContext,
   addContext,
   addSystemContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
+  getModelForTask,
   getRandomEncounterPrompt,
   getRandomEncounterWords,
   getSmartCompletion,
@@ -387,10 +389,19 @@ export const textController = async (
 
   try {
     await context.replyWithChatAction('typing');
+    let model: Model;
+    if (hasImages) {
+      model = 'gpt-4-vision-preview';
+    } else if (dialog.isViolatesOpenAiPolicy) {
+      model = 'gpt-4';
+    } else {
+      model = await getModelForTask(prompt);
+    }
+
     const completition = await getSmartCompletion(
       prompt,
       previousMessagesContext,
-      hasImages ? 'gpt-4-vision-preview' : 'gpt-4-1106-preview',
+      model,
     );
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',

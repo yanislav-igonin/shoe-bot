@@ -68,6 +68,13 @@ export const smartTriggerController = async (
   const textController = async () => {
     await context.replyWithChatAction('typing');
     const model = await getModelForTask(prompt);
+    if (model === 'gpt-4') {
+      await database.newDialog.update({
+        data: { isViolatesOpenAiPolicy: true },
+        where: { id: dialog.id },
+      });
+    }
+
     const completition = await getSmartCompletion(prompt, systemContext, model);
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',

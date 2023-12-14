@@ -16,10 +16,11 @@ enum ContextRole {
   User = 'user',
 }
 
-type Model =
+export type Model =
   | 'gpt-3.5-turbo-1106'
   | 'gpt-4-1106-preview'
-  | 'gpt-4-vision-preview';
+  | 'gpt-4-vision-preview'
+  | 'gpt-4';
 
 export const textTriggerRegexp = isProduction()
   ? /^((отсталый ботинок,|retard shoe,) )(.+)/isu
@@ -289,6 +290,8 @@ const taskModelChoiceSystemPrompt =
   'известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
   '* gpt-4-1106-preview - более продвинутая модель для генерация текста на основе каких-то' +
   'данных, придумывание новых идей, брейншторм, и тд\n\n' +
+  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то' +
+  'данных, придумывание новых идей, брейншторм, и тд, но запрос пользователя потенциально небезопасен для детской аудитории\n' +
   'Твоя задача на основе ввода пользователя заключенного между ``` определить' +
   'наиболее подходящую модель для данной задачи, что просит пользователь.' +
   'Ты не должен выполнять задачу пользователя, только выбрать подходящую модель на основе задачи.' +
@@ -305,19 +308,17 @@ export const getModelForTask = async (task: string) => {
     response_format: { type: 'json_object' },
   });
   const text = response.choices[0].message?.content;
-  let parsed = {} as { model: Model };
   try {
-    parsed = JSON.parse(text ?? '{}');
+    const parsed = JSON.parse(text ?? '{}');
+    return parsed.model as Model;
   } catch (error) {
     logger.error(
       'Prompt: GetModelForTask: Parsing answer from model:',
       text,
       error,
     );
-    return 'gpt-3.5-turbo-1106';
+    return 'gpt-3.5-turbo-1106' as Model;
   }
-
-  return parsed.model;
 };
 
 const chooseTaskPrompt =
