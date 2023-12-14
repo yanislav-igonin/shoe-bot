@@ -121,6 +121,7 @@ model NewDialog {
   chatId    Int
   chat      NewChat  @relation(fields: [chatId], references: [id])
   messages  Message[]
+  isViolatesOpenAiPolicy Boolean @default(false)
 
   @@map("new_dialogs")
 }
