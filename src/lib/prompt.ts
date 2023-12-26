@@ -23,10 +23,6 @@ export type Model =
   | 'gpt-4';
 
 export const textTriggerRegexp = isProduction()
-  ? /^((отсталый ботинок,|retard shoe,) )(.+)/isu
-  : /^((отсталый бомж,|retard hobo,) )(.+)/isu;
-
-export const smartTextTriggerRegexp = isProduction()
   ? /^((ботинок,|shoe,) )(.+)/isu
   : /^((бомж,|hobo,) )(.+)/isu;
 
@@ -139,17 +135,7 @@ export const addContext =
     return addUserContext(message, imagesMap);
   };
 
-export const getCompletion = async (prompt: string) => {
-  const response = await openai.completions.create({
-    max_tokens: 2_048,
-    model: 'text-davinci-003',
-    prompt,
-  });
-  const { text } = response.choices[0];
-  return text.trim() || replies.noAnswer;
-};
-
-export const getSmartCompletion = async (
+export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
   model: Model = 'gpt-4-1106-preview',
@@ -172,7 +158,7 @@ export const understandImage = async (
 ) => {
   const userContext = addUserContext(message, imagesMap);
   const messages = [userContext];
-  const response = await getSmartCompletion(
+  const response = await getCompletion(
     'Что изображено на картинке? Результат должен являться описанием всех деталей картинки.',
     messages,
     'gpt-4-vision-preview',
@@ -266,7 +252,7 @@ export const getShictureDescription = async () => {
     'Результат должен содержать только формулировку, а в конце добавить " в стиле ",' +
     'но сам стиль не добавлять, я добавлю его после сам, например: ' +
     'Нарисуй картину с большими в стиле ';
-  let description = await getSmartCompletion(prompt);
+  let description = await getCompletion(prompt);
   const lastFewCharacters = description.slice(-3);
 
   // Remove trailing dot

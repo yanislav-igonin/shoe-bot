@@ -11,15 +11,15 @@ import {
   addSystemContext,
   chooseTask,
   doAnythingPrompt,
+  getCompletion,
   getModelForTask,
-  getSmartCompletion,
   markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
 import { generateVoice } from 'lib/voice';
 
-export const smartTriggerController = async (
+export const textTriggerController = async (
   context: Filter<BotContext, 'message:text'>,
 ) => {
   const {
@@ -75,7 +75,7 @@ export const smartTriggerController = async (
       });
     }
 
-    const completition = await getSmartCompletion(prompt, systemContext, model);
+    const completition = await getCompletion(prompt, systemContext, model);
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
@@ -129,7 +129,7 @@ export const smartTriggerController = async (
     await context.replyWithChatAction('record_voice');
 
     const model = await getModelForTask(prompt);
-    const completition = await getSmartCompletion(prompt, systemContext, model);
+    const completition = await getCompletion(prompt, systemContext, model);
     const voice = await generateVoice(completition);
 
     const botReply = await context.replyWithVoice(voice, {

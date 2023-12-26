@@ -7,18 +7,17 @@ import {
 } from '@/middlewares';
 import {
   // imageController,
-  retardTriggerController,
   shictureController,
-  smartTriggerController,
   statsController,
   textController,
+  textTriggerController,
 } from 'controllers';
 import { Bot } from 'grammy';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
 import { logger } from 'lib/logger';
-import { smartTextTriggerRegexp, textTriggerRegexp } from 'lib/prompt';
+import { textTriggerRegexp } from 'lib/prompt';
 import { replies } from 'lib/replies';
 
 const bot = new Bot<BotContext>(config.botToken);
@@ -73,14 +72,9 @@ bot.hears(noTriggerRegexp, async (context) => {
 });
 
 /**
- * Handling text-davinci-003 requests.
- */
-bot.on('message:text').hears(textTriggerRegexp, retardTriggerController);
-
-/**
  * Handling gpt-4 requests.
  */
-bot.on('message:text').hears(smartTextTriggerRegexp, smartTriggerController);
+bot.on('message:text').hears(textTriggerRegexp, textTriggerController);
 
 /**
  * For handling replies, private messages and random encounters
