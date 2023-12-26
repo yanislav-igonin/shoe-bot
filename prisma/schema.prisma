@@ -8,15 +8,16 @@ datasource db {
 }
 
 model NewUser {
-  id           Int       @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   username     String?
   firstName    String?
   lastName     String?
   languageCode String?
-  tgId         String    @unique
-  isAllowed    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
+  tgId         String         @unique
+  isAllowed    Boolean        @default(false)
+  createdAt    DateTime       @default(now())
   messages     Message[]
+  UserSettings UserSettings[]
 
   @@map("new_users")
 }
@@ -40,12 +41,12 @@ model NewChat {
 }
 
 model NewDialog {
-  id        Int       @id @default(autoincrement())
-  createdAt DateTime  @default(now())
-  chatId    Int
-  chat      NewChat  @relation(fields: [chatId], references: [id])
-  messages  Message[]
-  isViolatesOpenAiPolicy Boolean @default(false)
+  id                     Int       @id @default(autoincrement())
+  createdAt              DateTime  @default(now())
+  chatId                 Int
+  chat                   NewChat   @relation(fields: [chatId], references: [id])
+  messages               Message[]
+  isViolatesOpenAiPolicy Boolean   @default(false)
 
   @@map("new_dialogs")
 }
@@ -73,4 +74,27 @@ model Message {
   createdAt   DateTime    @default(now())
 
   @@map("messages")
+}
+
+model BotTemplate {
+  id           Int            @id @default(autoincrement())
+  name         String
+  systemPrompt String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  UserSettings UserSettings[]
+
+  @@map("bot_templates")
+}
+
+model UserSettings {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  user          NewUser     @relation(fields: [userId], references: [id])
+  botTemplateId Int
+  botTemplate   BotTemplate @relation(fields: [botTemplateId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("user_settings")
 }
