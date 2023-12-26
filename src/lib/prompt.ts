@@ -22,10 +22,6 @@ export type Model =
   | 'gpt-4-vision-preview'
   | 'gpt-4';
 
-export const textTriggerRegexp = isProduction()
-  ? /^((отсталый ботинок,|retard shoe,) )(.+)/isu
-  : /^((отсталый бомж,|retard hobo,) )(.+)/isu;
-
 export const smartTextTriggerRegexp = isProduction()
   ? /^((ботинок,|shoe,) )(.+)/isu
   : /^((бомж,|hobo,) )(.+)/isu;
@@ -138,16 +134,6 @@ export const addContext =
 
     return addUserContext(message, imagesMap);
   };
-
-export const getCompletion = async (prompt: string) => {
-  const response = await openai.completions.create({
-    max_tokens: 2_048,
-    model: 'text-davinci-003',
-    prompt,
-  });
-  const { text } = response.choices[0];
-  return text.trim() || replies.noAnswer;
-};
 
 export const getSmartCompletion = async (
   message: Message | string,
