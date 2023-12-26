@@ -1,6 +1,6 @@
 /* eslint-disable complexity */
 import { telegram } from '../telegram';
-import { textTriggerController } from './smartTrigger.controller';
+import { textTriggerController } from './textTrigger.controller';
 import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
 import { type Filter, InputFile } from 'grammy';
