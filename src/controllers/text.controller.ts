@@ -1,6 +1,6 @@
 /* eslint-disable complexity */
 import { telegram } from '../telegram';
-import { smartTriggerController } from './smartTrigger.controller';
+import { textTriggerController } from './smartTrigger.controller';
 import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
 import { type Filter, InputFile } from 'grammy';
@@ -17,10 +17,10 @@ import {
   addSystemContext,
   aggressiveSystemPrompt,
   doAnythingPrompt,
+  getCompletion,
   getModelForTask,
   getRandomEncounterPrompt,
   getRandomEncounterWords,
-  getSmartCompletion,
   markdownRulesPrompt,
   preparePrompt,
   shouldMakeRandomEncounter,
@@ -63,10 +63,7 @@ const randomReplyController = async (
   await context.replyWithChatAction('typing');
 
   try {
-    const completition = await getSmartCompletion(
-      encounterPrompt,
-      promptContext,
-    );
+    const completition = await getCompletion(encounterPrompt, promptContext);
 
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
@@ -168,7 +165,7 @@ const generateBetterImageController = async (
   const lastImageMessage = imageMessages[imageMessages.length - 1];
   const whatsOnImage = await understandImage(lastImageMessage, tgImagesMapById);
 
-  const upgradedContext = await getSmartCompletion(text, [
+  const upgradedContext = await getCompletion(text, [
     addAssistantContext(whatsOnImage),
     addSystemContext(
       'Результат должен быть новым четким описанием того, что попросили изменить.',
@@ -222,7 +219,7 @@ export const textController = async (
   const askedInPrivate = context.hasChatType('private');
 
   if (askedInPrivate && notReply) {
-    await smartTriggerController(context);
+    await textTriggerController(context);
     return;
   }
 
@@ -398,7 +395,7 @@ export const textController = async (
       model = await getModelForTask(prompt);
     }
 
-    const completition = await getSmartCompletion(
+    const completition = await getCompletion(
       prompt,
       previousMessagesContext,
       model,
