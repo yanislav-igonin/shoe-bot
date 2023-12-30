@@ -4,7 +4,6 @@ import { textTriggerController } from './textTrigger.controller';
 import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
 import { type Filter, InputFile } from 'grammy';
-import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
@@ -209,13 +208,10 @@ export const textController = async (
   const { message_id: messageId, reply_to_message: replyToMessage } =
     context.message;
 
-  const botId = context.me.id;
   const shouldReplyRandomly = shouldMakeRandomEncounter();
   const notReply = replyToMessage === undefined;
-  const repliedOnBotsMessage = replyToMessage?.from?.id === botId;
   // const repliedOnMessageId = replyToMessage?.message_id;
   // const repliedOnOthersMessage = !repliedOnBotsMessage;
-  const hasAccess = userHasAccess(user);
   const askedInPrivate = context.hasChatType('private');
 
   if (askedInPrivate && notReply) {
@@ -227,19 +223,6 @@ export const textController = async (
   // Triggered by chance, replies to any message just4lulz
   if (shouldReplyRandomly && notReply) {
     await randomReplyController(context);
-    return;
-  }
-
-  // If user has no access and replied on bots message
-  if (!hasAccess && repliedOnBotsMessage) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: messageId,
-    });
-    return;
-  }
-
-  // If user has no access or its not a reply, ignore it
-  if (!hasAccess || notReply) {
     return;
   }
 

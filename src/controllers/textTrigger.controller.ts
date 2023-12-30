@@ -1,7 +1,6 @@
 import { MessageType } from '@prisma/client';
 import { type Filter } from 'grammy';
 import { InputFile } from 'grammy';
-import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
@@ -30,14 +29,6 @@ export const textTriggerController = async (
 
   const text = (match ? match[3] : message.text) ?? '';
   const { message_id: messageId, reply_to_message: replyToMessage } = message;
-
-  if (!userHasAccess(user)) {
-    // If user has no access and just wrote a message with trigger
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: messageId,
-    });
-    return;
-  }
 
   const prompt = preparePrompt(text);
   const task = await chooseTask(prompt);
