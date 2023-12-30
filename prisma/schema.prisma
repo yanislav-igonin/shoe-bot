@@ -90,7 +90,6 @@ model NewUser {
   lastName        String?
   languageCode    String?
   tgId            String           @unique
-  isAllowed       Boolean          @default(false)
   allowedTill     DateTime?        @db.Date
   createdAt       DateTime         @default(now())
   messages        Message[]
