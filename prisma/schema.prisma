@@ -91,6 +91,7 @@ model NewUser {
   languageCode   String?
   tgId           String           @unique
   isAllowed      Boolean          @default(false)
+  allowedTill    DateTime?
   createdAt      DateTime         @default(now())
   messages       Message[]
   activationCodes ActivationCode[]
