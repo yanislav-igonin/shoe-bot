@@ -4,23 +4,18 @@ import { database } from 'lib/database';
 import { replies } from 'lib/replies';
 import { DateTime } from 'luxon';
 
-const getNewAllowedTill = (userAllowedDate: Date | null) => {
-  let newAllowedTill: Date;
-
-  const now = DateTime.now();
-  if (userAllowedDate) {
-    if (now > DateTime.fromJSDate(userAllowedDate)) {
-      newAllowedTill = now.plus({ month: 1 }).toJSDate();
-    } else {
-      newAllowedTill = DateTime.fromJSDate(userAllowedDate)
-        .plus({ month: 1 })
-        .toJSDate();
-    }
-  } else {
-    newAllowedTill = now.plus({ month: 1 }).toJSDate();
+const getNewAllowedTill = (userAllowedTill: Date | null) => {
+  const now = DateTime.now().toUTC();
+  if (!userAllowedTill) {
+    return now.plus({ month: 1 }).toJSDate();
   }
 
-  return newAllowedTill;
+  const subscriptionIsExpired = now > DateTime.fromJSDate(userAllowedTill);
+  if (subscriptionIsExpired) {
+    return now.plus({ month: 1 }).toJSDate();
+  }
+
+  return DateTime.fromJSDate(userAllowedTill).plus({ month: 1 }).toJSDate();
 };
 
 export const activateController = async (
@@ -43,11 +38,8 @@ export const activateController = async (
   }
 
   const { user } = context.state;
-  const userAllowedDate = user.allowedTill;
-  const newAllowedTill = DateTime.fromJSDate(getNewAllowedTill(userAllowedDate))
-    .toUTC()
-    .endOf('day')
-    .toJSDate();
+  const { allowedTill: userAllowedDate } = user;
+  const newAllowedTill = getNewAllowedTill(userAllowedDate);
 
   await database.newUser.update({
     data: {
@@ -68,5 +60,7 @@ export const activateController = async (
 
   const beutifiedNewAllowedTill =
     DateTime.fromJSDate(newAllowedTill).toFormat('dd.MM.yyyy');
-  await context.reply(replies.activationSuccess(beutifiedNewAllowedTill));
+  await context.reply(replies.activationSuccess(beutifiedNewAllowedTill), {
+    reply_to_message_id: context.message?.message_id,
+  });
 };
