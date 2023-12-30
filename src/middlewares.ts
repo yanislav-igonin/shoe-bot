@@ -258,7 +258,7 @@ export const allowedMiddleware = async (
   const messageMatchesTrigger = Boolean(
     context.message?.text?.match(textTriggerRegexp),
   );
-  // TODO: FIX HERE TRIGGER CONDITION
+  // TODO: FIX HERE TRIGGER CONDITION ADD RANDOM ENCOUNTER
   const shouldTrigger = messageMatchesTrigger || isPrivateChat;
   if (!shouldTrigger) {
     return;
