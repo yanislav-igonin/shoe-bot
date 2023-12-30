@@ -1,6 +1,6 @@
 export const replies = {
-  activationSuccess: (newDate: string) =>
-    `Активация прошла успешно, доступ до ${newDate}`,
+  activationSuccess: (newAllowedTill: string) =>
+    `Активация прошла успешно, доступ до ${newAllowedTill} включительно`,
   error:
     'Что-то пошло не так, возможно, ввод слишком большой или непонятный, попробуйте снова.' +
     '\n\nЕсли ошибка повторяется, напишите @hobo_with_a_hookah',
@@ -30,6 +30,7 @@ export const replies = {
     '\nНапиши мне что-нибудь, и я попробую ответить.' +
     '\n\nТакже работую в группах.' +
     '\n\n/help - для просмотра справки.',
+  subscriptionInfo: (allowedTill: string) => `Доступ до ${allowedTill}`,
   wrongActivationCode: 'Неверный код активации',
   yes: 'пизда',
 } as const;

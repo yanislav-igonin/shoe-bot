@@ -8,6 +8,7 @@ import {
 import {
   activateController,
   generateController,
+  profileController,
   // imageController,
   shictureController,
   statsController,
@@ -48,6 +49,7 @@ bot.command('help', async (context) => {
 });
 bot.command('shicture', shictureController);
 bot.command('activate', activateController);
+bot.command('profile', profileController);
 bot.command('stats', adminMiddleware, statsController);
 bot.command('generate', adminMiddleware, generateController);
 
