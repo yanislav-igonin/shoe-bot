@@ -6,6 +6,7 @@ import {
   userMiddleware,
 } from '@/middlewares';
 import {
+  activateController,
   generateController,
   // imageController,
   shictureController,
@@ -46,6 +47,7 @@ bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
 bot.command('shicture', shictureController);
+bot.command('activate', activateController);
 bot.command('stats', adminMiddleware, statsController);
 bot.command('generate', adminMiddleware, generateController);
 

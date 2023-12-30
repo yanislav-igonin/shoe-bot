@@ -1,3 +1,4 @@
+export * from './activate.controller';
 export * from './admin/generate.controller';
 export * from './admin/stats.controller';
 export * from './image.controller';
