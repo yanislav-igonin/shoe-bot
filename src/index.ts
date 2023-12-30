@@ -1,5 +1,6 @@
 import {
   adminMiddleware,
+  allowedMiddleware,
   chatMiddleware,
   dialogMiddleware,
   stateMiddleware,
@@ -38,8 +39,9 @@ bot.catch((error) => {
 
 bot.use(stateMiddleware);
 bot.use(chatMiddleware);
-bot.use(dialogMiddleware);
+// bot.use(dialogMiddleware);
 bot.use(userMiddleware);
+bot.use(allowedMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);

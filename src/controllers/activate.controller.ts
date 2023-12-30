@@ -44,7 +44,10 @@ export const activateController = async (
 
   const { user } = context.state;
   const userAllowedDate = user.allowedTill;
-  const newAllowedTill = getNewAllowedTill(userAllowedDate);
+  const newAllowedTill = DateTime.fromJSDate(getNewAllowedTill(userAllowedDate))
+    .toUTC()
+    .endOf('day')
+    .toJSDate();
 
   await database.newUser.update({
     data: {

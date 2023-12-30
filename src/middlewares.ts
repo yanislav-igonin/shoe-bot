@@ -5,8 +5,10 @@ import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 import { type BotContext } from 'lib/context';
+import { textTriggerRegexp } from 'lib/prompt';
 import { replies } from 'lib/replies';
 import { valueOrNull } from 'lib/values';
+import { DateTime } from 'luxon';
 
 /**
  * Makes state object inside the context to store some shit across the request.
@@ -207,6 +209,66 @@ export const adminMiddleware = async (
   const isAllowed = adminsUsernames.includes(username ?? '');
 
   if (!isAllowed) {
+    return;
+  }
+
+  // eslint-disable-next-line node/callback-return
+  await next();
+};
+
+export const allowedMiddleware = async (
+  context: BotContext,
+  next: NextFunction,
+) => {
+  const { user } = context.state;
+  const isActivationCommand = context.message?.text?.startsWith('/activate');
+  if (!user) {
+    // eslint-disable-next-line node/callback-return
+    return;
+  }
+
+  if (isActivationCommand) {
+    // eslint-disable-next-line node/callback-return
+    await next();
+    return;
+  }
+
+  const { allowedTill } = user;
+  if (!allowedTill) {
+    await context.reply(replies.notAllowed);
+    // eslint-disable-next-line node/callback-return
+    return;
+  }
+
+  const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC();
+  const utcNow = DateTime.now().toUTC();
+
+  const isPrivateChat = context.chat?.type === 'private';
+  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
+  const subscriptionIsActive = utcNow < utcAllowedTill;
+  const isReplyOnBotMessage = Boolean(
+    context.message?.reply_to_message?.from?.is_bot,
+  );
+  const messageMatchesTrigger = Boolean(
+    context.message?.text?.match(textTriggerRegexp),
+  );
+  // TODO: FIX HERE TRIGGER CONDITION
+  const shouldTrigger = messageMatchesTrigger || isPrivateChat;
+  if (!shouldTrigger) {
+    return;
+  }
+
+  const isAllowed =
+    // For public chats
+    (subscriptionIsActive && (isReplyOnBotMessage || messageMatchesTrigger)) ||
+    // For private chats
+    (subscriptionIsActive && isPrivateChat);
+
+  if (!isAllowed) {
+    await context.reply(replies.notAllowed, {
+      reply_to_message_id: context.message?.message_id,
+    });
+    // eslint-disable-next-line node/callback-return
     return;
   }
 
