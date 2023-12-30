@@ -10,7 +10,6 @@ import {
   activateController,
   generateController,
   profileController,
-  // imageController,
   shictureController,
   statsController,
   textController,
@@ -88,7 +87,6 @@ bot.on('message:text').hears(textTriggerRegexp, textTriggerController);
  * For handling replies, private messages and random encounters
  */
 bot.on('message:text', textController);
-// bot.on('message:photo', imageController);
 
 const start = async () => {
   await database.$connect();
