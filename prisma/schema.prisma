@@ -84,15 +84,16 @@ model BotReply {
 // NEEW MODELS
 
 model NewUser {
-  id           Int       @id @default(autoincrement())
-  username     String?
-  firstName    String?
-  lastName     String?
-  languageCode String?
-  tgId         String    @unique
-  isAllowed    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  messages     Message[]
+  id             Int              @id @default(autoincrement())
+  username       String?
+  firstName      String?
+  lastName       String?
+  languageCode   String?
+  tgId           String           @unique
+  isAllowed      Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  messages       Message[]
+  activationCodes ActivationCode[]
 
   @@map("new_users")
 }
@@ -116,12 +117,12 @@ model NewChat {
 }
 
 model NewDialog {
-  id        Int       @id @default(autoincrement())
-  createdAt DateTime  @default(now())
-  chatId    Int
-  chat      NewChat  @relation(fields: [chatId], references: [id])
-  messages  Message[]
-  isViolatesOpenAiPolicy Boolean @default(false)
+  id                     Int       @id @default(autoincrement())
+  createdAt              DateTime  @default(now())
+  chatId                 Int
+  chat                   NewChat   @relation(fields: [chatId], references: [id])
+  messages               Message[]
+  isViolatesOpenAiPolicy Boolean   @default(false)
 
   @@map("new_dialogs")
 }
@@ -149,4 +150,14 @@ model Message {
   createdAt   DateTime    @default(now())
 
   @@map("messages")
+}
+
+model ActivationCode {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique @default(cuid())
+  createdAt    DateTime @default(now())
+  usedByUserId Int?
+  usedByUser   NewUser? @relation(fields: [usedByUserId], references: [id])
+
+  @@map("activation_codes")
 }
