@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/yanislav-igonin/shoe-bot#readme",
   "devDependencies": {
+    "@types/luxon": "^3.3.7",
     "@typescript-eslint/parser": "^5.53.0",
     "dotenv": "^16.0.3",
     "eslint": "8.34.0",
@@ -35,6 +36,7 @@
   "dependencies": {
     "@prisma/client": "^4.10.1",
     "grammy": "^1.14.1",
+    "luxon": "^3.4.4",
     "openai": "^4.16.1"
   }
 }
