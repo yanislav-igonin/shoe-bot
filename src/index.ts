@@ -6,6 +6,7 @@ import {
   userMiddleware,
 } from '@/middlewares';
 import {
+  generateController,
   // imageController,
   shictureController,
   statsController,
@@ -46,6 +47,7 @@ bot.command('help', async (context) => {
 });
 bot.command('shicture', shictureController);
 bot.command('stats', adminMiddleware, statsController);
+bot.command('generate', adminMiddleware, generateController);
 
 const yesTriggerRegexp = /^да$/iu;
 bot.hears(yesTriggerRegexp, async (context) => {

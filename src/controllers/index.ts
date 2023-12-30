@@ -1,3 +1,4 @@
+export * from './admin/generate.controller';
 export * from './image.controller';
 export * from './shicture.controller';
 export * from './stats.controller';

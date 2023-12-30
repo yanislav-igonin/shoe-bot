@@ -177,7 +177,10 @@ export const userMiddleware = async (
     username,
   } = user;
 
-  const toCreate: Omit<NewUser, 'createdAt' | 'id' | 'isAllowed'> = {
+  const toCreate: Omit<
+    NewUser,
+    'allowedTill' | 'createdAt' | 'id' | 'isAllowed'
+  > = {
     firstName: valueOrNull(firstName),
     languageCode: valueOrNull(language),
     lastName: valueOrNull(lastName),
