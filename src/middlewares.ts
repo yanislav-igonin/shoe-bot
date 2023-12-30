@@ -221,13 +221,23 @@ export const allowedMiddleware = async (
   next: NextFunction,
 ) => {
   const { user } = context.state;
-  const isActivationCommand = context.message?.text?.startsWith('/activate');
-  if (!user) {
+  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
+
+  if (isAdmin) {
     // eslint-disable-next-line node/callback-return
+    await next();
     return;
   }
 
-  if (isActivationCommand) {
+  const isNonBlockCommand =
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    context.message?.text?.startsWith('/activate') ||
+    context.message?.text?.startsWith('/profile');
+  if (!user) {
+    return;
+  }
+
+  if (isNonBlockCommand) {
     // eslint-disable-next-line node/callback-return
     await next();
     return;
@@ -236,7 +246,6 @@ export const allowedMiddleware = async (
   const { allowedTill } = user;
   if (!allowedTill) {
     await context.reply(replies.notAllowed);
-    // eslint-disable-next-line node/callback-return
     return;
   }
 
@@ -244,7 +253,6 @@ export const allowedMiddleware = async (
   const utcNow = DateTime.now().toUTC();
 
   const isPrivateChat = context.chat?.type === 'private';
-  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
   const subscriptionIsActive = utcNow < utcAllowedTill;
   const isReplyOnBotMessage = Boolean(
     context.message?.reply_to_message?.from?.is_bot,
@@ -268,7 +276,6 @@ export const allowedMiddleware = async (
     await context.reply(replies.notAllowed, {
       reply_to_message_id: context.message?.message_id,
     });
-    // eslint-disable-next-line node/callback-return
     return;
   }
 

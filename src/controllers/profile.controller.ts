@@ -15,5 +15,7 @@ export const profileController = async (
   const beutifiedAllowedTill = DateTime.fromJSDate(user.allowedTill).toFormat(
     'dd.MM.yyyy',
   );
-  await context.reply(replies.subscriptionInfo(beutifiedAllowedTill));
+  await context.reply(replies.subscriptionInfo(beutifiedAllowedTill), {
+    reply_to_message_id: context.message?.message_id,
+  });
 };
