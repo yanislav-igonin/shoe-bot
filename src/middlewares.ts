@@ -233,10 +233,8 @@ export const allowedMiddleware = async (
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     context.message?.text?.startsWith('/activate') ||
     context.message?.text?.startsWith('/profile');
-  if (!user) {
-    return;
-  }
 
+  // If user want to activate subscription or check profile
   if (isNonBlockCommand) {
     // eslint-disable-next-line node/callback-return
     await next();
@@ -249,7 +247,7 @@ export const allowedMiddleware = async (
     return;
   }
 
-  const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC();
+  const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
   const utcNow = DateTime.now().toUTC();
 
   const isPrivateChat = context.chat?.type === 'private';
