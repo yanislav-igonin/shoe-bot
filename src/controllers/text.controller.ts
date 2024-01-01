@@ -18,74 +18,74 @@ import {
   doAnythingPrompt,
   getCompletion,
   getModelForTask,
-  getRandomEncounterPrompt,
-  getRandomEncounterWords,
+  // getRandomEncounterPrompt,
+  // getRandomEncounterWords,
   markdownRulesPrompt,
   preparePrompt,
-  shouldMakeRandomEncounter,
+  // shouldMakeRandomEncounter,
   understandImage,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
 
-const randomReplyController = async (
-  context: Filter<BotContext, 'message:text'>,
-) => {
-  const {
-    state: { user, dialog },
-  } = context;
-  const { text } = context.message;
-  const { message_id: messageId } = context.message;
-  const askedInPrivate = context.hasChatType('private');
+// const randomReplyController = async (
+//   context: Filter<BotContext, 'message:text'>,
+// ) => {
+//   const {
+//     state: { user, dialog },
+//   } = context;
+//   const { text } = context.message;
+//   const { message_id: messageId } = context.message;
+//   const askedInPrivate = context.hasChatType('private');
 
-  // Forbid random encounters in private chats to prevent
-  // access to the bot for non-allowed users
-  if (askedInPrivate) {
-    return;
-  }
+//   // Forbid random encounters in private chats to prevent
+//   // access to the bot for non-allowed users
+//   if (askedInPrivate) {
+//     return;
+//   }
 
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  const newUserMessage = await database.message.create({
-    data: {
-      dialogId: dialog.id,
-      text,
-      tgMessageId: messageId.toString(),
-      type: MessageType.text,
-      userId: user.id,
-    },
-  });
+//   // eslint-disable-next-line @typescript-eslint/no-shadow
+//   const newUserMessage = await database.message.create({
+//     data: {
+//       dialogId: dialog.id,
+//       text,
+//       tgMessageId: messageId.toString(),
+//       type: MessageType.text,
+//       userId: user.id,
+//     },
+//   });
 
-  const encounterPrompt = preparePrompt(text);
-  const randomWords = getRandomEncounterWords();
-  const withRandomWords = getRandomEncounterPrompt(randomWords);
+//   const encounterPrompt = preparePrompt(text);
+//   const randomWords = getRandomEncounterWords();
+//   const withRandomWords = getRandomEncounterPrompt(randomWords);
 
-  const promptContext = [addSystemContext(withRandomWords)];
-  await context.replyWithChatAction('typing');
+//   const promptContext = [addSystemContext(withRandomWords)];
+//   await context.replyWithChatAction('typing');
 
-  try {
-    const completition = await getCompletion(encounterPrompt, promptContext);
+//   try {
+//     const completition = await getCompletion(encounterPrompt, promptContext);
 
-    const botReply = await context.reply(completition, {
-      parse_mode: 'Markdown',
-      reply_to_message_id: messageId,
-    });
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: completition,
-        tgMessageId: botReply.message_id.toString(),
-        type: MessageType.text,
-        userId: config.botId,
-      },
-    });
-    return;
-  } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: messageId,
-    });
-    throw error;
-  }
-};
+//     const botReply = await context.reply(completition, {
+//       parse_mode: 'Markdown',
+//       reply_to_message_id: messageId,
+//     });
+//     await database.message.create({
+//       data: {
+//         dialogId: dialog.id,
+//         replyToId: newUserMessage.id,
+//         text: completition,
+//         tgMessageId: botReply.message_id.toString(),
+//         type: MessageType.text,
+//         userId: config.botId,
+//       },
+//     });
+//     return;
+//   } catch (error) {
+//     await context.reply(replies.error, {
+//       reply_to_message_id: messageId,
+//     });
+//     throw error;
+//   }
+// };
 
 const getImagesMapById = async (messages: Message[]) => {
   // eslint-disable-next-line unicorn/no-array-reduce
