@@ -208,7 +208,6 @@ export const textController = async (
   const { message_id: messageId, reply_to_message: replyToMessage } =
     context.message;
 
-  const shouldReplyRandomly = shouldMakeRandomEncounter();
   const notReply = replyToMessage === undefined;
   // const repliedOnMessageId = replyToMessage?.message_id;
   // const repliedOnOthersMessage = !repliedOnBotsMessage;
@@ -219,12 +218,14 @@ export const textController = async (
     return;
   }
 
+  // TODO: fix random encounter
   // Random encounter, shouldn't be triggered on reply.
   // Triggered by chance, replies to any message just4lulz
-  if (shouldReplyRandomly && notReply) {
-    await randomReplyController(context);
-    return;
-  }
+  // const shouldReplyRandomly = shouldMakeRandomEncounter();
+  // if (shouldReplyRandomly && notReply) {
+  //   await randomReplyController(context);
+  //   return;
+  // }
 
   // TODO: Fix answer on other user message
   // If user replied to other user message
