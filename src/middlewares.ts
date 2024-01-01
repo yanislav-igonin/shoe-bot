@@ -257,7 +257,10 @@ export const allowedMiddleware = async (
 
   const { allowedTill } = user;
   if (!allowedTill) {
-    await context.reply(replies.notAllowed);
+    await context.reply(replies.notAllowed, {
+      parse_mode: 'Markdown',
+      reply_to_message_id: context.message?.message_id,
+    });
     return;
   }
 
@@ -273,6 +276,7 @@ export const allowedMiddleware = async (
 
   if (!isAllowed) {
     await context.reply(replies.notAllowed, {
+      parse_mode: 'Markdown',
       reply_to_message_id: context.message?.message_id,
     });
     return;
