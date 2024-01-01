@@ -248,8 +248,9 @@ export const allowedMiddleware = async (
     return;
   }
 
-  const { allowedTill } = user;
-  if (!allowedTill) {
+  const { allowedTill, username } = user;
+  const isAdmin = config.adminsUsernames.includes(username ?? '');
+  if (!allowedTill && !isAdmin) {
     await context.reply(replies.notAllowed, {
       parse_mode: 'Markdown',
       reply_to_message_id: context.message?.message_id,
@@ -260,7 +261,6 @@ export const allowedMiddleware = async (
   const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
   const utcNow = DateTime.now().toUTC();
   const subscriptionIsActive = utcNow < utcAllowedTill;
-  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
 
   const isAllowed =
     // For public chats
