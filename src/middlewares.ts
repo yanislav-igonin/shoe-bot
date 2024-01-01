@@ -221,13 +221,6 @@ export const allowedMiddleware = async (
   next: NextFunction,
 ) => {
   const { user } = context.state;
-  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
-
-  if (isAdmin) {
-    // eslint-disable-next-line node/callback-return
-    await next();
-    return;
-  }
 
   const isNonBlockCommand =
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
@@ -267,12 +260,15 @@ export const allowedMiddleware = async (
   const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
   const utcNow = DateTime.now().toUTC();
   const subscriptionIsActive = utcNow < utcAllowedTill;
+  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
 
   const isAllowed =
     // For public chats
     (subscriptionIsActive && (isReplyOnBotMessage || messageMatchesTrigger)) ||
     // For private chats
-    (subscriptionIsActive && isPrivateChat);
+    (subscriptionIsActive && isPrivateChat) ||
+    // For admins
+    isAdmin;
 
   if (!isAllowed) {
     await context.reply(replies.notAllowed, {
