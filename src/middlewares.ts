@@ -248,6 +248,7 @@ export const allowedMiddleware = async (
     context.message?.text?.match(textTriggerRegexp),
   );
   const isPrivateChat = context.chat?.type === 'private';
+  // TODO: FIX HERE TRIGGER CONDITION ADD RANDOM ENCOUNTER
   const shouldTrigger =
     messageMatchesTrigger || isPrivateChat || isReplyOnBotMessage;
   if (!shouldTrigger) {
@@ -263,7 +264,6 @@ export const allowedMiddleware = async (
   const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
   const utcNow = DateTime.now().toUTC();
   const subscriptionIsActive = utcNow < utcAllowedTill;
-  // TODO: FIX HERE TRIGGER CONDITION ADD RANDOM ENCOUNTER
 
   const isAllowed =
     // For public chats
