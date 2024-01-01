@@ -1,12 +1,15 @@
 import {
   adminMiddleware,
+  allowedMiddleware,
   chatMiddleware,
   dialogMiddleware,
   stateMiddleware,
   userMiddleware,
 } from '@/middlewares';
 import {
-  // imageController,
+  activateController,
+  generateController,
+  profileController,
   shictureController,
   statsController,
   textController,
@@ -37,6 +40,7 @@ bot.use(stateMiddleware);
 bot.use(chatMiddleware);
 bot.use(dialogMiddleware);
 bot.use(userMiddleware);
+bot.use(allowedMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -45,7 +49,10 @@ bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
 bot.command('shicture', shictureController);
+bot.command('activate', activateController);
+bot.command('profile', profileController);
 bot.command('stats', adminMiddleware, statsController);
+bot.command('generate', adminMiddleware, generateController);
 
 const yesTriggerRegexp = /^да$/iu;
 bot.hears(yesTriggerRegexp, async (context) => {
@@ -80,7 +87,6 @@ bot.on('message:text').hears(textTriggerRegexp, textTriggerController);
  * For handling replies, private messages and random encounters
  */
 bot.on('message:text', textController);
-// bot.on('message:photo', imageController);
 
 const start = async () => {
   await database.$connect();
