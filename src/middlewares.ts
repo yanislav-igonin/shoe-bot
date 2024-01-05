@@ -224,6 +224,8 @@ export const allowedMiddleware = async (
 
   const isNonBlockCommand =
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    context.message?.text?.startsWith('/start') ||
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     context.message?.text?.startsWith('/activate') ||
     context.message?.text?.startsWith('/profile');
 
