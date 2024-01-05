@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
 export {
+  type ActivationCode,
   type BotReply,
   type Chat,
   type Dialog,

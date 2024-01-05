@@ -4,7 +4,6 @@ import { textTriggerController } from './textTrigger.controller';
 import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
 import { type Filter, InputFile } from 'grammy';
-import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
@@ -19,74 +18,74 @@ import {
   doAnythingPrompt,
   getCompletion,
   getModelForTask,
-  getRandomEncounterPrompt,
-  getRandomEncounterWords,
+  // getRandomEncounterPrompt,
+  // getRandomEncounterWords,
   markdownRulesPrompt,
   preparePrompt,
-  shouldMakeRandomEncounter,
+  // shouldMakeRandomEncounter,
   understandImage,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
 
-const randomReplyController = async (
-  context: Filter<BotContext, 'message:text'>,
-) => {
-  const {
-    state: { user, dialog },
-  } = context;
-  const { text } = context.message;
-  const { message_id: messageId } = context.message;
-  const askedInPrivate = context.hasChatType('private');
+// const randomReplyController = async (
+//   context: Filter<BotContext, 'message:text'>,
+// ) => {
+//   const {
+//     state: { user, dialog },
+//   } = context;
+//   const { text } = context.message;
+//   const { message_id: messageId } = context.message;
+//   const askedInPrivate = context.hasChatType('private');
 
-  // Forbid random encounters in private chats to prevent
-  // access to the bot for non-allowed users
-  if (askedInPrivate) {
-    return;
-  }
+//   // Forbid random encounters in private chats to prevent
+//   // access to the bot for non-allowed users
+//   if (askedInPrivate) {
+//     return;
+//   }
 
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  const newUserMessage = await database.message.create({
-    data: {
-      dialogId: dialog.id,
-      text,
-      tgMessageId: messageId.toString(),
-      type: MessageType.text,
-      userId: user.id,
-    },
-  });
+//   // eslint-disable-next-line @typescript-eslint/no-shadow
+//   const newUserMessage = await database.message.create({
+//     data: {
+//       dialogId: dialog.id,
+//       text,
+//       tgMessageId: messageId.toString(),
+//       type: MessageType.text,
+//       userId: user.id,
+//     },
+//   });
 
-  const encounterPrompt = preparePrompt(text);
-  const randomWords = getRandomEncounterWords();
-  const withRandomWords = getRandomEncounterPrompt(randomWords);
+//   const encounterPrompt = preparePrompt(text);
+//   const randomWords = getRandomEncounterWords();
+//   const withRandomWords = getRandomEncounterPrompt(randomWords);
 
-  const promptContext = [addSystemContext(withRandomWords)];
-  await context.replyWithChatAction('typing');
+//   const promptContext = [addSystemContext(withRandomWords)];
+//   await context.replyWithChatAction('typing');
 
-  try {
-    const completition = await getCompletion(encounterPrompt, promptContext);
+//   try {
+//     const completition = await getCompletion(encounterPrompt, promptContext);
 
-    const botReply = await context.reply(completition, {
-      parse_mode: 'Markdown',
-      reply_to_message_id: messageId,
-    });
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: completition,
-        tgMessageId: botReply.message_id.toString(),
-        type: MessageType.text,
-        userId: config.botId,
-      },
-    });
-    return;
-  } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: messageId,
-    });
-    throw error;
-  }
-};
+//     const botReply = await context.reply(completition, {
+//       parse_mode: 'Markdown',
+//       reply_to_message_id: messageId,
+//     });
+//     await database.message.create({
+//       data: {
+//         dialogId: dialog.id,
+//         replyToId: newUserMessage.id,
+//         text: completition,
+//         tgMessageId: botReply.message_id.toString(),
+//         type: MessageType.text,
+//         userId: config.botId,
+//       },
+//     });
+//     return;
+//   } catch (error) {
+//     await context.reply(replies.error, {
+//       reply_to_message_id: messageId,
+//     });
+//     throw error;
+//   }
+// };
 
 const getImagesMapById = async (messages: Message[]) => {
   // eslint-disable-next-line unicorn/no-array-reduce
@@ -209,13 +208,9 @@ export const textController = async (
   const { message_id: messageId, reply_to_message: replyToMessage } =
     context.message;
 
-  const botId = context.me.id;
-  const shouldReplyRandomly = shouldMakeRandomEncounter();
   const notReply = replyToMessage === undefined;
-  const repliedOnBotsMessage = replyToMessage?.from?.id === botId;
   // const repliedOnMessageId = replyToMessage?.message_id;
   // const repliedOnOthersMessage = !repliedOnBotsMessage;
-  const hasAccess = userHasAccess(user);
   const askedInPrivate = context.hasChatType('private');
 
   if (askedInPrivate && notReply) {
@@ -223,25 +218,14 @@ export const textController = async (
     return;
   }
 
+  // TODO: fix random encounter
   // Random encounter, shouldn't be triggered on reply.
   // Triggered by chance, replies to any message just4lulz
-  if (shouldReplyRandomly && notReply) {
-    await randomReplyController(context);
-    return;
-  }
-
-  // If user has no access and replied on bots message
-  if (!hasAccess && repliedOnBotsMessage) {
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: messageId,
-    });
-    return;
-  }
-
-  // If user has no access or its not a reply, ignore it
-  if (!hasAccess || notReply) {
-    return;
-  }
+  // const shouldReplyRandomly = shouldMakeRandomEncounter();
+  // if (shouldReplyRandomly && notReply) {
+  //   await randomReplyController(context);
+  //   return;
+  // }
 
   // TODO: Fix answer on other user message
   // If user replied to other user message

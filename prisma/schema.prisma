@@ -8,15 +8,16 @@ datasource db {
 }
 
 model NewUser {
-  id           Int            @id @default(autoincrement())
-  username     String?
-  firstName    String?
-  lastName     String?
-  languageCode String?
-  tgId         String         @unique
-  isAllowed    Boolean        @default(false)
-  createdAt    DateTime       @default(now())
-  messages     Message[]
+  id              Int                   @id @default(autoincrement())
+  username        String?
+  firstName       String?
+  lastName        String?
+  languageCode    String?
+  tgId            String                @unique
+  allowedTill     DateTime?             @db.Date
+  createdAt       DateTime              @default(now())
+  messages        Message[]
+  activationCodes ActivationCode[]
   UserSettings UserSettings[]
 
   @@map("new_users")
@@ -74,6 +75,16 @@ model Message {
   createdAt   DateTime    @default(now())
 
   @@map("messages")
+}
+
+model ActivationCode {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique @default(cuid())
+  createdAt    DateTime @default(now())
+  usedByUserId Int?
+  usedByUser   NewUser? @relation(fields: [usedByUserId], references: [id])
+
+  @@map("activation_codes")
 }
 
 model BotTemplate {

@@ -5,8 +5,10 @@ import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 import { type BotContext } from 'lib/context';
+import { textTriggerRegexp } from 'lib/prompt';
 import { replies } from 'lib/replies';
 import { valueOrNull } from 'lib/values';
+import { DateTime } from 'luxon';
 
 /**
  * Makes state object inside the context to store some shit across the request.
@@ -177,7 +179,10 @@ export const userMiddleware = async (
     username,
   } = user;
 
-  const toCreate: Omit<NewUser, 'createdAt' | 'id' | 'isAllowed'> = {
+  const toCreate: Omit<
+    NewUser,
+    'allowedTill' | 'createdAt' | 'id' | 'isAllowed'
+  > = {
     firstName: valueOrNull(firstName),
     languageCode: valueOrNull(language),
     lastName: valueOrNull(lastName),
@@ -204,6 +209,72 @@ export const adminMiddleware = async (
   const isAllowed = adminsUsernames.includes(username ?? '');
 
   if (!isAllowed) {
+    return;
+  }
+
+  // eslint-disable-next-line node/callback-return
+  await next();
+};
+
+export const allowedMiddleware = async (
+  context: BotContext,
+  next: NextFunction,
+) => {
+  const { user } = context.state;
+
+  const isNonBlockCommand =
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    context.message?.text?.startsWith('/activate') ||
+    context.message?.text?.startsWith('/profile');
+
+  // If user want to activate subscription or check profile
+  if (isNonBlockCommand) {
+    // eslint-disable-next-line node/callback-return
+    await next();
+    return;
+  }
+
+  const isReplyOnBotMessage = Boolean(
+    context.message?.reply_to_message?.from?.is_bot,
+  );
+  const messageMatchesTrigger = Boolean(
+    context.message?.text?.match(textTriggerRegexp),
+  );
+  const isPrivateChat = context.chat?.type === 'private';
+  // TODO: FIX HERE TRIGGER CONDITION ADD RANDOM ENCOUNTER
+  const shouldTrigger =
+    messageMatchesTrigger || isPrivateChat || isReplyOnBotMessage;
+  if (!shouldTrigger) {
+    return;
+  }
+
+  const { allowedTill } = user;
+  if (!allowedTill) {
+    await context.reply(replies.notAllowed, {
+      parse_mode: 'Markdown',
+      reply_to_message_id: context.message?.message_id,
+    });
+    return;
+  }
+
+  const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
+  const utcNow = DateTime.now().toUTC();
+  const subscriptionIsActive = utcNow < utcAllowedTill;
+  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
+
+  const isAllowed =
+    // For public chats
+    (subscriptionIsActive && (isReplyOnBotMessage || messageMatchesTrigger)) ||
+    // For private chats
+    (subscriptionIsActive && isPrivateChat) ||
+    // For admins
+    isAdmin;
+
+  if (!isAllowed) {
+    await context.reply(replies.notAllowed, {
+      parse_mode: 'Markdown',
+      reply_to_message_id: context.message?.message_id,
+    });
     return;
   }
 

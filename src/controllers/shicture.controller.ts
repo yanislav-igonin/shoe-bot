@@ -1,7 +1,6 @@
 import { MessageType } from '@prisma/client';
 import { type CommandContext } from 'grammy';
 import { InputFile } from 'grammy';
-import { userHasAccess } from 'lib/access';
 import { config } from 'lib/config';
 import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
@@ -23,14 +22,6 @@ export const shictureController = async (
   }
 
   const { message_id: messageId } = message;
-
-  if (!userHasAccess(user)) {
-    // If user has no access and just wrote a message with trigger
-    await context.reply(replies.notAllowed, {
-      reply_to_message_id: messageId,
-    });
-    return;
-  }
 
   const newUserMessage = await database.message.create({
     data: {
