@@ -18,6 +18,10 @@ CREATE TABLE "new_users" (
     CONSTRAINT "new_users_pkey" PRIMARY KEY ("id")
 );
 
+-- SEED BOT
+INSERT INTO "new_users" ("username", "firstName", "lastName", "tgId", "isAllowed")
+VALUES ("bot", "bot", "bot", 0, true);
+
 -- CreateTable
 CREATE TABLE "new_chats" (
     "id" SERIAL NOT NULL,
