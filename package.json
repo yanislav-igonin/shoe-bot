@@ -34,6 +34,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
+    "@grammyjs/menu": "^1.2.1",
     "@prisma/client": "^4.10.1",
     "grammy": "^1.14.1",
     "luxon": "^3.4.4",
