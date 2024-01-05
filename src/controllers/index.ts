@@ -1,6 +1,7 @@
 export * from './activate.controller';
 export * from './admin/generate.controller';
 export * from './admin/stats.controller';
+export * from './bot-roles.controller';
 export * from './profile.controller';
 export * from './shicture.controller';
 export * from './text.controller';
