@@ -8,17 +8,19 @@ datasource db {
 }
 
 model NewUser {
-  id              Int                   @id @default(autoincrement())
+  id              Int              @id @default(autoincrement())
   username        String?
   firstName       String?
   lastName        String?
   languageCode    String?
-  tgId            String                @unique
-  allowedTill     DateTime?             @db.Date
-  createdAt       DateTime              @default(now())
+  tgId            String           @unique
+  allowedTill     DateTime?        @db.Date
+  createdAt       DateTime         @default(now())
   messages        Message[]
   activationCodes ActivationCode[]
-  UserSettings UserSettings[]
+  settings        UserSettings     @relation(fields: [userSettingsId], references: [id])
+  settingsId      Int
+  userSettingsId  Int
 
   @@map("new_users")
 }
@@ -87,25 +89,25 @@ model ActivationCode {
   @@map("activation_codes")
 }
 
-model BotTemplate {
+model BotRole {
   id           Int            @id @default(autoincrement())
   name         String
   systemPrompt String
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  UserSettings UserSettings[]
+  userSettings UserSettings[]
 
-  @@map("bot_templates")
+  @@map("bot_roles")
 }
 
 model UserSettings {
-  id            Int         @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   userId        Int
-  user          NewUser     @relation(fields: [userId], references: [id])
+  user          NewUser  @relation(fields: [userId], references: [id])
   botTemplateId Int
-  botTemplate   BotTemplate @relation(fields: [botTemplateId], references: [id])
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  botTemplate   BotRole  @relation(fields: [botTemplateId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("user_settings")
 }
