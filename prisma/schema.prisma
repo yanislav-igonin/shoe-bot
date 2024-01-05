@@ -18,9 +18,7 @@ model NewUser {
   createdAt       DateTime         @default(now())
   messages        Message[]
   activationCodes ActivationCode[]
-  settings        UserSettings     @relation(fields: [userSettingsId], references: [id])
-  settingsId      Int
-  userSettingsId  Int
+  settings        UserSettings?
 
   @@map("new_users")
 }
@@ -102,8 +100,8 @@ model BotRole {
 
 model UserSettings {
   id            Int      @id @default(autoincrement())
-  userId        Int
   user          NewUser  @relation(fields: [userId], references: [id])
+  userId        Int      @unique
   botTemplateId Int
   botTemplate   BotRole  @relation(fields: [botTemplateId], references: [id])
   createdAt     DateTime @default(now())
