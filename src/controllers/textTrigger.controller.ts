@@ -9,10 +9,9 @@ import { logger } from 'lib/logger';
 import {
   addSystemContext,
   chooseTask,
-  doAnythingPrompt,
   getCompletion,
   getModelForTask,
-  markdownRulesPrompt,
+  // markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
@@ -24,7 +23,7 @@ export const textTriggerController = async (
   const {
     match,
     message,
-    state: { user, dialog },
+    state: { user, dialog, userSettings },
   } = context;
 
   const text = (match ? match[3] : message.text) ?? '';
@@ -51,9 +50,18 @@ export const textTriggerController = async (
     },
   });
 
+  const botRole = await database.botRole.findFirst({
+    where: { id: userSettings.botRoleId },
+  });
+  if (!botRole) {
+    logger.error('Bot role is undefined');
+    await context.reply(replies.error, { reply_to_message_id: messageId });
+    return;
+  }
+
   const systemContext = [
-    addSystemContext(doAnythingPrompt),
-    addSystemContext(markdownRulesPrompt),
+    addSystemContext(botRole.systemPrompt),
+    // addSystemContext(markdownRulesPrompt),
   ];
 
   const textController = async () => {

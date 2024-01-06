@@ -1,6 +1,11 @@
 import { config } from './lib/config';
 import { database } from './lib/database';
-import { type NewChat, type NewDialog, type NewUser } from '@prisma/client';
+import {
+  type NewChat,
+  type NewDialog,
+  type NewUser,
+  type UserSettings,
+} from '@prisma/client';
 import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
@@ -198,6 +203,43 @@ export const userMiddleware = async (
   await next();
 };
 
+/**
+ * Saves/gets user settings from the DB and puts it to the context.
+ */
+export const userSettingsMiddleware = async (
+  context: BotContext,
+  next: NextFunction,
+) => {
+  const {
+    state: { user },
+  } = context;
+
+  const databaseUserSettings = await database.userSettings.findFirst({
+    where: { userId: user.id },
+  });
+  if (databaseUserSettings) {
+    // eslint-disable-next-line require-atomic-updates
+    context.state.userSettings = databaseUserSettings;
+    // eslint-disable-next-line node/callback-return
+    await next();
+    return;
+  }
+
+  const toCreate: Omit<UserSettings, 'createdAt' | 'id' | 'updatedAt'> = {
+    botRoleId: 1,
+    userId: user.id,
+  };
+
+  const newUserSettings = await database.userSettings.create({
+    data: toCreate,
+  });
+  // eslint-disable-next-line require-atomic-updates
+  context.state.userSettings = newUserSettings;
+
+  // eslint-disable-next-line node/callback-return
+  await next();
+};
+
 export const adminMiddleware = async (
   context: BotContext,
   next: NextFunction,
@@ -224,6 +266,8 @@ export const allowedMiddleware = async (
 
   const isNonBlockCommand =
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    context.message?.text?.startsWith('/start') ||
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     context.message?.text?.startsWith('/activate') ||
     context.message?.text?.startsWith('/profile');
 
@@ -249,15 +293,11 @@ export const allowedMiddleware = async (
   }
 
   const { allowedTill } = user;
-  if (!allowedTill) {
-    await context.reply(replies.notAllowed, {
-      parse_mode: 'Markdown',
-      reply_to_message_id: context.message?.message_id,
-    });
-    return;
-  }
-
-  const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
+  // This is a hack to make allowedTill to be 0 if its undefined
+  const startOfTime = new Date(0);
+  const utcAllowedTill = DateTime.fromJSDate(allowedTill ?? startOfTime)
+    .toUTC()
+    .endOf('day');
   const utcNow = DateTime.now().toUTC();
   const subscriptionIsActive = utcNow < utcAllowedTill;
   const isAdmin = config.adminsUsernames.includes(user.username ?? '');

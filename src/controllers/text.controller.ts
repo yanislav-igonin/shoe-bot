@@ -14,13 +14,12 @@ import {
   addAssistantContext,
   addContext,
   addSystemContext,
-  aggressiveSystemPrompt,
-  doAnythingPrompt,
+  // aggressiveSystemPrompt,
   getCompletion,
   getModelForTask,
   // getRandomEncounterPrompt,
   // getRandomEncounterWords,
-  markdownRulesPrompt,
+  // markdownRulesPrompt,
   preparePrompt,
   // shouldMakeRandomEncounter,
   understandImage,
@@ -202,7 +201,7 @@ export const textController = async (
   context: Filter<BotContext, 'message:text'>,
 ) => {
   const {
-    state: { user, dialog },
+    state: { user, dialog, userSettings },
   } = context;
   const { text } = context.message;
   const { message_id: messageId, reply_to_message: replyToMessage } =
@@ -359,13 +358,22 @@ export const textController = async (
     },
   });
 
+  const botRole = await database.botRole.findFirst({
+    where: { id: userSettings.botRoleId },
+  });
+  if (!botRole) {
+    logger.error('Bot role is undefined');
+    await context.reply(replies.error, { reply_to_message_id: messageId });
+    return;
+  }
+
   // Assgign each message to user context or bot context
   const previousMessagesContext = messagesInDialog.map(addContext([]));
   // Add aggressive system prompt to the beginning of the context
   previousMessagesContext.unshift(
-    addSystemContext(doAnythingPrompt),
-    addSystemContext(aggressiveSystemPrompt),
-    addSystemContext(markdownRulesPrompt),
+    addSystemContext(botRole.systemPrompt),
+    // addSystemContext(aggressiveSystemPrompt),
+    // addSystemContext(markdownRulesPrompt),
   );
 
   try {

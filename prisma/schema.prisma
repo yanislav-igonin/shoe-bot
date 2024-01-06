@@ -7,82 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id
-  username  String?
-  firstName String?
-  lastName  String?
-  language  String?
-  isAllowed Boolean  @default(false)
-  createdAt DateTime @default(now())
-  prompts   Prompt[]
-  Images    Image[]
-
-  @@map("users")
-}
-
-model Prompt {
-  id        String   @id @default(cuid())
-  text      String
-  result    String
-  createdAt DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  dialogId  String?
-  dialog    Dialog?  @relation(fields: [dialogId], references: [id])
-
-  @@map("prompts")
-}
-
-model Image {
-  id        String   @id @default(cuid())
-  prompt    String
-  data      String
-  createdAt DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@map("images")
-}
-
-model Chat {
-  id        String   @id
-  name      String
-  type      String
-  isAllowed Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@map("chats")
-}
-
-model Dialog {
-  id        String     @id @default(cuid())
-  createdAt DateTime   @default(now())
-  BotReply  BotReply[]
-  Prompt    Prompt[]
-
-  @@map("dialogs")
-}
-
-model BotReply {
-  id        String   @id
-  text      String
-  createdAt DateTime @default(now())
-  dialogId  String
-  dialog    Dialog   @relation(fields: [dialogId], references: [id])
-
-  @@map("bot_replies")
-}
-
-// NEEW MODELS
-// NEEW MODELS
-// NEEW MODELS
-// NEEW MODELS
-// NEEW MODELS
-// NEEW MODELS
-// NEEW MODELS
-// NEEW MODELS
-
 model NewUser {
   id              Int              @id @default(autoincrement())
   username        String?
@@ -94,6 +18,7 @@ model NewUser {
   createdAt       DateTime         @default(now())
   messages        Message[]
   activationCodes ActivationCode[]
+  settings        UserSettings?
 
   @@map("new_users")
 }
@@ -160,4 +85,27 @@ model ActivationCode {
   usedByUser   NewUser? @relation(fields: [usedByUserId], references: [id])
 
   @@map("activation_codes")
+}
+
+model BotRole {
+  id           Int            @id @default(autoincrement())
+  name         String
+  systemPrompt String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  userSettings UserSettings[]
+
+  @@map("bot_roles")
+}
+
+model UserSettings {
+  id            Int      @id @default(autoincrement())
+  user          NewUser  @relation(fields: [userId], references: [id])
+  userId        Int      @unique
+  botRoleId Int      @default(1)
+  botRole   BotRole  @relation(fields: [botRoleId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("user_settings")
 }
