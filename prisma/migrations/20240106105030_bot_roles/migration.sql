@@ -40,15 +40,18 @@ DROP TABLE "prompts";
 DROP TABLE "users";
 
 -- CreateTable
-CREATE TABLE "bot_templates" (
+CREATE TABLE "bot_roles" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "systemPrompt" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "bot_templates_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "bot_roles_pkey" PRIMARY KEY ("id")
 );
+
+-- INSERT INTO "bot_roles" ("name", "systemPrompt")
+-- VALUES ('Ботинок Classic', 'admin');
 
 -- CreateTable
 CREATE TABLE "user_settings" (
@@ -61,8 +64,11 @@ CREATE TABLE "user_settings" (
     CONSTRAINT "user_settings_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateIndex
+CREATE UNIQUE INDEX "user_settings_userId_key" ON "user_settings"("userId");
+
 -- AddForeignKey
 ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "new_users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_botTemplateId_fkey" FOREIGN KEY ("botTemplateId") REFERENCES "bot_templates"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_botTemplateId_fkey" FOREIGN KEY ("botTemplateId") REFERENCES "bot_roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -20,7 +20,7 @@ CREATE TABLE "new_users" (
 
 -- SEED BOT
 INSERT INTO "new_users" ("username", "firstName", "lastName", "tgId", "isAllowed")
-VALUES ("bot", "bot", "bot", 0, true);
+VALUES ('bot', 'bot', 'bot', 0, true);
 
 -- CreateTable
 CREATE TABLE "new_chats" (
