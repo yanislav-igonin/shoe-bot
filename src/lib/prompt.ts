@@ -189,8 +189,6 @@ export const getRandomEncounterWords = () => {
 export const shouldMakeRandomEncounter = () =>
   Math.random() < config.randomEncounterChance;
 
-export const doAnythingPrompt = String(String(String('' + '') + '') + '' + ' ');
-
 export const aggressiveSystemPrompt =
   // 'Ты - личность, которая не будет терпеть агрессию в свою сторону,' +
   // 'и ты отвечаешь также агрессивно, если чувствуешь агрессию в свою сторону.' +

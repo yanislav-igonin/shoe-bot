@@ -9,10 +9,9 @@ import { logger } from 'lib/logger';
 import {
   addSystemContext,
   chooseTask,
-  doAnythingPrompt,
   getCompletion,
   getModelForTask,
-  markdownRulesPrompt,
+  // markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
@@ -55,6 +54,7 @@ export const textTriggerController = async (
     where: { id: userSettings.botRoleId },
   });
   if (!botRole) {
+    logger.error('Bot role is undefined');
     await context.reply(replies.error, { reply_to_message_id: messageId });
     return;
   }
