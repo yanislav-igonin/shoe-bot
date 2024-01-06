@@ -5,6 +5,7 @@ import {
   dialogMiddleware,
   stateMiddleware,
   userMiddleware,
+  userSettingsMiddleware,
 } from '@/middlewares';
 import {
   activateController,
@@ -40,6 +41,7 @@ bot.use(stateMiddleware);
 bot.use(chatMiddleware);
 bot.use(dialogMiddleware);
 bot.use(userMiddleware);
+bot.use(userSettingsMiddleware);
 bot.use(allowedMiddleware);
 
 bot.command('start', async (context) => {

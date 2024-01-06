@@ -1,6 +1,11 @@
 import { config } from './lib/config';
 import { database } from './lib/database';
-import { type NewChat, type NewDialog, type NewUser } from '@prisma/client';
+import {
+  type NewChat,
+  type NewDialog,
+  type NewUser,
+  type UserSettings,
+} from '@prisma/client';
 import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
@@ -193,6 +198,43 @@ export const userMiddleware = async (
   const newUser = await database.newUser.create({ data: toCreate });
   // eslint-disable-next-line require-atomic-updates
   context.state.user = newUser;
+
+  // eslint-disable-next-line node/callback-return
+  await next();
+};
+
+/**
+ * Saves/gets user settings from the DB and puts it to the context.
+ */
+export const userSettingsMiddleware = async (
+  context: BotContext,
+  next: NextFunction,
+) => {
+  const {
+    state: { user },
+  } = context;
+
+  const databaseUserSettings = await database.userSettings.findFirst({
+    where: { userId: user.id },
+  });
+  if (databaseUserSettings) {
+    // eslint-disable-next-line require-atomic-updates
+    context.state.userSettings = databaseUserSettings;
+    // eslint-disable-next-line node/callback-return
+    await next();
+    return;
+  }
+
+  const toCreate: Omit<UserSettings, 'createdAt' | 'id' | 'updatedAt'> = {
+    botTemplateId: 1,
+    userId: user.id,
+  };
+
+  const newUserSettings = await database.userSettings.create({
+    data: toCreate,
+  });
+  // eslint-disable-next-line require-atomic-updates
+  context.state.userSettings = newUserSettings;
 
   // eslint-disable-next-line node/callback-return
   await next();
