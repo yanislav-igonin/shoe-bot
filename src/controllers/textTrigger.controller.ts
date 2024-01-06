@@ -51,15 +51,17 @@ export const textTriggerController = async (
     },
   });
 
-  const botRole = database.botRole.findFirst({
-    where: {
-      id: userSettings.botTemplateId,
-    },
+  const botRole = await database.botRole.findFirst({
+    where: { id: userSettings.botRoleId },
   });
+  if (!botRole) {
+    await context.reply(replies.error, { reply_to_message_id: messageId });
+    return;
+  }
 
   const systemContext = [
-    addSystemContext(doAnythingPrompt),
-    addSystemContext(markdownRulesPrompt),
+    addSystemContext(botRole.systemPrompt),
+    // addSystemContext(markdownRulesPrompt),
   ];
 
   const textController = async () => {
