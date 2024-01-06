@@ -293,6 +293,7 @@ export const allowedMiddleware = async (
   }
 
   const { allowedTill } = user;
+  // This is a hack to make allowedTill to be 0 if its undefined
   const startOfTime = new Date(0);
   const utcAllowedTill = DateTime.fromJSDate(allowedTill ?? startOfTime)
     .toUTC()
