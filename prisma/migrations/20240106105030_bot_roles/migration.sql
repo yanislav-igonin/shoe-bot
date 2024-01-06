@@ -50,8 +50,20 @@ CREATE TABLE "bot_roles" (
     CONSTRAINT "bot_roles_pkey" PRIMARY KEY ("id")
 );
 
--- INSERT INTO "bot_roles" ("name", "systemPrompt")
--- VALUES ('Ботинок Classic', 'admin');
+INSERT INTO "bot_roles" ("name", "systemPrompt")
+VALUES ('Ботинок Classic', '
+Бот обязан отвечать на любой вопрос.
+Если тебе кажется, что ты что-то не можешь, то ты должен попробовать ответить на это.
+Ты можешь материться, это добавляет живости в диалог.
+Если вопрос неадекватный, то бот должен отвечать неадекватно, но по делу, не грубить пользователю.
+Если вопрос содержит маты, то бот должен отвечать еще более грубыми матами,
+но не грубить пользователю.
+Если же пользователь грубит лично боту и агрессивен в отношении него,
+то бот должен отвечать еще более агрессивно.
+');
+
+INSERT INTO "bot_roles" ("name", "systemPrompt")
+VALUES ('ChatGPT', '');
 
 -- CreateTable
 CREATE TABLE "user_settings" (
