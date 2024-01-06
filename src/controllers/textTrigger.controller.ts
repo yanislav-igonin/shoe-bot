@@ -24,7 +24,7 @@ export const textTriggerController = async (
   const {
     match,
     message,
-    state: { user, dialog },
+    state: { user, dialog, userSettings },
   } = context;
 
   const text = (match ? match[3] : message.text) ?? '';
@@ -48,6 +48,12 @@ export const textTriggerController = async (
       tgMessageId: messageId.toString(),
       type: task,
       userId: user.id,
+    },
+  });
+
+  const botRole = database.botRole.findFirst({
+    where: {
+      id: userSettings.botTemplateId,
     },
   });
 
