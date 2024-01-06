@@ -67,7 +67,7 @@ VALUES ('ChatGPT', '', NOW());
 CREATE TABLE "user_settings" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
-    "botTemplateId" INTEGER NOT NULL DEFAULT 1,
+    "botRoleId" INTEGER NOT NULL DEFAULT 1,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -81,4 +81,4 @@ CREATE UNIQUE INDEX "user_settings_userId_key" ON "user_settings"("userId");
 ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "new_users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_botTemplateId_fkey" FOREIGN KEY ("botTemplateId") REFERENCES "bot_roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_botRoleId_fkey" FOREIGN KEY ("botRoleId") REFERENCES "bot_roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
