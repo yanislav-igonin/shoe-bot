@@ -102,7 +102,7 @@ model UserSettings {
   id            Int      @id @default(autoincrement())
   user          NewUser  @relation(fields: [userId], references: [id])
   userId        Int      @unique
-  botTemplateId Int
+  botTemplateId Int      @default(1)
   botTemplate   BotRole  @relation(fields: [botTemplateId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
