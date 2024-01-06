@@ -12,6 +12,7 @@ import {
   generateController,
   getBotRolesController,
   profileController,
+  setBotRoleController,
   shictureController,
   statsController,
   textController,
@@ -55,6 +56,7 @@ bot.command('help', async (context) => {
 bot.command('activate', activateController);
 bot.command('profile', profileController);
 bot.command('getBotRoles', getBotRolesController);
+bot.command('setBotRole', setBotRoleController);
 
 bot.command('stats', adminMiddleware, statsController);
 bot.command('generate', adminMiddleware, generateController);

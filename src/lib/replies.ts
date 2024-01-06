@@ -1,6 +1,7 @@
 export const replies = {
   activationSuccess: (newAllowedTill: string) =>
     `Активация прошла успешно, доступ до ${newAllowedTill} включительно.`,
+  botRoleChanged: (roleName: string) => `Роль бота изменена на ${roleName}`,
   error:
     'Что-то пошло не так, возможно, ввод слишком большой или непонятный, попробуйте снова.' +
     '\n\nЕсли ошибка повторяется, напишите @hobo_with_a_hookah.',
@@ -34,5 +35,6 @@ export const replies = {
     '\n\n/help - для просмотра справки.',
   subscriptionInfo: (allowedTill: string) => `Доступ до ${allowedTill}.`,
   wrongActivationCode: 'Неверный код активации.',
+  wrongBotRole: 'Данная роль бота не найден.',
   yes: 'пизда',
 } as const;
