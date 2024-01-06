@@ -5,7 +5,7 @@ import { database } from 'lib/database';
 export const getBotRolesController = async (
   context: CommandContext<BotContext>,
 ) => {
-  const botRoles = await database.botRole.findMany();
+  const botRoles = await database.botRole.findMany({ orderBy: { id: 'asc' } });
   const botRoleList = botRoles.map((botRole) => {
     return `${botRole.id} - ${botRole.name}`;
   });
