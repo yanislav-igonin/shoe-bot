@@ -3,7 +3,7 @@ import { type BotContext } from 'lib/context';
 import { replies } from 'lib/replies';
 import { DateTime } from 'luxon';
 
-export const botRolesController = async (
+export const getBotRolesController = async (
   context: CommandContext<BotContext>,
 ) => {
   const { user } = context.state;
