@@ -10,6 +10,7 @@ import {
 import {
   activateController,
   generateController,
+  getBotRolesController,
   profileController,
   shictureController,
   statsController,
@@ -50,11 +51,14 @@ bot.command('start', async (context) => {
 bot.command('help', async (context) => {
   await context.reply(replies.help, { parse_mode: 'Markdown' });
 });
-bot.command('shicture', shictureController);
+
 bot.command('activate', activateController);
 bot.command('profile', profileController);
+bot.command('getBotRoles', getBotRolesController);
+
 bot.command('stats', adminMiddleware, statsController);
 bot.command('generate', adminMiddleware, generateController);
+bot.command('shicture', shictureController);
 
 const yesTriggerRegexp = /^да$/iu;
 bot.hears(yesTriggerRegexp, async (context) => {

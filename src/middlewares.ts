@@ -226,7 +226,7 @@ export const userSettingsMiddleware = async (
   }
 
   const toCreate: Omit<UserSettings, 'createdAt' | 'id' | 'updatedAt'> = {
-    botTemplateId: 1,
+    botRoleId: 1,
     userId: user.id,
   };
 
@@ -293,15 +293,10 @@ export const allowedMiddleware = async (
   }
 
   const { allowedTill } = user;
-  if (!allowedTill) {
-    await context.reply(replies.notAllowed, {
-      parse_mode: 'Markdown',
-      reply_to_message_id: context.message?.message_id,
-    });
-    return;
-  }
-
-  const utcAllowedTill = DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
+  const startOfTime = new Date(0);
+  const utcAllowedTill = DateTime.fromJSDate(allowedTill ?? startOfTime)
+    .toUTC()
+    .endOf('day');
   const utcNow = DateTime.now().toUTC();
   const subscriptionIsActive = utcNow < utcAllowedTill;
   const isAdmin = config.adminsUsernames.includes(user.username ?? '');
