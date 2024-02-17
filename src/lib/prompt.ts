@@ -270,7 +270,7 @@ export const getModelForTask = async (task: string) => {
   const messages = [taskModelChoiceMessage, userMessage];
   const response = await openai.chat.completions.create({
     messages,
-    model: 'gpt-3.5-turbo-1106',
+    model: 'gpt-3.5-turbo',
     response_format: { type: 'json_object' },
   });
   const text = response.choices[0].message?.content;
@@ -310,7 +310,7 @@ export const chooseTask = async (text: string) => {
   const messages = [chooseTaskMessage, userMessage];
   const response = await openai.chat.completions.create({
     messages,
-    model: 'gpt-3.5-turbo-1106',
+    model: 'gpt-3.5-turbo',
     response_format: { type: 'json_object' },
   });
   const task = response.choices[0].message?.content;
