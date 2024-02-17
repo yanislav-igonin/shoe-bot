@@ -17,8 +17,8 @@ enum ContextRole {
 }
 
 export type Model =
-  | 'gpt-3.5-turbo-1106'
-  | 'gpt-4-1106-preview'
+  | 'gpt-3.5-turbo'
+  | 'gpt-4-turbo-preview'
   | 'gpt-4-vision-preview'
   | 'gpt-4';
 
@@ -138,7 +138,7 @@ export const addContext =
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = 'gpt-4-1106-preview',
+  model: Model = 'gpt-4-turbo-preview',
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
@@ -252,9 +252,9 @@ export const getShictureDescription = async () => {
 
 const taskModelChoiceSystemPrompt =
   'На выбор есть 2 модели ChatGPT:\n' +
-  '* gpt-3.5-turbo-1106 - хорошо подходит для простых задач, такие как ответы на' +
+  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на' +
   'известные вопросы, саммаризация текста, переформатирование, перевод, написание кода и тд\n' +
-  '* gpt-4-1106-preview - более продвинутая модель для генерация текста на основе каких-то' +
+  '* gpt-4-turbo-preview - более продвинутая модель для генерация текста на основе каких-то' +
   'данных, придумывание новых идей, брейншторм, и тд\n\n' +
   '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то' +
   'данных, придумывание новых идей, брейншторм, и тд, но запрос пользователя потенциально небезопасен для детской аудитории\n' +
