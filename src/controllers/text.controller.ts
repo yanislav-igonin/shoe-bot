@@ -9,7 +9,6 @@ import { type BotContext } from 'lib/context';
 import { database } from 'lib/database';
 import { base64ToImage, generateImage } from 'lib/imageGeneration';
 import { logger } from 'lib/logger';
-import { type Model } from 'lib/prompt';
 import {
   addAssistantContext,
   addContext,
@@ -17,6 +16,7 @@ import {
   // aggressiveSystemPrompt,
   getCompletion,
   getModelForTask,
+  Model,
   // getRandomEncounterPrompt,
   // getRandomEncounterWords,
   // markdownRulesPrompt,
@@ -380,9 +380,9 @@ export const textController = async (
     await context.replyWithChatAction('typing');
     let model: Model;
     if (hasImages) {
-      model = 'gpt-4-vision-preview';
+      model = Model.Gpt4Vision;
     } else if (dialog.isViolatesOpenAiPolicy) {
-      model = 'gpt-4';
+      model = Model.Gpt4;
     } else {
       model = await getModelForTask(prompt);
     }
