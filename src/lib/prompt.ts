@@ -16,11 +16,12 @@ enum ContextRole {
   User = 'user',
 }
 
-export type Model =
-  | 'gpt-3.5-turbo'
-  | 'gpt-4-turbo-preview'
-  | 'gpt-4-vision-preview'
-  | 'gpt-4';
+export enum Model {
+  Gpt3Turbo = 'gpt-3.5-turbo',
+  Gpt4 = 'gpt-4',
+  Gpt4Turbo = 'gpt-4-turbo-preview',
+  Gpt4Vision = 'gpt-4-vision-preview',
+}
 
 export const textTriggerRegexp = isProduction()
   ? /^((ботинок,|shoe,) )(.+)/isu
@@ -138,11 +139,11 @@ export const addContext =
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = 'gpt-4-turbo-preview',
+  model: Model = Model.Gpt4Turbo,
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
-  const maxTokens = model === 'gpt-4-vision-preview' ? 2_048 : null;
+  const maxTokens = model === Model.Gpt4Vision ? 2_048 : null;
   const response = await openai.chat.completions.create({
     max_tokens: maxTokens,
     messages,
@@ -161,7 +162,7 @@ export const understandImage = async (
   const response = await getCompletion(
     'Что изображено на картинке? Результат должен являться описанием всех деталей картинки.',
     messages,
-    'gpt-4-vision-preview',
+    Model.Gpt4Vision,
   );
   return response;
 };
@@ -270,7 +271,7 @@ export const getModelForTask = async (task: string) => {
   const messages = [taskModelChoiceMessage, userMessage];
   const response = await openai.chat.completions.create({
     messages,
-    model: 'gpt-3.5-turbo',
+    model: Model.Gpt3Turbo,
     response_format: { type: 'json_object' },
   });
   const text = response.choices[0].message?.content;
@@ -283,7 +284,7 @@ export const getModelForTask = async (task: string) => {
       text,
       error,
     );
-    return 'gpt-3.5-turbo-1106' as Model;
+    return Model.Gpt3Turbo;
   }
 };
 
@@ -310,7 +311,7 @@ export const chooseTask = async (text: string) => {
   const messages = [chooseTaskMessage, userMessage];
   const response = await openai.chat.completions.create({
     messages,
-    model: 'gpt-3.5-turbo',
+    model: Model.Gpt3Turbo,
     response_format: { type: 'json_object' },
   });
   const task = response.choices[0].message?.content;
