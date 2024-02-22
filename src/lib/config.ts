@@ -6,6 +6,7 @@ export const config = {
   botId: 0,
   botToken: valueOrThrow(process.env.BOT_TOKEN, 'BOT_TOKEN is not set'),
   env: valueOrDefault(process.env.NODE_ENV, 'development'),
+  nodeEnv: valueOrDefault(process.env.NODE_ENV, 'development'),
   openAiApiKey: valueOrThrow(
     process.env.OPENAI_API_KEY,
     'OPENAI_API_KEY is not set',
