@@ -17,4 +17,4 @@ export const config = {
 };
 /* eslint-enable node/no-process-env */
 
-export const isProduction = () => config.env === 'production';
+export const isProduction = config.env === 'production';

@@ -23,11 +23,11 @@ export enum Model {
   Gpt4Vision = 'gpt-4-vision-preview',
 }
 
-export const textTriggerRegexp = isProduction()
+export const textTriggerRegexp = isProduction
   ? /^((ботинок,|shoe,) )(.+)/isu
   : /^((бомж,|hobo,) )(.+)/isu;
 
-const answerToReplyTriggerRegexp = isProduction()
+const answerToReplyTriggerRegexp = isProduction
   ? /^((ответь ботинок,|answer shoe,) )(.+)/isu
   : /^((ответь бомж,|answer hobo,) )(.+)/isu;
 export const getAnswerToReplyMatches = (text: string) =>
