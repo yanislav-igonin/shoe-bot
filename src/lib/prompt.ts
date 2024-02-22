@@ -27,6 +27,7 @@ export const textTriggerRegexp = isProduction
   ? /^((ботинок,|shoe,) )(.+)/isu
   : /^((бомж,|hobo,) )(.+)/isu;
 
+logger.info('config:', config);
 logger.info('isProduction:', isProduction);
 logger.info('Prompt: textTriggerRegexp:', textTriggerRegexp);
 
