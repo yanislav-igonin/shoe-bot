@@ -1,7 +1,7 @@
 import { type CommandContext } from 'grammy';
-import { type BotContext } from 'lib/context';
-import { database } from 'lib/database';
-import { replies } from 'lib/replies';
+import { type BotContext } from 'lib/context.js';
+import { database } from 'lib/database.js';
+import { replies } from 'lib/replies.js';
 
 export const setBotRoleController = async (
   context: CommandContext<BotContext>,

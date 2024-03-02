@@ -1,4 +1,4 @@
-import { getLogTime } from './date';
+import { getLogTime } from './date.js';
 
 /* eslint-disable no-console */
 const info = (...data: unknown[]) => console.log(getLogTime(), ...data);

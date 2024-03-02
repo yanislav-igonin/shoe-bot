@@ -1,13 +1,13 @@
 import { MessageType } from '@prisma/client';
 import { type CommandContext } from 'grammy';
 import { InputFile } from 'grammy';
-import { config } from 'lib/config';
-import { type BotContext } from 'lib/context';
-import { database } from 'lib/database';
-import { base64ToImage, generateImage } from 'lib/imageGeneration';
-import { logger } from 'lib/logger';
-import { getShictureDescription } from 'lib/prompt';
-import { replies } from 'lib/replies';
+import { config } from 'lib/config.js';
+import { type BotContext } from 'lib/context.js';
+import { database } from 'lib/database.js';
+import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import { logger } from 'lib/logger.js';
+import { getShictureDescription } from 'lib/prompt.js';
+import { replies } from 'lib/replies.js';
 
 export const shictureController = async (
   context: CommandContext<BotContext>,

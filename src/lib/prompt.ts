@@ -1,9 +1,9 @@
 import { type Message } from '@prisma/client';
-import { mistral, openai } from 'lib/ai';
-import { config, isProduction } from 'lib/config';
-import { logger } from 'lib/logger';
-import { randomEncounterWords } from 'lib/randomEncounterWords';
-import { replies } from 'lib/replies';
+import { mistral, openai } from 'lib/ai.js';
+import { config, isProduction } from 'lib/config.js';
+import { logger } from 'lib/logger.js';
+import { randomEncounterWords } from 'lib/randomEncounterWords.js';
+import { replies } from 'lib/replies.js';
 // eslint-disable-next-line import/no-named-as-default
 import type OpenAI from 'openai';
 

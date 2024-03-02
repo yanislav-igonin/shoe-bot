@@ -1,14 +1,14 @@
 /* eslint-disable complexity */
-import { telegram } from '../telegram';
-import { textTriggerController } from './textTrigger.controller';
+import { telegram } from '../telegram.js';
+import { textTriggerController } from './textTrigger.controller.js';
 import { type Message } from '@prisma/client';
 import { MessageType } from '@prisma/client';
 import { type Filter, InputFile } from 'grammy';
-import { config } from 'lib/config';
-import { type BotContext } from 'lib/context';
-import { database } from 'lib/database';
-import { base64ToImage, generateImage } from 'lib/imageGeneration';
-import { logger } from 'lib/logger';
+import { config } from 'lib/config.js';
+import { type BotContext } from 'lib/context.js';
+import { database } from 'lib/database.js';
+import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import { logger } from 'lib/logger.js';
 import {
   addAssistantContext,
   addContext,
@@ -23,8 +23,8 @@ import {
   preparePrompt,
   // shouldMakeRandomEncounter,
   understandImage,
-} from 'lib/prompt';
-import { replies } from 'lib/replies';
+} from 'lib/prompt.js';
+import { replies } from 'lib/replies.js';
 
 // const randomReplyController = async (
 //   context: Filter<BotContext, 'message:text'>,

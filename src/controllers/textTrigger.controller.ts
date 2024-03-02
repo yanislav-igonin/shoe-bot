@@ -1,11 +1,11 @@
 import { MessageType } from '@prisma/client';
 import { type Filter } from 'grammy';
 import { InputFile } from 'grammy';
-import { config } from 'lib/config';
-import { type BotContext } from 'lib/context';
-import { database } from 'lib/database';
-import { base64ToImage, generateImage } from 'lib/imageGeneration';
-import { logger } from 'lib/logger';
+import { config } from 'lib/config.js';
+import { type BotContext } from 'lib/context.js';
+import { database } from 'lib/database.js';
+import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import { logger } from 'lib/logger.js';
 import {
   addSystemContext,
   chooseTask,
@@ -14,9 +14,10 @@ import {
   Model,
   // markdownRulesPrompt,
   preparePrompt,
-} from 'lib/prompt';
-import { replies } from 'lib/replies';
-import { generateVoice } from 'lib/voice';
+} from 'lib/prompt.js';
+import { replies } from 'lib/replies.js';
+import { generateVoice } from 'lib/voice.js';
+// @ts-expect-error openai/resources not found
 import { type ChatCompletionMessageParam } from 'openai/resources';
 
 export const textTriggerController = async (

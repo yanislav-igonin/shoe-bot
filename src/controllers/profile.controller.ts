@@ -1,6 +1,6 @@
 import { type CommandContext } from 'grammy';
-import { type BotContext } from 'lib/context';
-import { replies } from 'lib/replies';
+import { type BotContext } from 'lib/context.js';
+import { replies } from 'lib/replies.js';
 import { DateTime } from 'luxon';
 
 export const profileController = async (

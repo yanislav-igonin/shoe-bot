@@ -1,5 +1,5 @@
-import { config } from './lib/config';
-import { database } from './lib/database';
+import { config } from './lib/config.js';
+import { database } from './lib/database.js';
 import {
   type NewChat,
   type NewDialog,
@@ -7,12 +7,13 @@ import {
   type UserSettings,
 } from '@prisma/client';
 import { type NextFunction } from 'grammy';
+// @ts-expect-error openai/resources not found
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
-import { type BotContext } from 'lib/context';
-import { textTriggerRegexp } from 'lib/prompt';
-import { replies } from 'lib/replies';
-import { valueOrNull } from 'lib/values';
+import { type BotContext } from 'lib/context.js';
+import { textTriggerRegexp } from 'lib/prompt.js';
+import { replies } from 'lib/replies.js';
+import { valueOrNull } from 'lib/values.js';
 import { DateTime } from 'luxon';
 
 /**

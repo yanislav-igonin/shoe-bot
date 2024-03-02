@@ -1,5 +1,5 @@
 import { InputFile } from 'grammy';
-import { openai } from 'lib/ai';
+import { openai } from 'lib/ai.js';
 
 export const generateVoice = async (text: string) => {
   const response = await openai.audio.speech.create({

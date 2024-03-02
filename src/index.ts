@@ -1,13 +1,4 @@
 import {
-  adminMiddleware,
-  allowedMiddleware,
-  chatMiddleware,
-  dialogMiddleware,
-  stateMiddleware,
-  userMiddleware,
-  userSettingsMiddleware,
-} from '@/middlewares';
-import {
   activateController,
   generateController,
   getBotRolesController,
@@ -17,14 +8,23 @@ import {
   statsController,
   textController,
   textTriggerController,
-} from 'controllers';
+} from 'controllers/index.js';
 import { Bot } from 'grammy';
-import { config } from 'lib/config';
-import { type BotContext } from 'lib/context';
-import { database } from 'lib/database';
-import { logger } from 'lib/logger';
-import { textTriggerRegexp } from 'lib/prompt';
-import { replies } from 'lib/replies';
+import { config } from 'lib/config.js';
+import { type BotContext } from 'lib/context.js';
+import { database } from 'lib/database.js';
+import { logger } from 'lib/logger.js';
+import { textTriggerRegexp } from 'lib/prompt.js';
+import { replies } from 'lib/replies.js';
+import {
+  adminMiddleware,
+  allowedMiddleware,
+  chatMiddleware,
+  dialogMiddleware,
+  stateMiddleware,
+  userMiddleware,
+  userSettingsMiddleware,
+} from 'middlewares.js';
 
 const bot = new Bot<BotContext>(config.botToken);
 

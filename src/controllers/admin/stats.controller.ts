@@ -1,6 +1,6 @@
-import { stats as statsRepo } from '@/repositories';
 import { type CommandContext } from 'grammy';
-import { type BotContext } from 'lib/context';
+import { type BotContext } from 'lib/context.js';
+import { stats as statsRepo } from 'repositories/index.js';
 
 export const statsController = async (context: CommandContext<BotContext>) => {
   const [texts, photos, voices] = await Promise.all([
