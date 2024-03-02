@@ -10,7 +10,9 @@ import {
   addSystemContext,
   chooseTask,
   getCompletion,
+  getMistralCompletion,
   getModelForTask,
+  Model,
   // markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt';
@@ -67,14 +69,21 @@ export const textTriggerController = async (
   const textController = async () => {
     await context.replyWithChatAction('typing');
     const model = await getModelForTask(prompt);
-    if (model === 'gpt-4') {
+    if (model === Model.Gpt4) {
       await database.newDialog.update({
         data: { isViolatesOpenAiPolicy: true },
         where: { id: dialog.id },
       });
     }
 
-    const completition = await getCompletion(prompt, systemContext, model);
+    let completition: string;
+    if (model === Model.Gpt4) {
+      // @ts-expect-error asdasd a
+      completition = await getMistralCompletion(prompt, systemContext, model);
+    } else {
+      completition = await getCompletion(prompt, systemContext, model);
+    }
+
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
