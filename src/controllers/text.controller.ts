@@ -382,7 +382,7 @@ export const textController = async (
     if (hasImages) {
       model = Model.Gpt4Vision;
     } else if (dialog.isViolatesOpenAiPolicy) {
-      model = Model.Gpt4;
+      model = Model.MistralLarge;
     } else {
       model = await getModelForTask(prompt);
     }
@@ -392,6 +392,7 @@ export const textController = async (
       previousMessagesContext,
       model,
     );
+
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,

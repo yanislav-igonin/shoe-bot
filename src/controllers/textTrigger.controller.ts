@@ -11,11 +11,13 @@ import {
   chooseTask,
   getCompletion,
   getModelForTask,
+  Model,
   // markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
 import { generateVoice } from 'lib/voice';
+import { type ChatCompletionMessageParam } from 'openai/resources';
 
 export const textTriggerController = async (
   context: Filter<BotContext, 'message:text'>,
@@ -59,22 +61,26 @@ export const textTriggerController = async (
     return;
   }
 
-  const systemContext = [
-    addSystemContext(botRole.systemPrompt),
+  const systemContext: ChatCompletionMessageParam[] = [
     // addSystemContext(markdownRulesPrompt),
   ];
+  if (botRole.systemPrompt) {
+    systemContext.push(addSystemContext(botRole.systemPrompt));
+  }
 
   const textController = async () => {
     await context.replyWithChatAction('typing');
-    const model = await getModelForTask(prompt);
-    if (model === 'gpt-4') {
+    let model = await getModelForTask(prompt);
+    if (model === Model.Gpt4) {
       await database.newDialog.update({
         data: { isViolatesOpenAiPolicy: true },
         where: { id: dialog.id },
       });
+      model = Model.MistralLarge;
     }
 
     const completition = await getCompletion(prompt, systemContext, model);
+
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
