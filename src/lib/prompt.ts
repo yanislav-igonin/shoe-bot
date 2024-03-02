@@ -1,5 +1,5 @@
 import { type Message } from '@prisma/client';
-import { openai } from 'lib/ai';
+import { mistral, openai } from 'lib/ai';
 import { config, isProduction } from 'lib/config';
 import { logger } from 'lib/logger';
 import { randomEncounterWords } from 'lib/randomEncounterWords';
@@ -21,6 +21,7 @@ export enum Model {
   Gpt4 = 'gpt-4',
   Gpt4Turbo = 'gpt-4-turbo-preview',
   Gpt4Vision = 'gpt-4-vision-preview',
+  MistralLarge = 'mistral-large-latest',
 }
 
 export const textTriggerRegexp = isProduction
@@ -323,4 +324,19 @@ export const chooseTask = async (text: string) => {
     logger.error('Prompt: ChooseTask: Parsing answer from model:', task, error);
     return 'text';
   }
+};
+
+export const getMistralCompletion = async (
+  prompt: string,
+  context: Array<{ content: string; role: string }> = [],
+  model: Model = Model.MistralLarge,
+) => {
+  const userMessage = { content: prompt, role: 'user' };
+  const messages = [...context, userMessage];
+  const response = await mistral.chat({
+    messages,
+    model,
+  });
+  const text = response.choices[0].message.content;
+  return text.trim();
 };
