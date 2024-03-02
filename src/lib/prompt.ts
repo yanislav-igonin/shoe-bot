@@ -136,6 +136,21 @@ export const addContext =
     return addUserContext(message, imagesMap);
   };
 
+export const getMistralCompletion = async (
+  prompt: string,
+  context: Array<{ content: string; role: string }> = [],
+  model: Model = Model.MistralLarge,
+) => {
+  const userMessage = { content: prompt, role: 'user' };
+  const messages = [...context, userMessage];
+  const response = await mistral.chat({
+    messages,
+    model,
+  });
+  const text = response.choices[0].message.content;
+  return text.trim();
+};
+
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
@@ -143,6 +158,11 @@ export const getCompletion = async (
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
+  if (model === Model.MistralLarge) {
+    // @ts-expect-error asdasd
+    return await getMistralCompletion(message as string, context, model);
+  }
+
   const maxTokens = model === Model.Gpt4Vision ? 2_048 : null;
   const response = await openai.chat.completions.create({
     max_tokens: maxTokens,
@@ -324,19 +344,4 @@ export const chooseTask = async (text: string) => {
     logger.error('Prompt: ChooseTask: Parsing answer from model:', task, error);
     return 'text';
   }
-};
-
-export const getMistralCompletion = async (
-  prompt: string,
-  context: Array<{ content: string; role: string }> = [],
-  model: Model = Model.MistralLarge,
-) => {
-  const userMessage = { content: prompt, role: 'user' };
-  const messages = [...context, userMessage];
-  const response = await mistral.chat({
-    messages,
-    model,
-  });
-  const text = response.choices[0].message.content;
-  return text.trim();
 };

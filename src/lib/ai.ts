@@ -5,7 +5,6 @@ import OpenAI from 'openai';
 
 export const openai = new OpenAI({
   apiKey: config.openAiApiKey,
-  baseURL: 'https://api.mistral.ai/v1',
 });
 
-export const mistral = new MistralClient(config.openAiApiKey);
+export const mistral = new MistralClient(config.mistralApiKey);

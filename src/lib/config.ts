@@ -6,6 +6,10 @@ export const config = {
   botId: 0,
   botToken: valueOrThrow(process.env.BOT_TOKEN, 'BOT_TOKEN is not set'),
   env: valueOrDefault(process.env.ENV, 'development'),
+  mistralApiKey: valueOrThrow(
+    process.env.MISTRAL_API_KEY,
+    'MISTRAL_API_KEY is not set',
+  ),
   openAiApiKey: valueOrThrow(
     process.env.OPENAI_API_KEY,
     'OPENAI_API_KEY is not set',

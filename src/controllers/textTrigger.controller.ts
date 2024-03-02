@@ -10,7 +10,6 @@ import {
   addSystemContext,
   chooseTask,
   getCompletion,
-  getMistralCompletion,
   getModelForTask,
   Model,
   // markdownRulesPrompt,
@@ -18,6 +17,7 @@ import {
 } from 'lib/prompt';
 import { replies } from 'lib/replies';
 import { generateVoice } from 'lib/voice';
+import { type ChatCompletionMessageParam } from 'openai/resources';
 
 export const textTriggerController = async (
   context: Filter<BotContext, 'message:text'>,
@@ -61,28 +61,25 @@ export const textTriggerController = async (
     return;
   }
 
-  const systemContext = [
-    addSystemContext(botRole.systemPrompt),
+  const systemContext: ChatCompletionMessageParam[] = [
     // addSystemContext(markdownRulesPrompt),
   ];
+  if (botRole.systemPrompt) {
+    systemContext.push(addSystemContext(botRole.systemPrompt));
+  }
 
   const textController = async () => {
     await context.replyWithChatAction('typing');
-    const model = await getModelForTask(prompt);
+    let model = await getModelForTask(prompt);
     if (model === Model.Gpt4) {
       await database.newDialog.update({
         data: { isViolatesOpenAiPolicy: true },
         where: { id: dialog.id },
       });
+      model = Model.MistralLarge;
     }
 
-    let completition: string;
-    if (model === Model.Gpt4) {
-      // @ts-expect-error asdasd a
-      completition = await getMistralCompletion(prompt, systemContext, model);
-    } else {
-      completition = await getCompletion(prompt, systemContext, model);
-    }
+    const completition = await getCompletion(prompt, systemContext, model);
 
     const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
