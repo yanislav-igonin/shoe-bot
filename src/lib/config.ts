@@ -3,6 +3,10 @@ import { valueOrDefault, valueOrThrow } from './values.js';
 /* eslint-disable node/no-process-env */
 export const config = {
   adminsUsernames: valueOrDefault(process.env.ADMINS_USERNAMES?.split(','), []),
+  anthropicApiKey: valueOrThrow(
+    process.env.ANTHROPIC_API_KEY,
+    'ANTHROPIC_API_KEY is not set',
+  ),
   botId: 0,
   botToken: valueOrThrow(process.env.BOT_TOKEN, 'BOT_TOKEN is not set'),
   env: valueOrDefault(process.env.ENV, 'development'),

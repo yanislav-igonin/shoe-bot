@@ -1,5 +1,6 @@
+import { type MessageParam } from '@anthropic-ai/sdk/resources/messages.mjs';
 import { type Message } from '@prisma/client';
-import { mistral, openai } from 'lib/ai.js';
+import { anthropic, mistral, openai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
 import { randomEncounterWords } from 'lib/randomEncounterWords.js';
@@ -17,6 +18,7 @@ enum ContextRole {
 }
 
 export enum Model {
+  ClaudeOpus = 'claude-3-opus-20240229',
   Gpt3Turbo = 'gpt-3.5-turbo',
   Gpt4 = 'gpt-4',
   Gpt4Turbo = 'gpt-4-turbo-preview',
@@ -151,6 +153,22 @@ export const getMistralCompletion = async (
   return text.trim();
 };
 
+const getAnthropicCompletion = async (
+  messages: MessageParam[] = [],
+  model: Model = Model.ClaudeOpus,
+) => {
+  // const withoutSystemMessages = messages.filter(
+  //   (message) => message.role !== ContextRole.System,
+  // );
+  const response = await anthropic.messages.create({
+    max_tokens: 1_024,
+    messages,
+    model,
+  });
+  const text = response.content[0].text;
+  return text.trim();
+};
+
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
@@ -158,6 +176,12 @@ export const getCompletion = async (
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
+
+  return await getAnthropicCompletion(
+    // @ts-expect-error Ts do not like overlap of types
+    messages.filter((message_) => message_.role !== ContextRole.System),
+  );
+
   if (model === Model.MistralLarge) {
     // @ts-expect-error asdasd
     return await getMistralCompletion(message as string, context, model);

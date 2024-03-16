@@ -355,6 +355,9 @@ export const textController = async (
   const messagesInDialog = await database.message.findMany({
     where: {
       dialogId: dialog.id,
+      id: {
+        not: newUserMessage.id,
+      },
     },
   });
 

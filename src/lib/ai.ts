@@ -1,3 +1,4 @@
+import { Anthropic } from '@anthropic-ai/sdk';
 import MistralClient from '@mistralai/mistralai';
 import { config } from 'lib/config.js';
 // eslint-disable-next-line import/no-named-as-default
@@ -8,3 +9,7 @@ export const openai = new OpenAI({
 });
 
 export const mistral = new MistralClient(config.mistralApiKey);
+
+export const anthropic = new Anthropic({
+  apiKey: config.anthropicApiKey,
+});
