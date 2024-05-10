@@ -25,7 +25,7 @@ export enum Model {
 }
 
 export const textTriggerRegexp = isProduction
-  ? /^((ботинок,|shoe,) )(.+)/isu
+  ? /^((ботинок,|shoe,|блинное,) )(.+)/isu
   : /^((бомж,|hobo,) )(.+)/isu;
 const answerToReplyTriggerRegexp = isProduction
   ? /^((ответь ботинок,|answer shoe,) )(.+)/isu
