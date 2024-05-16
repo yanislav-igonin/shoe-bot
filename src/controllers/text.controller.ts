@@ -386,7 +386,7 @@ export const textController = async (
     await context.replyWithChatAction('typing');
     let model: Model;
     if (hasImages) {
-      model = Model.Gpt4Vision;
+      model = Model.Gpt4O;
     } else if (dialog.isViolatesOpenAiPolicy) {
       model = Model.MistralLarge;
     } else {
