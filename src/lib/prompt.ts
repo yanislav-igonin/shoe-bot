@@ -155,7 +155,7 @@ export const getMistralCompletion = async (
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.Gpt4Turbo,
+  model: Model = Model.Gpt4O,
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
