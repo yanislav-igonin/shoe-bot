@@ -16,7 +16,6 @@ import {
   preparePrompt,
 } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
-import { generateVoice } from 'lib/voice.js';
 // @ts-expect-error openai/resources not found
 import { type ChatCompletionMessageParam } from 'openai/resources';
 
@@ -131,34 +130,9 @@ export const textTriggerController = async (
     });
   };
 
-  const voiceController = async () => {
-    await context.replyWithChatAction('record_voice');
-
-    const model = await getModelForTask(prompt);
-    const completition = await getCompletion(prompt, systemContext, model);
-    const voice = await generateVoice(completition);
-
-    const botReply = await context.replyWithVoice(voice, {
-      reply_to_message_id: messageId,
-    });
-
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: completition,
-        tgMessageId: botReply.message_id.toString(),
-        tgVoiceId: botReply.voice.file_id,
-        type: MessageType.voice,
-        userId: config.botId,
-      },
-    });
-  };
-
   const controllers = {
     image: imageController,
     text: textController,
-    voice: voiceController,
   };
 
   try {
