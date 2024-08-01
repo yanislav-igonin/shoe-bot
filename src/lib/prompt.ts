@@ -20,7 +20,6 @@ export enum Model {
   Gpt3Turbo = 'gpt-3.5-turbo',
   Gpt4 = 'gpt-4',
   Gpt4O = 'gpt-4o',
-  Gpt4Turbo = 'gpt-4-turbo-preview',
   Gpt4Vision = 'gpt-4-vision-preview',
   MistralLarge = 'mistral-large-latest',
 }
