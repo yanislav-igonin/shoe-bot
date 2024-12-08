@@ -8,3 +8,8 @@ export const openai = new OpenAI({
 });
 
 export const mistral = new MistralClient(config.mistralApiKey);
+
+export const grok = new OpenAI({
+  apiKey: config.grokApiKey,
+  baseURL: config.grokApiUrl,
+});

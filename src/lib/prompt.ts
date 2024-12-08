@@ -1,5 +1,5 @@
 import { type Message } from '@prisma/client';
-import { mistral, openai } from 'lib/ai.js';
+import { grok, mistral, openai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
 import { randomEncounterWords } from 'lib/randomEncounterWords.js';
@@ -22,6 +22,7 @@ export enum Model {
   Gpt4O = 'gpt-4o',
   Gpt4Turbo = 'gpt-4-turbo-preview',
   Gpt4Vision = 'gpt-4-vision-preview',
+  GrokBeta = 'grok-beta',
   MistralLarge = 'mistral-large-latest',
 }
 
@@ -152,26 +153,51 @@ export const getMistralCompletion = async (
   return text.trim();
 };
 
-export const getCompletion = async (
-  message: Message | string,
+export const getGrokCompletion = async (
+  message: string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.Gpt4O,
+  model: Model = Model.MistralLarge,
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
-  if (model === Model.MistralLarge) {
-    // @ts-expect-error asdasd
-    return await getMistralCompletion(message as string, context, model);
-  }
-
-  const maxTokens = model === Model.Gpt4Vision ? 2_048 : null;
-  const response = await openai.chat.completions.create({
-    max_tokens: maxTokens,
+  const response = await grok.chat.completions.create({
     messages,
     model,
   });
   const text = response.choices[0].message?.content;
   return text?.trim() ?? replies.noAnswer;
+};
+
+export const getOpenAiCompletion = async (
+  message: string,
+  context: ChatCompletionRequestMessage[] = [],
+  model: Model = Model.MistralLarge,
+) => {
+  const userMessage = addUserContext(message);
+  const messages = [...context, userMessage];
+  const response = await grok.chat.completions.create({
+    messages,
+    model,
+  });
+  const text = response.choices[0].message?.content;
+  return text?.trim() ?? replies.noAnswer;
+};
+
+export const getCompletion = async (
+  message: Message | string,
+  context: ChatCompletionRequestMessage[] = [],
+  model: Model = Model.Gpt4O,
+) => {
+  // if (model === Model.MistralLarge) {
+  //   // @ts-expect-error asdasd
+  //   return await getMistralCompletion(message as string, context, model);
+  // }
+
+  // if (model === Model.GrokBeta) {
+  return await getGrokCompletion(message as string, context, model);
+  // }
+
+  // return await getOpenAiCompletion(message as string, context, model);
 };
 
 export const understandImage = async (

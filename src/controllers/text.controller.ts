@@ -384,19 +384,19 @@ export const textController = async (
 
   try {
     await context.replyWithChatAction('typing');
-    let model: Model;
-    if (hasImages) {
-      model = Model.Gpt4O;
-    } else if (dialog.isViolatesOpenAiPolicy) {
-      model = Model.MistralLarge;
-    } else {
-      model = await getModelForTask(prompt);
-    }
+    // let model: Model;
+    // if (hasImages) {
+    //   model = Model.Gpt4O;
+    // } else if (dialog.isViolatesOpenAiPolicy) {
+    //   model = Model.MistralLarge;
+    // } else {
+    //   model = await getModelForTask(prompt);
+    // }
 
     const completition = await getCompletion(
       prompt,
       previousMessagesContext,
-      model,
+      Model.GrokBeta,
     );
 
     const botReply = await context.reply(completition, {
