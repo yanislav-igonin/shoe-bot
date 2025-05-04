@@ -186,7 +186,7 @@ export const getOpenAiCompletion = async (
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.Gpt4O,
+  model: Model = Model.GrokBeta,
 ) => {
   // if (model === Model.MistralLarge) {
   //   // @ts-expect-error asdasd
