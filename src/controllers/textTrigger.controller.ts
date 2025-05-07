@@ -71,7 +71,7 @@ export const textTriggerController = async (
   const textController = async () => {
     await context.replyWithChatAction('typing');
     // let model = await getModelForTask(prompt);
-    const model = Model.GrokBeta;
+    const model = Model.Grok3;
     // if (model === Model.Gpt4) {
     //   await database.newDialog.update({
     //     data: { isViolatesOpenAiPolicy: true },

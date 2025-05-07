@@ -22,6 +22,7 @@ export enum Model {
   Gpt4O = 'gpt-4o',
   Gpt4Turbo = 'gpt-4-turbo-preview',
   Gpt4Vision = 'gpt-4-vision-preview',
+  Grok3 = 'grok-3-latest',
   GrokBeta = 'grok-beta',
   MistralLarge = 'mistral-large-latest',
 }
@@ -186,7 +187,7 @@ export const getOpenAiCompletion = async (
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.GrokBeta,
+  model: Model = Model.Grok3,
 ) => {
   // if (model === Model.MistralLarge) {
   //   // @ts-expect-error asdasd

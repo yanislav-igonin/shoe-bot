@@ -396,7 +396,7 @@ export const textController = async (
     const completition = await getCompletion(
       prompt,
       previousMessagesContext,
-      Model.GrokBeta,
+      Model.Grok3,
     );
 
     const botReply = await context.reply(completition, {
