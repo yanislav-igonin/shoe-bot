@@ -11,6 +11,7 @@ import {
   chooseTask,
   getCompletion,
   getModelForTask,
+  maximumMessageLengthPrompt,
   Model,
   // markdownRulesPrompt,
   preparePrompt,
@@ -63,6 +64,7 @@ export const textTriggerController = async (
 
   const systemContext: ChatCompletionMessageParam[] = [
     // addSystemContext(markdownRulesPrompt),
+    addSystemContext(maximumMessageLengthPrompt),
   ];
   if (botRole.systemPrompt) {
     systemContext.push(addSystemContext(botRole.systemPrompt));

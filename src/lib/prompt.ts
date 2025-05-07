@@ -41,6 +41,8 @@ export const markdownRulesPrompt =
   `You can use ONLY the following formatting without any exceptions:` +
   `**bold text**, *italic text*, ~~strikethrough~~.`;
 
+export const maximumMessageLengthPrompt = `Response should not exceed 4096 characters.`;
+
 export const addSystemContext = (
   text: string,
 ): ChatCompletionRequestMessage => {

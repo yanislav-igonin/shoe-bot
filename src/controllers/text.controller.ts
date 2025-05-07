@@ -16,6 +16,7 @@ import {
   // aggressiveSystemPrompt,
   getCompletion,
   getModelForTask,
+  maximumMessageLengthPrompt,
   Model,
   // getRandomEncounterPrompt,
   // getRandomEncounterWords,
@@ -377,6 +378,7 @@ export const textController = async (
   const previousMessagesContext = messagesInDialog.map(addContext([]));
   // Add aggressive system prompt to the beginning of the context
   previousMessagesContext.unshift(
+    addSystemContext(maximumMessageLengthPrompt),
     addSystemContext(botRole.systemPrompt),
     // addSystemContext(aggressiveSystemPrompt),
     // addSystemContext(markdownRulesPrompt),
