@@ -1,4 +1,4 @@
-import { openai } from 'lib/ai.js';
+import { grok } from 'lib/ai.js';
 
 // eslint-disable-next-line canonical/id-match
 export const base64ToImage = (base64: string) => {
@@ -6,11 +6,11 @@ export const base64ToImage = (base64: string) => {
 };
 
 export const generateImage = async (text: string) => {
-  const response = await openai.images.generate({
-    model: 'dall-e-3',
+  const response = await grok.images.generate({
+    model: 'grok-2-image',
     prompt: text,
     response_format: 'b64_json',
-    size: '1792x1024',
+    // size: '1792x1024',
   });
   return response.data[0].b64_json;
 };

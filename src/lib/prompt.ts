@@ -23,6 +23,7 @@ export enum Model {
   Gpt4Turbo = 'gpt-4-turbo-preview',
   Gpt4Vision = 'gpt-4-vision-preview',
   Grok3 = 'grok-3-latest',
+  Grok3Mini = 'grok-3-mini',
   GrokBeta = 'grok-beta',
   MistralLarge = 'mistral-large-latest',
 }
@@ -315,6 +316,9 @@ const taskModelChoiceSystemPrompt =
   'Ответ должен содержать только JSON объект с полем model, например: {"model":"gpt-3.5-turbo"}.' +
   'Ничего другого ответ содержать не должен, только этот JSON объект.';
 
+/**
+ * @deprecated
+ */
 export const getModelForTask = async (task: string) => {
   const taskModelChoiceMessage = addSystemContext(taskModelChoiceSystemPrompt);
   const userMessage = addUserContext('```\n' + task + '```\n');
@@ -358,9 +362,9 @@ export const chooseTask = async (text: string) => {
   const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
   const userMessage = addUserContext(text);
   const messages = [chooseTaskMessage, userMessage];
-  const response = await openai.chat.completions.create({
+  const response = await grok.chat.completions.create({
     messages,
-    model: Model.Gpt3Turbo,
+    model: Model.Grok3Mini,
     response_format: { type: 'json_object' },
   });
   const task = response.choices[0].message?.content;
