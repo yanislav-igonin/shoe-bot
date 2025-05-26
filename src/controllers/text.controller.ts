@@ -7,85 +7,24 @@ import { type Filter, InputFile } from 'grammy';
 import { config } from 'lib/config.js';
 import { type BotContext } from 'lib/context.js';
 import { database } from 'lib/database.js';
-import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import {
+  base64ToImage,
+  editImage,
+  generateImage,
+} from 'lib/imageGeneration.js';
 import { logger } from 'lib/logger.js';
 import {
   addAssistantContext,
   addContext,
   addSystemContext,
-  // aggressiveSystemPrompt,
   getCompletion,
-  getModelForTask,
   maximumMessageLengthPrompt,
   Model,
-  // getRandomEncounterPrompt,
-  // getRandomEncounterWords,
-  // markdownRulesPrompt,
   preparePrompt,
-  // shouldMakeRandomEncounter,
   understandImage,
 } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
-
-// const randomReplyController = async (
-//   context: Filter<BotContext, 'message:text'>,
-// ) => {
-//   const {
-//     state: { user, dialog },
-//   } = context;
-//   const { text } = context.message;
-//   const { message_id: messageId } = context.message;
-//   const askedInPrivate = context.hasChatType('private');
-
-//   // Forbid random encounters in private chats to prevent
-//   // access to the bot for non-allowed users
-//   if (askedInPrivate) {
-//     return;
-//   }
-
-//   // eslint-disable-next-line @typescript-eslint/no-shadow
-//   const newUserMessage = await database.message.create({
-//     data: {
-//       dialogId: dialog.id,
-//       text,
-//       tgMessageId: messageId.toString(),
-//       type: MessageType.text,
-//       userId: user.id,
-//     },
-//   });
-
-//   const encounterPrompt = preparePrompt(text);
-//   const randomWords = getRandomEncounterWords();
-//   const withRandomWords = getRandomEncounterPrompt(randomWords);
-
-//   const promptContext = [addSystemContext(withRandomWords)];
-//   await context.replyWithChatAction('typing');
-
-//   try {
-//     const completition = await getCompletion(encounterPrompt, promptContext);
-
-//     const botReply = await context.reply(completition, {
-//       parse_mode: 'Markdown',
-//       reply_to_message_id: messageId,
-//     });
-//     await database.message.create({
-//       data: {
-//         dialogId: dialog.id,
-//         replyToId: newUserMessage.id,
-//         text: completition,
-//         tgMessageId: botReply.message_id.toString(),
-//         type: MessageType.text,
-//         userId: config.botId,
-//       },
-//     });
-//     return;
-//   } catch (error) {
-//     await context.reply(replies.error, {
-//       reply_to_message_id: messageId,
-//     });
-//     throw error;
-//   }
-// };
+import fetch from 'node-fetch';
 
 const getImagesMapById = async (messages: Message[]) => {
   // eslint-disable-next-line unicorn/no-array-reduce
@@ -103,6 +42,10 @@ const getImagesMapById = async (messages: Message[]) => {
   const tgImagesUrlsInDialog = await Promise.all(
     tgImagesInDialog.map(async (index) => {
       const file = await telegram.getFile(index.tgPhotoId);
+      if (!file.file_path) {
+        logger.error(`File path is undefined for tgPhotoId: ${index.tgPhotoId}`);
+        return { messageId: index.messageId, url: '' };
+      }
       const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
       return {
         messageId: index.messageId,
@@ -113,7 +56,9 @@ const getImagesMapById = async (messages: Message[]) => {
   // eslint-disable-next-line unicorn/no-array-reduce
   const tgImagesMapById = tgImagesUrlsInDialog.reduce<Record<number, string>>(
     (accumulator, current) => {
-      accumulator[current.messageId] = current.url;
+      if (current.url) {
+        accumulator[current.messageId] = current.url;
+      }
       return accumulator;
     },
     {},
@@ -121,84 +66,109 @@ const getImagesMapById = async (messages: Message[]) => {
   return tgImagesMapById;
 };
 
-const generateBetterImageController = async (
+const editImageController = async (
   context: Filter<BotContext, 'message:text'>,
 ) => {
   await context.replyWithChatAction('upload_photo');
 
   const { dialog, user } = context.state;
-  const text = context.message.text;
+  const text = context.message.text; // This is the prompt for the edit
   const { message_id: messageId, reply_to_message: replyToMessage } =
     context.message;
 
-  const previousMessage = await database.message.findFirst({
+  if (!replyToMessage || !replyToMessage.photo) {
+    await context.reply(replies.replyToImageToEdit, {
+      reply_to_message_id: messageId,
+    });
+    return;
+  }
+
+  const photoToEdit = replyToMessage.photo[replyToMessage.photo.length - 1];
+  const fileId = photoToEdit.file_id;
+
+  const fileInfo = await telegram.getFile(fileId);
+  if (!fileInfo.file_path) {
+    await context.reply(replies.error, {
+      reply_to_message_id: messageId,
+    });
+    logger.error('Failed to get file path for image to edit');
+    return;
+  }
+
+  const imageURL = `https://api.telegram.org/file/bot${config.botToken}/${fileInfo.file_path}`;
+
+  let previousMessageInDb = await database.message.findFirst({
     where: {
-      tgMessageId: replyToMessage?.message_id.toString() ?? '0',
+      tgMessageId: replyToMessage.message_id.toString(),
+      dialogId: dialog.id,
     },
   });
-  if (!previousMessage) {
-    await context.reply(replies.noPreviosData);
-    return;
+
+  if (!previousMessageInDb) {
+    logger.warn(
+      `Replied-to message (tgMessageId: ${replyToMessage.message_id}) not found in DB for edit. Proceeding.`,
+    );
   }
 
   const newUserMessage = await database.message.create({
     data: {
       dialogId: dialog.id,
-      replyToId: previousMessage.id,
-      text,
+      replyToId: previousMessageInDb?.id,
+      text: `Edit request: \"${text}\" for image ${fileId}`,
       tgMessageId: messageId.toString(),
-      type: MessageType.image,
+      type: MessageType.text,
       userId: user.id,
     },
   });
 
-  // Get all previous messages in dialog
-  const messagesInDialog = await database.message.findMany({
-    where: {
-      dialogId: dialog.id,
-      id: {
-        not: newUserMessage.id,
-      },
-    },
-  });
+  try {
+    const imageResponse = await fetch(imageURL);
+    if (!imageResponse.ok) {
+      throw new Error(
+        `Failed to fetch image for editing: ${imageResponse.statusText}`,
+      );
+    }
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const imageToSend = Buffer.from(imageBuffer);
 
-  const tgImagesMapById = await getImagesMapById(messagesInDialog);
-  const imageMessages = messagesInDialog.filter((message) => message.tgPhotoId);
-  const lastImageMessage = imageMessages[imageMessages.length - 1];
-  const whatsOnImage = await understandImage(lastImageMessage, tgImagesMapById);
+    const imageBase64 = await editImage(imageToSend, text);
 
-  const upgradedContext = await getCompletion(text, [
-    addAssistantContext(whatsOnImage),
-    addSystemContext(
-      'Результат должен быть новым четким описанием того, что попросили изменить.',
-    ),
-  ]);
-  const imageBase64 = await generateImage(upgradedContext);
-  if (!imageBase64) {
-    await context.reply(replies.error, {
+    if (!imageBase64) {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+      logger.error('Failed to edit image with OpenAI');
+      return;
+    }
+
+    const editedImageBuffer = base64ToImage(imageBase64);
+    const inputFile = new InputFile(editedImageBuffer, 'edited_image.png');
+
+    const botReply = await context.replyWithPhoto(inputFile, {
+      caption: `Edited image based on: \"${text}\"`,
       reply_to_message_id: messageId,
     });
-    logger.error('Failed to generate image');
-    return;
-  }
 
-  const buffer = base64ToImage(imageBase64);
-  const file = new InputFile(buffer, 'image.png');
-  const botReply = await context.replyWithPhoto(file, {
-    reply_to_message_id: messageId,
-  });
-  const botMessageId = botReply.message_id.toString();
-  const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
-  await database.message.create({
-    data: {
-      dialogId: dialog.id,
-      replyToId: newUserMessage.id,
-      tgMessageId: botMessageId,
-      tgPhotoId: botFileId,
-      type: MessageType.image,
-      userId: config.botId,
-    },
-  });
+    const botMessageId = botReply.message_id.toString();
+    const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
+
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        tgMessageId: botMessageId,
+        tgPhotoId: botFileId,
+        type: MessageType.image,
+        userId: config.botId,
+        text: `Edited image for prompt: \"${text}\"`,
+      },
+    });
+  } catch (error) {
+    logger.error({ error, messageId, dialogId: dialog.id }, 'Error in editImageController');
+    await context.reply(replies.errorEditingImage, {
+      reply_to_message_id: messageId,
+    });
+  }
 };
 
 export const textController = async (
@@ -212,142 +182,115 @@ export const textController = async (
     context.message;
 
   const notReply = replyToMessage === undefined;
-  // const repliedOnMessageId = replyToMessage?.message_id;
-  // const repliedOnOthersMessage = !repliedOnBotsMessage;
   const askedInPrivate = context.hasChatType('private');
 
   if (askedInPrivate && notReply) {
     await textTriggerController(context);
     return;
   }
+  
+  const isEditingImage = !!(replyToMessage && replyToMessage.photo && replyToMessage.photo.length > 0);
 
-  // TODO: fix random encounter
-  // Random encounter, shouldn't be triggered on reply.
-  // Triggered by chance, replies to any message just4lulz
-  // const shouldReplyRandomly = shouldMakeRandomEncounter();
-  // if (shouldReplyRandomly && notReply) {
-  //   await randomReplyController(context);
-  //   return;
-  // }
-
-  // TODO: Fix answer on other user message
-  // If user replied to other user message
-  // if (repliedOnOthersMessage) {
-  //   // Check if user asked bot to take other user's message into account
-  //   const answerToReplyMatches = getAnswerToReplyMatches(text);
-  //   const shouldNotAnswerToReply = answerToReplyMatches === null;
-  //   if (shouldNotAnswerToReply) {
-  //     // Just return if not
-  //     return;
-  //   }
-
-  //   const tgUserToAnswer = replyToMessage.from;
-  //   if (!tgUserToAnswer) {
-  //     throw new Error('User replied on is undefined');
-  //   }
-
-  //   let userToAnswer = await database.newUser.findFirst({
-  //     where: { tgId: replyToMessage.from?.id.toString() },
-  //   });
-  //   if (!userToAnswer) {
-  //     userToAnswer = await database.newUser.create({
-  //       data: {
-  //         firstName: valueOrNull(tgUserToAnswer.first_name),
-  //         languageCode: valueOrNull(tgUserToAnswer.language_code),
-  //         lastName: valueOrNull(tgUserToAnswer.last_name),
-  //         tgId: tgUserToAnswer.id.toString(),
-  //         username: valueOrNull(tgUserToAnswer.username),
-  //       },
-  //     });
-  //   }
-
-  //   const previousMessage = await database.message.create({
-  //     data: {
-  //       dialogId: dialog.id,
-  //       text: replyToMessageText,
-  //       tgMessageId: replyToMessage.message_id.toString(),
-  //       type: MessageType.text,
-  //       userId: userToAnswer.id,
-  //     },
-  //   });
-
-  //   const answerToReplyText = answerToReplyMatches[3];
-  //   const answerTextWithOriginalMessage = `${answerToReplyText}\n\n${replyToMessageText}`;
-  //   const answerToReplyPrompt = preparePrompt(answerTextWithOriginalMessage);
-  //   const answerToReplyContext = [
-  //     addSystemContext(aggressiveSystemPrompt),
-  //     addUserContext(replyToMessageText as string),
-  //   ];
-
-  //   const newUserMessage = await database.message.create({
-  //     data: {
-  //       dialogId: dialog.id,
-  //       replyToId: previousMessage.id,
-  //       text,
-  //       tgMessageId: messageId.toString(),
-  //       type: MessageType.text,
-  //       userId: user.id,
-  //     },
-  //   });
-
-  //   try {
-  //     await context.replyWithChatAction('typing');
-  //     const completition = await getSmartCompletion(
-  //       answerToReplyPrompt,
-  //       answerToReplyContext,
-  //     );
-  //     const botReply = await context.reply(completition, {
-  //       reply_to_message_id: messageId,
-  //     });
-  //     await database.message.create({
-  //       data: {
-  //         dialogId: dialog.id,
-  //         replyToId: newUserMessage.id,
-  //         text: completition,
-  //         tgMessageId: botReply.message_id.toString(),
-  //         type: MessageType.text,
-  //         userId: config.botId,
-  //       },
-  //     });
-  //     return;
-  //   } catch (error) {
-  //     await context.reply(replies.error, {
-  //       reply_to_message_id: messageId,
-  //     });
-  //     throw error;
-  //   }
-  // }
-
-  const prompt = preparePrompt(text);
-
-  const hasImages =
-    (
-      await database.message.findMany({
-        where: {
-          dialogId: dialog.id,
-          type: MessageType.image,
-        },
-      })
-    ).length > 0;
-  if (hasImages) {
-    await generateBetterImageController(context);
+  if (isEditingImage) {
+    await editImageController(context);
     return;
   }
 
-  const previousMessage = await database.message.findFirst({
+  const messagesForDialogCheck = await database.message.findMany({
+    where: { dialogId: dialog.id },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const hasImagesInDialog = messagesForDialogCheck.some(msg => msg.type === MessageType.image && msg.tgPhotoId);
+
+  if (hasImagesInDialog && !isEditingImage) {
+    await context.replyWithChatAction('upload_photo');
+    const newUserMessage = await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        text,
+        tgMessageId: messageId.toString(),
+        type: MessageType.text,
+        userId: user.id,
+      },
+    });
+
+    try {
+      const allMessagesInDialog = await database.message.findMany({
+        where: { dialogId: dialog.id, id: { not: newUserMessage.id } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const tgImagesMapById = await getImagesMapById(allMessagesInDialog);
+      const imageMessages = allMessagesInDialog.filter(
+        (message) => message.tgPhotoId && tgImagesMapById[message.id],
+      );
+
+      let contextForGeneration = text;
+
+      if (imageMessages.length > 0) {
+        const lastImageMessage = imageMessages[imageMessages.length - 1];
+        const whatsOnImage = await understandImage(lastImageMessage, tgImagesMapById);
+        const upgradedContextPrompt = await getCompletion(text, [
+          addAssistantContext(whatsOnImage),
+          addSystemContext(
+            'Based on the previous image and the user\\'s request, create a detailed prompt for a new image generation. The prompt should be a clear and concise description of the desired image.',
+          ),
+        ]);
+        contextForGeneration = upgradedContextPrompt;
+      }
+      
+      logger.info({dialogId: dialog.id, prompt: contextForGeneration}, "Generating image with prompt");
+
+      const imageBase64 = await generateImage(contextForGeneration);
+      if (!imageBase64) {
+        await context.reply(replies.error, { reply_to_message_id: messageId });
+        logger.error('Failed to generate image');
+        return;
+      }
+
+      const buffer = base64ToImage(imageBase64);
+      const file = new InputFile(buffer, 'image.png');
+      const botReply = await context.replyWithPhoto(file, {
+        reply_to_message_id: messageId,
+        caption: `Generated image for: \"${text}\"`
+      });
+      const botMessageId = botReply.message_id.toString();
+      const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
+      await database.message.create({
+        data: {
+          dialogId: dialog.id,
+          replyToId: newUserMessage.id,
+          tgMessageId: botMessageId,
+          tgPhotoId: botFileId,
+          type: MessageType.image,
+          userId: config.botId,
+          text: `Generated based on: \"${contextForGeneration}\"`
+        },
+      });
+      return;
+    } catch (error) {
+      logger.error({ error, messageId, dialogId: dialog.id }, 'Error in image generation flow');
+      await context.reply(replies.error, { reply_to_message_id: messageId });
+      return;
+    }
+  }
+
+  const prompt = preparePrompt(text);
+
+  const previousMessageInDbText = await database.message.findFirst({
     where: {
       tgMessageId: replyToMessage?.message_id.toString() ?? '0',
     },
   });
-  if (!previousMessage) {
-    await context.reply(replies.noPreviosData);
-    return;
+  if (replyToMessage && !previousMessageInDbText && !isEditingImage) {
+    logger.warn(`Replied-to message (tgMessageId: ${replyToMessage.message_id}) not found in DB for text reply.`)
   }
 
   const newUserMessage = await database.message.create({
     data: {
       dialogId: dialog.id,
-      replyToId: previousMessage.id,
+      replyToId: previousMessageInDbText?.id,
       text,
       tgMessageId: messageId.toString(),
       type: MessageType.text,
@@ -355,8 +298,7 @@ export const textController = async (
     },
   });
 
-  // Get all previous messages in dialog
-  const messagesInDialog = await database.message.findMany({
+  const messagesInDialogForText = await database.message.findMany({
     where: {
       dialogId: dialog.id,
       id: {
@@ -374,27 +316,14 @@ export const textController = async (
     return;
   }
 
-  // Assgign each message to user context or bot context
-  const previousMessagesContext = messagesInDialog.map(addContext([]));
-  // Add aggressive system prompt to the beginning of the context
+  const previousMessagesContext = messagesInDialogForText.map(addContext([]));
   previousMessagesContext.unshift(
     addSystemContext(maximumMessageLengthPrompt),
     addSystemContext(botRole.systemPrompt),
-    // addSystemContext(aggressiveSystemPrompt),
-    // addSystemContext(markdownRulesPrompt),
   );
 
   try {
     await context.replyWithChatAction('typing');
-    // let model: Model;
-    // if (hasImages) {
-    //   model = Model.Gpt4O;
-    // } else if (dialog.isViolatesOpenAiPolicy) {
-    //   model = Model.MistralLarge;
-    // } else {
-    //   model = await getModelForTask(prompt);
-    // }
-
     const completition = await getCompletion(
       prompt,
       previousMessagesContext,
@@ -417,9 +346,9 @@ export const textController = async (
       },
     });
   } catch (error) {
+    logger.error({error, messageId, dialogId: dialog.id}, "Error in textController completion")
     await context.reply(replies.error, {
       reply_to_message_id: messageId,
     });
-    throw error;
   }
 };
