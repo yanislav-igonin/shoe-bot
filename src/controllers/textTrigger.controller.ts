@@ -1,4 +1,3 @@
-import { replyInChunks } from '../lib/telegram';
 import { MessageType } from '@prisma/client';
 import { type Filter } from 'grammy';
 import { InputFile } from 'grammy';
@@ -86,29 +85,21 @@ export const textTriggerController = async (
 
     const completition = await getCompletion(prompt, systemContext, model);
 
-    const botReplies = await replyInChunks(context, completition, {
+    const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
     });
 
-    if (!botReplies) {
-      return;
-    }
-
-    let lastMessageId = newUserMessage.id;
-    for (const botReply of botReplies) {
-      const createdMessage = await database.message.create({
-        data: {
-          dialogId: dialog.id,
-          replyToId: lastMessageId,
-          text: botReply.text,
-          tgMessageId: botReply.message_id.toString(),
-          type: MessageType.text,
-          userId: config.botId,
-        },
-      });
-      lastMessageId = createdMessage.id;
-    }
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
+    });
   };
 
   const imageController = async () => {

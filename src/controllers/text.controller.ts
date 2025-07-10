@@ -1,28 +1,32 @@
 /* eslint-disable complexity */
-import { config } from '../lib/config';
-import { type BotContext } from '../lib/context';
-import { database } from '../lib/database';
-import { base64ToImage, generateImage } from '../lib/imageGeneration';
-import { logger } from '../lib/logger';
+import { telegram } from '../telegram.js';
+import { textTriggerController } from './textTrigger.controller.js';
+import { type Message } from '@prisma/client';
+import { MessageType } from '@prisma/client';
+import { type Filter, InputFile } from 'grammy';
+import { config } from 'lib/config.js';
+import { type BotContext } from 'lib/context.js';
+import { database } from 'lib/database.js';
+import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import { logger } from 'lib/logger.js';
 import {
   addAssistantContext,
   addContext,
   addSystemContext,
+  // aggressiveSystemPrompt,
   getCompletion,
-  // getModelForTask,
+  getModelForTask,
   MAIN_MODEL,
   maximumMessageLengthPrompt,
-  // Model,
+  Model,
+  // getRandomEncounterPrompt,
+  // getRandomEncounterWords,
+  // markdownRulesPrompt,
   preparePrompt,
+  // shouldMakeRandomEncounter,
   understandImage,
-} from '../lib/prompt';
-import { replies } from '../lib/replies';
-import { replyInChunks } from '../lib/telegram';
-import { telegram } from '../telegram';
-import { textTriggerController } from './textTrigger.controller';
-import { type Message } from '@prisma/client';
-import { MessageType } from '@prisma/client';
-import { type Filter, InputFile } from 'grammy';
+} from 'lib/prompt.js';
+import { replies } from 'lib/replies.js';
 
 // const randomReplyController = async (
 //   context: Filter<BotContext, 'message:text'>,
@@ -398,29 +402,21 @@ export const textController = async (
       MAIN_MODEL,
     );
 
-    const botReplies = await replyInChunks(context, completition, {
+    const botReply = await context.reply(completition, {
       parse_mode: 'Markdown',
       reply_to_message_id: messageId,
     });
 
-    if (!botReplies) {
-      return;
-    }
-
-    let lastMessageId = newUserMessage.id;
-    for (const botReply of botReplies) {
-      const createdMessage = await database.message.create({
-        data: {
-          dialogId: dialog.id,
-          replyToId: lastMessageId,
-          text: botReply.text,
-          tgMessageId: botReply.message_id.toString(),
-          type: MessageType.text,
-          userId: config.botId,
-        },
-      });
-      lastMessageId = createdMessage.id;
-    }
+    await database.message.create({
+      data: {
+        dialogId: dialog.id,
+        replyToId: newUserMessage.id,
+        text: completition,
+        tgMessageId: botReply.message_id.toString(),
+        type: MessageType.text,
+        userId: config.botId,
+      },
+    });
   } catch (error) {
     await context.reply(replies.error, {
       reply_to_message_id: messageId,
