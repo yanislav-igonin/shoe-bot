@@ -1,5 +1,5 @@
-import { type Context } from 'telegraf';
-import { type Message } from 'telegraf/types';
+import { type Context } from 'grammy';
+import { type Message } from 'grammy/types';
 
 const TELEGRAM_MESSAGE_LENGTH_LIMIT = 4_096;
 
