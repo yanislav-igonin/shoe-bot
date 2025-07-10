@@ -16,6 +16,7 @@ import {
   // aggressiveSystemPrompt,
   getCompletion,
   getModelForTask,
+  MAIN_MODEL,
   maximumMessageLengthPrompt,
   Model,
   // getRandomEncounterPrompt,
@@ -398,7 +399,7 @@ export const textController = async (
     const completition = await getCompletion(
       prompt,
       previousMessagesContext,
-      Model.Grok3,
+      MAIN_MODEL,
     );
 
     const botReply = await context.reply(completition, {

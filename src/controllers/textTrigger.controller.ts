@@ -11,6 +11,7 @@ import {
   chooseTask,
   getCompletion,
   getModelForTask,
+  MAIN_MODEL,
   maximumMessageLengthPrompt,
   Model,
   // markdownRulesPrompt,
@@ -73,7 +74,7 @@ export const textTriggerController = async (
   const textController = async () => {
     await context.replyWithChatAction('typing');
     // let model = await getModelForTask(prompt);
-    const model = Model.Grok3;
+    const model = MAIN_MODEL;
     // if (model === Model.Gpt4) {
     //   await database.newDialog.update({
     //     data: { isViolatesOpenAiPolicy: true },

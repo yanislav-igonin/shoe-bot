@@ -24,9 +24,12 @@ export enum Model {
   Gpt4Vision = 'gpt-4-vision-preview',
   Grok3 = 'grok-3-latest',
   Grok3Mini = 'grok-3-mini',
+  Grok4 = 'grok-4',
   GrokBeta = 'grok-beta',
   MistralLarge = 'mistral-large-latest',
 }
+
+export const MAIN_MODEL = Model.Grok4;
 
 export const textTriggerRegexp = isProduction
   ? /^((ботинок,|shoe,|блинное,) )(.+)/isu
