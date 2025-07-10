@@ -1,4 +1,4 @@
-import { replyInChunks } from '../lib/telegram.js';
+import { replyInChunks } from '../lib/telegram';
 import { MessageType } from '@prisma/client';
 import { type Filter } from 'grammy';
 import { InputFile } from 'grammy';
