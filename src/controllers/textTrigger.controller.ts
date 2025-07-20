@@ -85,21 +85,23 @@ export const textTriggerController = async (
 
     const completition = await getCompletion(prompt, systemContext, model);
 
-    const botReply = await context.reply(completition, {
-      parse_mode: 'Markdown',
-      reply_to_message_id: messageId,
-    });
+    for (const chunk of completition) {
+      const botReply = await context.reply(chunk, {
+        parse_mode: 'Markdown',
+        reply_to_message_id: messageId,
+      });
 
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: completition,
-        tgMessageId: botReply.message_id.toString(),
-        type: MessageType.text,
-        userId: config.botId,
-      },
-    });
+      await database.message.create({
+        data: {
+          dialogId: dialog.id,
+          replyToId: newUserMessage.id,
+          text: chunk,
+          tgMessageId: botReply.message_id.toString(),
+          type: MessageType.text,
+          userId: config.botId,
+        },
+      });
+    }
   };
 
   const imageController = async () => {

@@ -29,6 +29,16 @@ export enum Model {
   MistralLarge = 'mistral-large-latest',
 }
 
+const chunkMessage = (message: string) => {
+  const MAX_LENGTH = 4_000;
+  const chunks = [];
+  for (let index = 0; index < message.length; index += MAX_LENGTH) {
+    chunks.push(message.slice(index, index + MAX_LENGTH));
+  }
+
+  return chunks;
+};
+
 export const MAIN_MODEL = Model.Grok4;
 
 export const textTriggerRegexp = isProduction
@@ -200,8 +210,9 @@ export const getCompletion = async (
   //   return await getMistralCompletion(message as string, context, model);
   // }
 
+  const result = await getGrokCompletion(message as string, context, model);
+  return chunkMessage(result);
   // if (model === Model.GrokBeta) {
-  return await getGrokCompletion(message as string, context, model);
   // }
 
   // return await getOpenAiCompletion(message as string, context, model);
@@ -218,7 +229,7 @@ export const understandImage = async (
     messages,
     Model.Gpt4Vision,
   );
-  return response;
+  return response[0];
 };
 
 const cleanPrompt = (text: string) => {

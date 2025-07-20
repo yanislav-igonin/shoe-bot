@@ -174,7 +174,7 @@ const generateBetterImageController = async (
       'Результат должен быть новым четким описанием того, что попросили изменить.',
     ),
   ]);
-  const imageBase64 = await generateImage(upgradedContext);
+  const imageBase64 = await generateImage(upgradedContext[0]);
   if (!imageBase64) {
     await context.reply(replies.error, {
       reply_to_message_id: messageId,
@@ -402,21 +402,23 @@ export const textController = async (
       MAIN_MODEL,
     );
 
-    const botReply = await context.reply(completition, {
-      parse_mode: 'Markdown',
-      reply_to_message_id: messageId,
-    });
+    for (const chunk of completition) {
+      const botReply = await context.reply(chunk, {
+        parse_mode: 'Markdown',
+        reply_to_message_id: messageId,
+      });
 
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: completition,
-        tgMessageId: botReply.message_id.toString(),
-        type: MessageType.text,
-        userId: config.botId,
-      },
-    });
+      await database.message.create({
+        data: {
+          dialogId: dialog.id,
+          replyToId: newUserMessage.id,
+          text: chunk,
+          tgMessageId: botReply.message_id.toString(),
+          type: MessageType.text,
+          userId: config.botId,
+        },
+      });
+    }
   } catch (error) {
     await context.reply(replies.error, {
       reply_to_message_id: messageId,
