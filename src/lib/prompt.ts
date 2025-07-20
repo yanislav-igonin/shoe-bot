@@ -298,7 +298,7 @@ export const getShictureDescription = async () => {
     'Результат должен содержать только формулировку, а в конце добавить " в стиле ",' +
     'но сам стиль не добавлять, я добавлю его после сам, например: ' +
     'Нарисуй картину с большими в стиле ';
-  let description = await getCompletion(prompt);
+  let description = (await getCompletion(prompt))[0];
   const lastFewCharacters = description.slice(-3);
 
   // Remove trailing dot
