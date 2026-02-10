@@ -7,30 +7,27 @@ import { replies } from 'lib/replies.js';
 import { settings } from 'lib/settings.js';
 
 type ChatMessageContentItem =
-  | { type: 'text'; text: string }
   | {
+      imageUrl: { detail?: string; url: string };
       type: 'image_url';
-      imageUrl: { url: string; detail?: string };
-    };
+    }
+  | { text: string; type: 'text' };
 
 export type ChatCompletionRequestMessage =
   | {
-      role: 'system';
+      content: ChatMessageContentItem[] | string;
+      name?: string;
+      role: 'user';
+    }
+  | {
       content: string;
       name?: string;
+      role: 'system';
     }
   | {
-      role: 'user';
-      content: string | ChatMessageContentItem[];
+      content?: ChatMessageContentItem[] | string | null;
       name?: string;
-    }
-  | {
       role: 'assistant';
-      content?:
-        | string
-        | ChatMessageContentItem[]
-        | null;
-      name?: string;
     };
 
 enum ContextRole {
@@ -42,11 +39,7 @@ enum ContextRole {
 const chunkMessage = (message: string) => {
   const MAX_LENGTH = 4_000;
   const chunks = [];
-  for (
-    let index = 0;
-    index < message.length;
-    index += MAX_LENGTH
-  ) {
+  for (let index = 0; index < message.length; index += MAX_LENGTH) {
     chunks.push(message.slice(index, index + MAX_LENGTH));
   }
 
@@ -169,8 +162,7 @@ export const addUserContext = (
 };
 
 export const addContext =
-  (imagesMap: Record<number, string>) =>
-  (message: Message) => {
+  (imagesMap: Record<number, string>) => (message: Message) => {
     if (message.userId === config.botId) {
       return addAssistantContext(message, imagesMap);
     }
@@ -193,11 +185,9 @@ export const getCompletion = async (
       model: resolvedModel,
     },
   });
-  const text =
-    response.choices[0].message?.content;
+  const text = response.choices[0].message?.content;
   return chunkMessage(
-    (typeof text === 'string' ? text.trim() : '') ||
-      replies.noAnswer,
+    (typeof text === 'string' ? text.trim() : '') || replies.noAnswer,
   );
 };
 
@@ -227,9 +217,7 @@ export const getRandomEncounterWords = () => {
   const words = [];
   const howMany = Math.floor(Math.random() * 5) + 1;
   for (let index = 0; index < howMany; index++) {
-    const randomIndex = Math.floor(
-      Math.random() * randomEncounterWords.length,
-    );
+    const randomIndex = Math.floor(Math.random() * randomEncounterWords.length);
     words.push(randomEncounterWords[randomIndex]);
   }
 
@@ -239,9 +227,7 @@ export const getRandomEncounterWords = () => {
 export const shouldMakeRandomEncounter = () =>
   Math.random() < config.randomEncounterChance;
 
-export const getRandomEncounterPrompt = (
-  words: string[],
-) =>
+export const getRandomEncounterPrompt = (words: string[]) =>
   'Ответь саркастично с черным юмором осмысленно на фразу пользователя' +
   'с использованием слов: ' +
   words.join(', ');
@@ -269,9 +255,7 @@ export const getShictureStyle = () => {
     'работ Ганса Рудольфа Гигера',
     'древнеегипетской фрески',
   ];
-  const randomIndex = Math.floor(
-    Math.random() * styles.length,
-  );
+  const randomIndex = Math.floor(Math.random() * styles.length);
   return styles[randomIndex];
 };
 
@@ -286,13 +270,7 @@ export const getShictureDescription = async () => {
     'Результат должен содержать только формулировку, а в конце добавить " в стиле ",' +
     'но сам стиль не добавлять, я добавлю его после сам, например: ' +
     'Нарисуй картину с большими в стиле ';
-  let description = (
-    await getCompletion(
-      prompt,
-      [],
-      settings.fastModel,
-    )
-  )[0];
+  let description = (await getCompletion(prompt, [], settings.fastModel))[0];
   const lastFewCharacters = description.slice(-3);
 
   // Remove trailing dot
@@ -306,8 +284,7 @@ export const getShictureDescription = async () => {
     description += ' в стиле ';
   }
 
-  const withStyle =
-    description + ' ' + getShictureStyle();
+  const withStyle = description + ' ' + getShictureStyle();
   return withStyle;
 };
 
@@ -328,8 +305,7 @@ const chooseTaskPrompt =
  * @returns Task type.
  */
 export const chooseTask = async (text: string) => {
-  const chooseTaskMessage =
-    addSystemContext(chooseTaskPrompt);
+  const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
   const userMessage = addUserContext(text);
   const messages = [chooseTaskMessage, userMessage];
   // @ts-expect-error SDK Message type is not exported from main entry
@@ -340,22 +316,16 @@ export const chooseTask = async (text: string) => {
       responseFormat: { type: 'json_object' },
     },
   });
-  const task =
-    response.choices[0].message?.content;
+  const task = response.choices[0].message?.content;
   try {
     const parsed = JSON.parse(
-      (typeof task === 'string' ? task : null) ??
-        '{}',
+      (typeof task === 'string' ? task : null) ?? '{}',
     ) as {
       task: 'image' | 'text';
     };
     return parsed.task;
   } catch (error) {
-    logger.error(
-      'Prompt: ChooseTask: Parsing answer from model:',
-      task,
-      error,
-    );
+    logger.error('Prompt: ChooseTask: Parsing answer from model:', task, error);
     return 'text';
   }
 };

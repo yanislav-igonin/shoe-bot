@@ -14,8 +14,7 @@ type SettingKey = (typeof REQUIRED_KEYS)[number];
 export class SettingsService {
   private cache: Map<string, string> = new Map();
 
-  private interval: ReturnType<typeof setInterval> | null =
-    null;
+  private interval: ReturnType<typeof setInterval> | null = null;
 
   async initialize() {
     await this.refresh();
@@ -23,10 +22,7 @@ export class SettingsService {
 
     this.interval = setInterval(() => {
       this.refresh().catch((error: unknown) => {
-        logger.error(
-          'Failed to refresh settings:',
-          error,
-        );
+        logger.error('Failed to refresh settings:', error);
       });
     }, REFRESH_INTERVAL_MS);
   }
@@ -54,9 +50,7 @@ export class SettingsService {
     const value = this.cache.get(key);
 
     if (value === undefined) {
-      throw new Error(
-        `Missing required setting: "${key}"`,
-      );
+      throw new Error(`Missing required setting: "${key}"`);
     }
 
     return value;
@@ -69,9 +63,7 @@ export class SettingsService {
       this.cache.set(row.key, row.value);
     }
 
-    logger.info(
-      `Settings refreshed (${rows.length} keys)`,
-    );
+    logger.info(`Settings refreshed (${rows.length} keys)`);
   }
 
   private assertRequiredKeys() {

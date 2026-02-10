@@ -15,8 +15,8 @@ import { type BotContext } from 'lib/context.js';
 import { database } from 'lib/database.js';
 import { logger } from 'lib/logger.js';
 import { textTriggerRegexp } from 'lib/prompt.js';
-import { settings } from 'lib/settings.js';
 import { replies } from 'lib/replies.js';
+import { settings } from 'lib/settings.js';
 import {
   adminMiddleware,
   allowedMiddleware,

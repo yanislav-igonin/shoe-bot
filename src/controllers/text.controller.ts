@@ -385,10 +385,7 @@ export const textController = async (
   try {
     await context.replyWithChatAction('typing');
 
-    const completition = await getCompletion(
-      prompt,
-      previousMessagesContext,
-    );
+    const completition = await getCompletion(prompt, previousMessagesContext);
 
     for (const chunk of completition) {
       const botReply = await context.reply(chunk, {
