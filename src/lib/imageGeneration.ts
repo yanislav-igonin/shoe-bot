@@ -1,4 +1,5 @@
-import { grok } from 'lib/ai.js';
+import { openrouter } from 'lib/ai.js';
+import { settings } from 'lib/settings.js';
 
 // eslint-disable-next-line canonical/id-match
 export const base64ToImage = (base64: string) => {
@@ -6,11 +7,18 @@ export const base64ToImage = (base64: string) => {
 };
 
 export const generateImage = async (text: string) => {
-  const response = await grok.images.generate({
-    model: 'grok-2-image',
-    prompt: text,
-    response_format: 'b64_json',
-    // size: '1792x1024',
+  const response = await openrouter.chat.send({
+    chatGenerationParams: {
+      messages: [{ content: text, role: 'user' }],
+      modalities: ['image'],
+      model: settings.imageGenerationModel,
+    },
   });
-  return response.data[0].b64_json;
+
+  const message = response.choices[0].message;
+  if (!message.images?.length) return undefined;
+
+  const dataUrl = message.images[0].imageUrl.url;
+  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+  return base64;
 };

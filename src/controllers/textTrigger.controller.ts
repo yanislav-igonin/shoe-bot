@@ -10,16 +10,11 @@ import {
   addSystemContext,
   chooseTask,
   getCompletion,
-  getModelForTask,
-  MAIN_MODEL,
   maximumMessageLengthPrompt,
-  Model,
   // markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
-// @ts-expect-error openai/resources not found
-import { type ChatCompletionMessageParam } from 'openai/resources';
 
 export const textTriggerController = async (
   context: Filter<BotContext, 'message:text'>,
@@ -63,7 +58,7 @@ export const textTriggerController = async (
     return;
   }
 
-  const systemContext: ChatCompletionMessageParam[] = [
+  const systemContext = [
     // addSystemContext(markdownRulesPrompt),
     addSystemContext(maximumMessageLengthPrompt),
   ];
@@ -73,17 +68,8 @@ export const textTriggerController = async (
 
   const textController = async () => {
     await context.replyWithChatAction('typing');
-    // let model = await getModelForTask(prompt);
-    const model = MAIN_MODEL;
-    // if (model === Model.Gpt4) {
-    //   await database.newDialog.update({
-    //     data: { isViolatesOpenAiPolicy: true },
-    //     where: { id: dialog.id },
-    //   });
-    //   model = Model.MistralLarge;
-    // }
 
-    const completition = await getCompletion(prompt, systemContext, model);
+    const completition = await getCompletion(prompt, systemContext);
 
     for (const chunk of completition) {
       const botReply = await context.reply(chunk, {

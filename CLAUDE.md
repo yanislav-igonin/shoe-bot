@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**shoe-bot** is a Telegram bot written in TypeScript that provides AI-powered text generation and image generation capabilities. The bot uses multiple AI providers (Grok/xAI, OpenAI, Mistral) and supports subscription-based access control with activation codes.
+**shoe-bot** is a Telegram bot written in TypeScript that provides AI-powered text generation and image generation capabilities. The bot uses OpenRouter as its AI provider (supporting multiple models via a single API) and supports subscription-based access control with activation codes.
 
 The bot is primarily designed for Russian-speaking users (UI strings are in Russian) and responds to trigger words like "ботинок," (shoe) or "блинное," in production, and "бомж," (hobo) in development.
 
@@ -12,10 +12,7 @@ The bot is primarily designed for Russian-speaking users (UI strings are in Russ
 - **Language**: TypeScript (ES2022, NodeNext modules)
 - **Telegram Framework**: grammY
 - **Database**: PostgreSQL with Prisma ORM
-- **AI Providers**:
-  - Grok/xAI (primary, via OpenAI-compatible API)
-  - OpenAI (GPT-3.5/4 for specific tasks)
-  - Mistral (fallback)
+- **AI Provider**: OpenRouter (single API for multiple models via `@openrouter/sdk`)
 
 ## Project Structure
 
@@ -38,12 +35,13 @@ shoe-bot/
 │   │       ├── generate.controller.ts
 │   │       └── stats.controller.ts
 │   ├── lib/                  # Shared utilities
-│   │   ├── ai.ts             # AI client instances (OpenAI, Mistral, Grok)
+│   │   ├── ai.ts             # OpenRouter AI client instance
 │   │   ├── config.ts         # Environment configuration
 │   │   ├── context.ts        # BotContext type definition
 │   │   ├── database.ts       # Prisma client instance
 │   │   ├── prompt.ts         # AI prompt utilities and completions
 │   │   ├── imageGeneration.ts # Image generation helpers
+│   │   ├── settings.ts       # SettingsService (dynamic model config from DB)
 │   │   ├── replies.ts        # Bot reply templates
 │   │   ├── logger.ts         # Logging utility
 │   │   ├── values.ts         # Value helpers (valueOrNull, etc.)
@@ -102,9 +100,7 @@ Required in `.env` file (see `.env.example`):
 | Variable | Description |
 |----------|-------------|
 | `BOT_TOKEN` | Telegram Bot API token |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `GROK_API_KEY` | Grok/xAI API key |
-| `MISTRAL_API_KEY` | Mistral AI API key |
+| `OPENROUTER_API_KEY` | OpenRouter API key |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `ENV` | `development` or `production` |
 | `ADMINS_USERNAMES` | Comma-separated admin Telegram usernames |
@@ -168,7 +164,7 @@ state: {
 2. Controller prepares prompt with `preparePrompt()`
 3. System context added via `addSystemContext()`
 4. Previous dialog messages added via `addContext()`
-5. `getCompletion()` calls Grok API (default) or other providers
+5. `getCompletion()` calls OpenRouter API
 6. Long responses chunked to 4000 chars via `chunkMessage()`
 7. Response saved to database and sent to user
 
@@ -214,10 +210,9 @@ Both use Node.js 18.
 ## Important Notes for AI Assistants
 
 1. **Russian Language**: Most user-facing strings are in Russian (see `lib/replies.ts`)
-2. **Multiple AI Providers**: Default is Grok (xAI), configured in `lib/ai.ts` and `lib/prompt.ts`
-3. **Subscription Model**: Users need active subscriptions to use the bot (except admins)
-4. **Dialog Context**: The bot maintains conversation context within "dialogs" - reply chains are tracked
-5. **Image Generation**: Uses Grok's `grok-2-image` model
-6. **ts-expect-error**: Several typing workarounds exist due to library type issues
+2. **OpenRouter AI Provider**: Single provider via `@openrouter/sdk`, configured in `lib/ai.ts` and `lib/prompt.ts`
+3. **Dynamic Model Settings**: Models are configured via the `Settings` database table and managed by `SettingsService` in `lib/settings.ts` (keys: `fastModel`, `mainModel`, `imageGenerationModel`)
+4. **Subscription Model**: Users need active subscriptions to use the bot (except admins)
+5. **Dialog Context**: The bot maintains conversation context within "dialogs" - reply chains are tracked
+6. **Image Generation**: Uses the model configured in `settings.imageGenerationModel` via OpenRouter
 7. **Message Chunking**: Responses over 4000 chars are split into multiple messages
-8. **Main Model**: Currently set to `Model.Grok4` in `lib/prompt.ts`

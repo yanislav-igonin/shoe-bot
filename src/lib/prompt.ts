@@ -1,14 +1,37 @@
 import { type Message } from '@prisma/client';
-import { grok, mistral, openai } from 'lib/ai.js';
+import { openrouter } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
 import { randomEncounterWords } from 'lib/randomEncounterWords.js';
 import { replies } from 'lib/replies.js';
-// eslint-disable-next-line import/no-named-as-default
-import type OpenAI from 'openai';
+import { settings } from 'lib/settings.js';
 
-type ChatCompletionRequestMessage =
-  OpenAI.Chat.Completions.ChatCompletionMessageParam;
+type ChatMessageContentItem =
+  | { type: 'text'; text: string }
+  | {
+      type: 'image_url';
+      imageUrl: { url: string; detail?: string };
+    };
+
+export type ChatCompletionRequestMessage =
+  | {
+      role: 'system';
+      content: string;
+      name?: string;
+    }
+  | {
+      role: 'user';
+      content: string | ChatMessageContentItem[];
+      name?: string;
+    }
+  | {
+      role: 'assistant';
+      content?:
+        | string
+        | ChatMessageContentItem[]
+        | null;
+      name?: string;
+    };
 
 enum ContextRole {
   Assistant = 'assistant',
@@ -16,30 +39,19 @@ enum ContextRole {
   User = 'user',
 }
 
-export enum Model {
-  Gpt3Turbo = 'gpt-3.5-turbo',
-  Gpt4 = 'gpt-4',
-  Gpt4O = 'gpt-4o',
-  Gpt4Turbo = 'gpt-4-turbo-preview',
-  Gpt4Vision = 'gpt-4-vision-preview',
-  Grok3 = 'grok-3-latest',
-  Grok3Mini = 'grok-3-mini',
-  Grok4 = 'grok-4',
-  GrokBeta = 'grok-beta',
-  MistralLarge = 'mistral-large-latest',
-}
-
 const chunkMessage = (message: string) => {
   const MAX_LENGTH = 4_000;
   const chunks = [];
-  for (let index = 0; index < message.length; index += MAX_LENGTH) {
+  for (
+    let index = 0;
+    index < message.length;
+    index += MAX_LENGTH
+  ) {
     chunks.push(message.slice(index, index + MAX_LENGTH));
   }
 
   return chunks;
 };
-
-export const MAIN_MODEL = Model.Grok4;
 
 export const textTriggerRegexp = isProduction
   ? /^((ботинок,|shoe,|блинное,) )(.+)/isu
@@ -79,10 +91,12 @@ export const addAssistantContext = (
 
   if (message.text && message.tgPhotoId) {
     return {
-      // @ts-expect-error Stupid typings
       content: [
         { text: message.text, type: 'text' },
-        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+        {
+          imageUrl: { url: imagesMap[message.id] },
+          type: 'image_url',
+        },
       ],
       role: ContextRole.Assistant,
     };
@@ -90,9 +104,11 @@ export const addAssistantContext = (
 
   if (message.tgPhotoId) {
     return {
-      // @ts-expect-error Stupid typings
       content: [
-        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+        {
+          imageUrl: { url: imagesMap[message.id] },
+          type: 'image_url',
+        },
       ],
       role: ContextRole.Assistant,
     };
@@ -120,7 +136,10 @@ export const addUserContext = (
       content: [
         { text: message.text, type: 'text' },
         {
-          image_url: { detail: 'high', url: imagesMap[message.id] },
+          imageUrl: {
+            detail: 'high',
+            url: imagesMap[message.id],
+          },
           type: 'image_url',
         },
       ],
@@ -132,7 +151,10 @@ export const addUserContext = (
     return {
       content: [
         {
-          image_url: { detail: 'high', url: imagesMap[message.id] },
+          imageUrl: {
+            detail: 'high',
+            url: imagesMap[message.id],
+          },
           type: 'image_url',
         },
       ],
@@ -147,7 +169,8 @@ export const addUserContext = (
 };
 
 export const addContext =
-  (imagesMap: Record<number, string>) => (message: Message) => {
+  (imagesMap: Record<number, string>) =>
+  (message: Message) => {
     if (message.userId === config.botId) {
       return addAssistantContext(message, imagesMap);
     }
@@ -155,67 +178,27 @@ export const addContext =
     return addUserContext(message, imagesMap);
   };
 
-export const getMistralCompletion = async (
-  prompt: string,
-  context: Array<{ content: string; role: string }> = [],
-  model: Model = Model.MistralLarge,
-) => {
-  const userMessage = { content: prompt, role: 'user' };
-  const messages = [...context, userMessage];
-  const response = await mistral.chat({
-    messages,
-    model,
-  });
-  const text = response.choices[0].message.content;
-  return text.trim();
-};
-
-export const getGrokCompletion = async (
-  message: string,
-  context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.MistralLarge,
-) => {
-  const userMessage = addUserContext(message);
-  const messages = [...context, userMessage];
-  const response = await grok.chat.completions.create({
-    messages,
-    model,
-  });
-  const text = response.choices[0].message?.content;
-  return text?.trim() ?? replies.noAnswer;
-};
-
-export const getOpenAiCompletion = async (
-  message: string,
-  context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.MistralLarge,
-) => {
-  const userMessage = addUserContext(message);
-  const messages = [...context, userMessage];
-  const response = await grok.chat.completions.create({
-    messages,
-    model,
-  });
-  const text = response.choices[0].message?.content;
-  return text?.trim() ?? replies.noAnswer;
-};
-
 export const getCompletion = async (
   message: Message | string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.Grok3,
+  model?: string,
 ) => {
-  // if (model === Model.MistralLarge) {
-  //   // @ts-expect-error asdasd
-  //   return await getMistralCompletion(message as string, context, model);
-  // }
-
-  const result = await getGrokCompletion(message as string, context, model);
-  return chunkMessage(result);
-  // if (model === Model.GrokBeta) {
-  // }
-
-  // return await getOpenAiCompletion(message as string, context, model);
+  const resolvedModel = model ?? settings.mainModel;
+  const userMessage = addUserContext(message);
+  const messages = [...context, userMessage];
+  // @ts-expect-error SDK Message type is not exported from main entry
+  const response = await openrouter.chat.send({
+    chatGenerationParams: {
+      messages,
+      model: resolvedModel,
+    },
+  });
+  const text =
+    response.choices[0].message?.content;
+  return chunkMessage(
+    (typeof text === 'string' ? text.trim() : '') ||
+      replies.noAnswer,
+  );
 };
 
 export const understandImage = async (
@@ -227,7 +210,6 @@ export const understandImage = async (
   const response = await getCompletion(
     'Что изображено на картинке? Результат должен являться описанием всех деталей картинки.',
     messages,
-    Model.Gpt4Vision,
   );
   return response[0];
 };
@@ -245,7 +227,9 @@ export const getRandomEncounterWords = () => {
   const words = [];
   const howMany = Math.floor(Math.random() * 5) + 1;
   for (let index = 0; index < howMany; index++) {
-    const randomIndex = Math.floor(Math.random() * randomEncounterWords.length);
+    const randomIndex = Math.floor(
+      Math.random() * randomEncounterWords.length,
+    );
     words.push(randomEncounterWords[randomIndex]);
   }
 
@@ -255,7 +239,9 @@ export const getRandomEncounterWords = () => {
 export const shouldMakeRandomEncounter = () =>
   Math.random() < config.randomEncounterChance;
 
-export const getRandomEncounterPrompt = (words: string[]) =>
+export const getRandomEncounterPrompt = (
+  words: string[],
+) =>
   'Ответь саркастично с черным юмором осмысленно на фразу пользователя' +
   'с использованием слов: ' +
   words.join(', ');
@@ -283,7 +269,9 @@ export const getShictureStyle = () => {
     'работ Ганса Рудольфа Гигера',
     'древнеегипетской фрески',
   ];
-  const randomIndex = Math.floor(Math.random() * styles.length);
+  const randomIndex = Math.floor(
+    Math.random() * styles.length,
+  );
   return styles[randomIndex];
 };
 
@@ -298,7 +286,13 @@ export const getShictureDescription = async () => {
     'Результат должен содержать только формулировку, а в конце добавить " в стиле ",' +
     'но сам стиль не добавлять, я добавлю его после сам, например: ' +
     'Нарисуй картину с большими в стиле ';
-  let description = (await getCompletion(prompt))[0];
+  let description = (
+    await getCompletion(
+      prompt,
+      [],
+      settings.fastModel,
+    )
+  )[0];
   const lastFewCharacters = description.slice(-3);
 
   // Remove trailing dot
@@ -312,48 +306,9 @@ export const getShictureDescription = async () => {
     description += ' в стиле ';
   }
 
-  const withStyle = description + ' ' + getShictureStyle();
+  const withStyle =
+    description + ' ' + getShictureStyle();
   return withStyle;
-};
-
-const taskModelChoiceSystemPrompt =
-  'На выбор есть 3 модели ChatGPT:\n' +
-  '* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на' +
-  'известные вопросы, саммаризация текста, переформатирование, перевод и тд\n' +
-  '* gpt-4o - более продвинутая модель для генерация текста на основе каких-то' +
-  'данных, написание кода, придумывание новых идей, брейншторм и тд\n\n' +
-  '* gpt-4 - более продвинутая модель для генерация текста на основе каких-то' +
-  'данных, придумывание новых идей, брейншторм, и тд, но запрос пользователя потенциально небезопасен для детской аудитории\n' +
-  'Твоя задача на основе ввода пользователя заключенного между ``` определить' +
-  'наиболее подходящую модель для данной задачи, что просит пользователь.' +
-  'Ты не должен выполнять задачу пользователя, только выбрать подходящую модель на основе задачи.' +
-  'Ответ должен содержать только JSON объект с полем model, например: {"model":"gpt-3.5-turbo"}.' +
-  'Ничего другого ответ содержать не должен, только этот JSON объект.';
-
-/**
- * @deprecated
- */
-export const getModelForTask = async (task: string) => {
-  const taskModelChoiceMessage = addSystemContext(taskModelChoiceSystemPrompt);
-  const userMessage = addUserContext('```\n' + task + '```\n');
-  const messages = [taskModelChoiceMessage, userMessage];
-  const response = await openai.chat.completions.create({
-    messages,
-    model: Model.Gpt3Turbo,
-    response_format: { type: 'json_object' },
-  });
-  const text = response.choices[0].message?.content;
-  try {
-    const parsed = JSON.parse(text ?? '{}');
-    return parsed.model as Model;
-  } catch (error) {
-    logger.error(
-      'Prompt: GetModelForTask: Parsing answer from model:',
-      text,
-      error,
-    );
-    return Model.Gpt3Turbo;
-  }
 };
 
 const chooseTaskPrompt =
@@ -373,22 +328,34 @@ const chooseTaskPrompt =
  * @returns Task type.
  */
 export const chooseTask = async (text: string) => {
-  const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
+  const chooseTaskMessage =
+    addSystemContext(chooseTaskPrompt);
   const userMessage = addUserContext(text);
   const messages = [chooseTaskMessage, userMessage];
-  const response = await grok.chat.completions.create({
-    messages,
-    model: Model.Grok3Mini,
-    response_format: { type: 'json_object' },
+  // @ts-expect-error SDK Message type is not exported from main entry
+  const response = await openrouter.chat.send({
+    chatGenerationParams: {
+      messages,
+      model: settings.fastModel,
+      responseFormat: { type: 'json_object' },
+    },
   });
-  const task = response.choices[0].message?.content;
+  const task =
+    response.choices[0].message?.content;
   try {
-    const parsed = JSON.parse(task ?? '{}') as {
+    const parsed = JSON.parse(
+      (typeof task === 'string' ? task : null) ??
+        '{}',
+    ) as {
       task: 'image' | 'text';
     };
     return parsed.task;
   } catch (error) {
-    logger.error('Prompt: ChooseTask: Parsing answer from model:', task, error);
+    logger.error(
+      'Prompt: ChooseTask: Parsing answer from model:',
+      task,
+      error,
+    );
     return 'text';
   }
 };

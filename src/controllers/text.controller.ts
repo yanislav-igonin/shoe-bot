@@ -15,10 +15,7 @@ import {
   addSystemContext,
   // aggressiveSystemPrompt,
   getCompletion,
-  getModelForTask,
-  MAIN_MODEL,
   maximumMessageLengthPrompt,
-  Model,
   // getRandomEncounterPrompt,
   // getRandomEncounterWords,
   // markdownRulesPrompt,
@@ -387,19 +384,10 @@ export const textController = async (
 
   try {
     await context.replyWithChatAction('typing');
-    // let model: Model;
-    // if (hasImages) {
-    //   model = Model.Gpt4O;
-    // } else if (dialog.isViolatesOpenAiPolicy) {
-    //   model = Model.MistralLarge;
-    // } else {
-    //   model = await getModelForTask(prompt);
-    // }
 
     const completition = await getCompletion(
       prompt,
       previousMessagesContext,
-      MAIN_MODEL,
     );
 
     for (const chunk of completition) {

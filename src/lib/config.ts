@@ -6,15 +6,9 @@ export const config = {
   botId: 0,
   botToken: valueOrThrow(process.env.BOT_TOKEN, 'BOT_TOKEN is not set'),
   env: valueOrDefault(process.env.ENV, 'development'),
-  grokApiKey: valueOrThrow(process.env.GROK_API_KEY, 'GROK_API_KEY is not set'),
-  grokApiUrl: 'https://api.x.ai/v1',
-  mistralApiKey: valueOrThrow(
-    process.env.MISTRAL_API_KEY,
-    'MISTRAL_API_KEY is not set',
-  ),
-  openAiApiKey: valueOrThrow(
-    process.env.OPENAI_API_KEY,
-    'OPENAI_API_KEY is not set',
+  openRouterApiKey: valueOrThrow(
+    process.env.OPENROUTER_API_KEY,
+    'OPENROUTER_API_KEY is not set',
   ),
   randomEncounterChance: valueOrDefault(
     Number.parseFloat(process.env.RANDOM_ENCOUNTER_CHANCE ?? ''),
