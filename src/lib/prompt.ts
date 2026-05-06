@@ -25,6 +25,7 @@ export enum Model {
   Grok3 = 'grok-3-latest',
   Grok3Mini = 'grok-3-mini',
   Grok4 = 'grok-4',
+  Grok43 = 'grok-4.3',
   GrokBeta = 'grok-beta',
   MistralLarge = 'mistral-large-latest',
 }
