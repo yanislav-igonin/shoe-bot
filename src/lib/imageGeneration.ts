@@ -10,7 +10,9 @@ export const generateImage = async (text: string) => {
     model: 'grok-imagine-image-quality',
     prompt: text,
     response_format: 'b64_json',
-    // size: '1792x1024',
+    // @ts-expect-error Stupid typings
+    aspect_ratio: '16:9',
+    resolution: '2k',
   });
   return response.data[0].b64_json;
 };
