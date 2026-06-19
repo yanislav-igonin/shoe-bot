@@ -7,7 +7,7 @@ export const base64ToImage = (base64: string) => {
 
 export const generateImage = async (text: string) => {
   const response = await grok.images.generate({
-    model: 'grok-2-image',
+    model: 'grok-imagine-image-quality',
     prompt: text,
     response_format: 'b64_json',
     // size: '1792x1024',
