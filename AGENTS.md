@@ -1,4 +1,4 @@
-# CLAUDE.md - AI Assistant Guide for shoe-bot
+# AGENTS.md - AI Assistant Guide for shoe-bot
 
 ## Project Overview
 
