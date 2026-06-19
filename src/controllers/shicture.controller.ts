@@ -4,7 +4,7 @@ import { InputFile } from 'grammy';
 import { config } from 'lib/config.js';
 import { type BotContext } from 'lib/context.js';
 import { database } from 'lib/database.js';
-import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import { generateImage } from 'lib/imageGeneration.js';
 import { logger } from 'lib/logger.js';
 import { getShictureDescription } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
@@ -37,15 +37,14 @@ export const shictureController = async (
   try {
     await context.replyWithChatAction('upload_photo');
     prompt = await getShictureDescription();
-    const imageBase64 = await generateImage(prompt);
-    if (!imageBase64) {
+    const imageUrl = await generateImage(prompt);
+    if (!imageUrl) {
       await context.reply(replies.error);
       logger.error('Failed to generate image');
       return;
     }
 
-    const buffer = base64ToImage(imageBase64);
-    const file = new InputFile(buffer, 'image.png');
+    const file = new InputFile(new URL(imageUrl), 'image.png');
     const botReply = await context.replyWithPhoto(file, {
       caption: prompt,
       reply_to_message_id: messageId,

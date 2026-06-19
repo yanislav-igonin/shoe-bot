@@ -4,16 +4,14 @@ import { InputFile } from 'grammy';
 import { config } from 'lib/config.js';
 import { type BotContext } from 'lib/context.js';
 import { database } from 'lib/database.js';
-import { base64ToImage, generateImage } from 'lib/imageGeneration.js';
+import { generateImage } from 'lib/imageGeneration.js';
 import { logger } from 'lib/logger.js';
 import {
   addSystemContext,
   chooseTask,
   getCompletion,
-  getModelForTask,
   MAIN_MODEL,
   maximumMessageLengthPrompt,
-  Model,
   // markdownRulesPrompt,
   preparePrompt,
 } from 'lib/prompt.js';
@@ -107,8 +105,8 @@ export const textTriggerController = async (
   const imageController = async () => {
     await context.replyWithChatAction('upload_photo');
 
-    const imageBase64 = await generateImage(prompt);
-    if (!imageBase64) {
+    const imageUrl = await generateImage(prompt);
+    if (!imageUrl) {
       await context.reply(replies.error, {
         reply_to_message_id: messageId,
       });
@@ -116,8 +114,7 @@ export const textTriggerController = async (
       return;
     }
 
-    const buffer = base64ToImage(imageBase64);
-    const file = new InputFile(buffer, 'image.png');
+    const file = new InputFile(new URL(imageUrl), 'image.png');
 
     const botReply = await context.replyWithPhoto(file, {
       reply_to_message_id: messageId,
