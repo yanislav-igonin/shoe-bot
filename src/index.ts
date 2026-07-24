@@ -41,10 +41,10 @@ bot.catch((error) => {
 
 bot.use(stateMiddleware);
 bot.use(chatMiddleware);
-bot.use(dialogMiddleware);
 bot.use(userMiddleware);
-bot.use(userSettingsMiddleware);
 bot.use(allowedMiddleware);
+bot.use(dialogMiddleware);
+bot.use(userSettingsMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);
@@ -92,7 +92,7 @@ bot.hears(noTriggerRegexp, async (context) => {
 bot.on('message:text').hears(textTriggerRegexp, textTriggerController);
 
 /**
- * For handling replies, private messages and random encounters
+ * Handles replies and private messages.
  */
 bot.on('message:text', textController);
 

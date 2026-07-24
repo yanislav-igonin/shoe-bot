@@ -16,10 +16,6 @@ export const config = {
     process.env.OPENAI_API_KEY,
     'OPENAI_API_KEY is not set',
   ),
-  randomEncounterChance: valueOrDefault(
-    Number.parseFloat(process.env.RANDOM_ENCOUNTER_CHANCE ?? ''),
-    0.1,
-  ),
 };
 /* eslint-enable node/no-process-env */
 

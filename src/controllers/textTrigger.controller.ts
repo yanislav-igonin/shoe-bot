@@ -56,9 +56,17 @@ export const textTriggerController = async (
     where: { id: userSettings.botRoleId },
   });
   if (!botRole) {
+    const error = new Error('Bot role is undefined');
     logger.error('Bot role is undefined');
-    await context.reply(replies.error, { reply_to_message_id: messageId });
-    return;
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const systemContext: ChatCompletionMessageParam[] = [
@@ -107,11 +115,8 @@ export const textTriggerController = async (
 
     const imageUrl = await generateImage(prompt);
     if (!imageUrl) {
-      await context.reply(replies.error, {
-        reply_to_message_id: messageId,
-      });
       logger.error('Failed to generate image');
-      return;
+      throw new Error('Failed to generate image');
     }
 
     const file = new InputFile(new URL(imageUrl), 'image.png');
@@ -141,9 +146,14 @@ export const textTriggerController = async (
   try {
     await controllers[task]();
   } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: messageId,
-    });
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
     throw error;
   }
 };

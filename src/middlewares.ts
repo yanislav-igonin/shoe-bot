@@ -11,8 +11,11 @@ import { type NextFunction } from 'grammy';
 // eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 import { type BotContext } from 'lib/context.js';
+import { refundDailyRequest, reserveDailyRequest } from 'lib/dailyQuota.js';
+import { logger } from 'lib/logger.js';
 import { textTriggerRegexp } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
+import { classifyRequest } from 'lib/requestAccess.js';
 import { valueOrNull } from 'lib/values.js';
 import { DateTime } from 'luxon';
 
@@ -104,8 +107,15 @@ export const dialogMiddleware = async (
   const replyOnBotMessage =
     replyToMessage.from?.is_bot && replyToMessage.from.id === context.me.id;
   if (!replyOnBotMessage) {
-    // Do nothing if user replied to a message that is not from the bot
-    // TODO: Add a reply to the user so bot will be able to answer on text from different users message
+    newDialog = await database.newDialog.create({
+      data: {
+        chatId: chat.id,
+      },
+    });
+    // eslint-disable-next-line require-atomic-updates
+    context.state.dialog = newDialog;
+    // eslint-disable-next-line node/callback-return
+    await next();
     return;
   }
 
@@ -114,9 +124,14 @@ export const dialogMiddleware = async (
   });
   // If no previous message in the DB, but there is a reply
   if (!previousMessage) {
-    await context.reply(replies.noPreviosData);
-    // eslint-disable-next-line node/callback-return
-    return;
+    const error = new Error('Previous message is not available');
+    try {
+      await context.reply(replies.noPreviosData);
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const dialog = await database.newDialog.findFirst({
@@ -263,62 +278,70 @@ export const allowedMiddleware = async (
   context: BotContext,
   next: NextFunction,
 ) => {
-  const { user } = context.state;
+  const text = context.message?.text;
+  const commandEntity = context.message?.entities?.find(
+    (entity) => entity.type === 'bot_command' && entity.offset === 0,
+  );
+  const command =
+    text && commandEntity ? text.slice(1, commandEntity.length) : undefined;
+  const replyMessage = context.message?.reply_to_message;
+  const replyFrom = replyMessage?.from;
+  const isReplyToThisBot =
+    replyFrom?.is_bot === true && replyFrom.id === context.me.id;
+  const isReplyToAnotherBot =
+    replyFrom?.is_bot === true && replyFrom.id !== context.me.id;
+  const access = classifyRequest({
+    botUsername: context.me.username,
+    chatType: context.chat?.type,
+    command,
+    isReplyToAnotherBot,
+    isReplyToThisBot,
+    matchesTextTrigger: textTriggerRegexp.test(text ?? ''),
+    text,
+  });
 
-  const isNonBlockCommand =
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    context.message?.text?.startsWith('/start') ||
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    context.message?.text?.startsWith('/activate') ||
-    context.message?.text?.startsWith('/profile');
+  if (access === 'ignore') {
+    return;
+  }
 
-  // If user want to activate subscription or check profile
-  if (isNonBlockCommand) {
+  if (access === 'free') {
     // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
 
-  const isReplyOnBotMessage = Boolean(
-    context.message?.reply_to_message?.from?.is_bot,
-  );
-  const messageMatchesTrigger = Boolean(
-    context.message?.text?.match(textTriggerRegexp),
-  );
-  const isPrivateChat = context.chat?.type === 'private';
-  // TODO: FIX HERE TRIGGER CONDITION ADD RANDOM ENCOUNTER
-  const shouldTrigger =
-    messageMatchesTrigger || isPrivateChat || isReplyOnBotMessage;
-  if (!shouldTrigger) {
+  const { user } = context.state;
+  const { allowedTill } = user;
+  const subscriptionIsActive =
+    allowedTill !== null &&
+    DateTime.now().toUTC() <
+      DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
+  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
+
+  if (subscriptionIsActive || isAdmin) {
+    // eslint-disable-next-line node/callback-return
+    await next();
     return;
   }
 
-  const { allowedTill } = user;
-  // This is a hack to make allowedTill to be 0 if its undefined
-  const startOfTime = new Date(0);
-  const utcAllowedTill = DateTime.fromJSDate(allowedTill ?? startOfTime)
-    .toUTC()
-    .endOf('day');
-  const utcNow = DateTime.now().toUTC();
-  const subscriptionIsActive = utcNow < utcAllowedTill;
-  const isAdmin = config.adminsUsernames.includes(user.username ?? '');
-
-  const isAllowed =
-    // For public chats
-    (subscriptionIsActive && (isReplyOnBotMessage || messageMatchesTrigger)) ||
-    // For private chats
-    (subscriptionIsActive && isPrivateChat) ||
-    // For admins
-    isAdmin;
-
-  if (!isAllowed) {
-    await context.reply(replies.notAllowed, {
-      parse_mode: 'Markdown',
+  const usage = await reserveDailyRequest(user.id);
+  if (usage === null) {
+    await context.reply(replies.dailyQuotaExhausted, {
       reply_to_message_id: context.message?.message_id,
     });
     return;
   }
 
-  // eslint-disable-next-line node/callback-return
-  await next();
+  try {
+    // eslint-disable-next-line node/callback-return
+    await next();
+  } catch (error) {
+    try {
+      await refundDailyRequest(user.id);
+    } catch (refundError) {
+      logger.error(refundError);
+    }
+
+    throw error;
+  }
 };

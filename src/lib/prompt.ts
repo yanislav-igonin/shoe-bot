@@ -2,7 +2,6 @@ import { type Message } from '@prisma/client';
 import { grok, mistral, openai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
-import { randomEncounterWords } from 'lib/randomEncounterWords.js';
 import { replies } from 'lib/replies.js';
 // eslint-disable-next-line import/no-named-as-default
 import type OpenAI from 'openai';
@@ -240,26 +239,6 @@ const cleanPrompt = (text: string) => {
 export const preparePrompt = (text: string) => {
   return cleanPrompt(text);
 };
-
-// Get random words from array
-export const getRandomEncounterWords = () => {
-  const words = [];
-  const howMany = Math.floor(Math.random() * 5) + 1;
-  for (let index = 0; index < howMany; index++) {
-    const randomIndex = Math.floor(Math.random() * randomEncounterWords.length);
-    words.push(randomEncounterWords[randomIndex]);
-  }
-
-  return words;
-};
-
-export const shouldMakeRandomEncounter = () =>
-  Math.random() < config.randomEncounterChance;
-
-export const getRandomEncounterPrompt = (words: string[]) =>
-  'Ответь саркастично с черным юмором осмысленно на фразу пользователя' +
-  'с использованием слов: ' +
-  words.join(', ');
 
 export const getShictureStyle = () => {
   const styles = [

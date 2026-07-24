@@ -39,9 +39,8 @@ export const shictureController = async (
     prompt = await getShictureDescription();
     const imageUrl = await generateImage(prompt);
     if (!imageUrl) {
-      await context.reply(replies.error);
       logger.error('Failed to generate image');
-      return;
+      throw new Error('Failed to generate image');
     }
 
     const file = new InputFile(new URL(imageUrl), 'image.png');
@@ -63,19 +62,13 @@ export const shictureController = async (
       },
     });
   } catch (error) {
-    await context.reply((error as Error).message ?? replies.error);
-    const botReply = await context.reply(prompt);
-
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: prompt,
-        tgMessageId: botReply.message_id.toString(),
-        type: MessageType.image,
-        userId: config.botId,
-      },
-    });
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
 
     throw error;
   }
