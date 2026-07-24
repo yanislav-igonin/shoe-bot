@@ -17,74 +17,11 @@ import {
   getCompletion,
   MAIN_MODEL,
   maximumMessageLengthPrompt,
-  // getRandomEncounterPrompt,
-  // getRandomEncounterWords,
   // markdownRulesPrompt,
   preparePrompt,
-  // shouldMakeRandomEncounter,
   understandImage,
 } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
-
-// const randomReplyController = async (
-//   context: Filter<BotContext, 'message:text'>,
-// ) => {
-//   const {
-//     state: { user, dialog },
-//   } = context;
-//   const { text } = context.message;
-//   const { message_id: messageId } = context.message;
-//   const askedInPrivate = context.hasChatType('private');
-
-//   // Forbid random encounters in private chats to prevent
-//   // access to the bot for non-allowed users
-//   if (askedInPrivate) {
-//     return;
-//   }
-
-//   // eslint-disable-next-line @typescript-eslint/no-shadow
-//   const newUserMessage = await database.message.create({
-//     data: {
-//       dialogId: dialog.id,
-//       text,
-//       tgMessageId: messageId.toString(),
-//       type: MessageType.text,
-//       userId: user.id,
-//     },
-//   });
-
-//   const encounterPrompt = preparePrompt(text);
-//   const randomWords = getRandomEncounterWords();
-//   const withRandomWords = getRandomEncounterPrompt(randomWords);
-
-//   const promptContext = [addSystemContext(withRandomWords)];
-//   await context.replyWithChatAction('typing');
-
-//   try {
-//     const completition = await getCompletion(encounterPrompt, promptContext);
-
-//     const botReply = await context.reply(completition, {
-//       parse_mode: 'Markdown',
-//       reply_to_message_id: messageId,
-//     });
-//     await database.message.create({
-//       data: {
-//         dialogId: dialog.id,
-//         replyToId: newUserMessage.id,
-//         text: completition,
-//         tgMessageId: botReply.message_id.toString(),
-//         type: MessageType.text,
-//         userId: config.botId,
-//       },
-//     });
-//     return;
-//   } catch (error) {
-//     await context.reply(replies.error, {
-//       reply_to_message_id: messageId,
-//     });
-//     throw error;
-//   }
-// };
 
 const getImagesMapById = async (messages: Message[]) => {
   // eslint-disable-next-line unicorn/no-array-reduce
@@ -218,15 +155,6 @@ export const textController = async (
     await textTriggerController(context);
     return;
   }
-
-  // TODO: fix random encounter
-  // Random encounter, shouldn't be triggered on reply.
-  // Triggered by chance, replies to any message just4lulz
-  // const shouldReplyRandomly = shouldMakeRandomEncounter();
-  // if (shouldReplyRandomly && notReply) {
-  //   await randomReplyController(context);
-  //   return;
-  // }
 
   // TODO: Fix answer on other user message
   // If user replied to other user message

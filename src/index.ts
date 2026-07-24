@@ -92,7 +92,7 @@ bot.hears(noTriggerRegexp, async (context) => {
 bot.on('message:text').hears(textTriggerRegexp, textTriggerController);
 
 /**
- * For handling replies, private messages and random encounters
+ * Handles replies and private messages.
  */
 bot.on('message:text', textController);
 
