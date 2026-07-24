@@ -8,7 +8,82 @@ process.env.MISTRAL_API_KEY = 'test';
 process.env.OPENAI_API_KEY = 'test';
 /* eslint-enable node/no-process-env */
 
-const { getGeneratedImageUrl } = await import('lib/imageGeneration.js');
+const { getGeneratedImageUrl, parseImageGenerationSettings } = await import(
+  'lib/imageGeneration.js'
+);
+
+describe('parseImageGenerationSettings', () => {
+  it('parses Together settings', () => {
+    assert.deepEqual(
+      parseImageGenerationSettings([
+        { key: 'imageProvider', value: 'togetherai' },
+        {
+          key: 'imageModel',
+          value: 'black-forest-labs/FLUX.2-dev',
+        },
+      ]),
+      {
+        model: 'black-forest-labs/FLUX.2-dev',
+        provider: 'togetherai',
+      },
+    );
+  });
+
+  it('parses xAI settings', () => {
+    assert.deepEqual(
+      parseImageGenerationSettings([
+        { key: 'imageProvider', value: 'xai' },
+        { key: 'imageModel', value: 'grok-imagine-image-quality' },
+      ]),
+      {
+        model: 'grok-imagine-image-quality',
+        provider: 'xai',
+      },
+    );
+  });
+
+  it('rejects a missing image provider', () => {
+    assert.throws(
+      () =>
+        parseImageGenerationSettings([
+          { key: 'imageModel', value: 'model' },
+        ]),
+      /imageProvider setting is missing/,
+    );
+  });
+
+  it('rejects a missing image model', () => {
+    assert.throws(
+      () =>
+        parseImageGenerationSettings([
+          { key: 'imageProvider', value: 'togetherai' },
+        ]),
+      /imageModel setting is missing/,
+    );
+  });
+
+  it('rejects an empty image model', () => {
+    assert.throws(
+      () =>
+        parseImageGenerationSettings([
+          { key: 'imageProvider', value: 'togetherai' },
+          { key: 'imageModel', value: '   ' },
+        ]),
+      /imageModel setting is empty/,
+    );
+  });
+
+  it('rejects an unsupported image provider', () => {
+    assert.throws(
+      () =>
+        parseImageGenerationSettings([
+          { key: 'imageProvider', value: 'unknown' },
+          { key: 'imageModel', value: 'model' },
+        ]),
+      /Unsupported image provider: unknown/,
+    );
+  });
+});
 
 describe('getGeneratedImageUrl', () => {
   it('returns first generated image URL', () => {
