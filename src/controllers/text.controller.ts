@@ -137,7 +137,7 @@ const generateBetterImageController = async (
   });
   if (!previousMessage) {
     await context.reply(replies.noPreviosData);
-    return;
+    throw new Error('Previous message is not available');
   }
 
   const newUserMessage = await database.message.create({
@@ -178,7 +178,7 @@ const generateBetterImageController = async (
       reply_to_message_id: messageId,
     });
     logger.error('Failed to generate image');
-    return;
+    throw new Error('Failed to generate image');
   }
 
   const file = new InputFile(new URL(imageUrl), 'image.png');
@@ -339,7 +339,7 @@ export const textController = async (
   });
   if (!previousMessage) {
     await context.reply(replies.noPreviosData);
-    return;
+    throw new Error('Previous message is not available');
   }
 
   const newUserMessage = await database.message.create({
@@ -369,7 +369,7 @@ export const textController = async (
   if (!botRole) {
     logger.error('Bot role is undefined');
     await context.reply(replies.error, { reply_to_message_id: messageId });
-    return;
+    throw new Error('Bot role is undefined');
   }
 
   // Assgign each message to user context or bot context

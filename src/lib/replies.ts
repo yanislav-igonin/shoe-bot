@@ -2,6 +2,12 @@ export const replies = {
   activationSuccess: (newAllowedTill: string) =>
     `Активация прошла успешно, доступ до ${newAllowedTill} включительно.`,
   botRoleChanged: (roleName: string) => `Роль бота изменена на ${roleName}`,
+  dailyQuotaExhausted:
+    'Бесплатные запросы на сегодня закончились. ' +
+    'Следующие 3 будут доступны после 00:00 UTC.',
+  dailyQuotaInfo: (remaining: number) =>
+    `Бесплатных запросов сегодня осталось: ${remaining} из 3. ` +
+    'Сброс в 00:00 UTC.',
   error:
     'Что-то пошло не так, возможно, ввод слишком большой или непонятный, попробуйте снова.' +
     '\n\nЕсли ошибка повторяется, напишите @hobo_with_a_hookah.',
@@ -22,11 +28,6 @@ export const replies = {
   noAnswer: 'У меня нет ответа на этот вопрос.',
   noPreviosData:
     'Данная цепочка сообщений не найдена после переноса данных, пожалуйста, начните новую 🤷‍♂️',
-  notAllowed:
-    'Подписка не активна. Для оплаты подписки воспользуйтесь данными ссылками:\n' +
-    '• [Для России](https://boosty.to/h0b0/purchase/2359421)\n' +
-    '• [Для остального мира](https://patreon.com/h0b0)\n\n' +
-    'После оплаты напишите [@hobo_with_a_hookah](https://t.me/hobo_with_a_hookah).',
   start:
     'Привет, я Ботинок.' +
     '\nГенерирую текст и картинки по запросу и отвечаю на любые вопросы.' +

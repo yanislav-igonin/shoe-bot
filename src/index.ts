@@ -41,10 +41,10 @@ bot.catch((error) => {
 
 bot.use(stateMiddleware);
 bot.use(chatMiddleware);
-bot.use(dialogMiddleware);
 bot.use(userMiddleware);
-bot.use(userSettingsMiddleware);
 bot.use(allowedMiddleware);
+bot.use(dialogMiddleware);
+bot.use(userSettingsMiddleware);
 
 bot.command('start', async (context) => {
   await context.reply(replies.start);

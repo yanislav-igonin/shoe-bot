@@ -58,7 +58,7 @@ export const textTriggerController = async (
   if (!botRole) {
     logger.error('Bot role is undefined');
     await context.reply(replies.error, { reply_to_message_id: messageId });
-    return;
+    throw new Error('Bot role is undefined');
   }
 
   const systemContext: ChatCompletionMessageParam[] = [
@@ -107,11 +107,8 @@ export const textTriggerController = async (
 
     const imageUrl = await generateImage(prompt);
     if (!imageUrl) {
-      await context.reply(replies.error, {
-        reply_to_message_id: messageId,
-      });
       logger.error('Failed to generate image');
-      return;
+      throw new Error('Failed to generate image');
     }
 
     const file = new InputFile(new URL(imageUrl), 'image.png');
