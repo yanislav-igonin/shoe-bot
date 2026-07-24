@@ -1,7 +1,10 @@
 export type RequestAccess = 'free' | 'generation' | 'ignore';
 
 export type RequestAccessInput = {
+  botUsername: string | undefined;
   chatType: string | undefined;
+  command: string | undefined;
+  hasReply: boolean;
   isReplyToThisBot: boolean;
   matchesTextTrigger: boolean;
   text: string | undefined;
@@ -18,18 +21,11 @@ const freeCommands = new Set([
   'stats',
 ]);
 
-const getCommand = (text: string) => {
-  const [firstWord] = text.split(/\s/u, 1);
-  if (!firstWord.startsWith('/')) {
-    return undefined;
-  }
-
-  const [command] = firstWord.slice(1).split('@', 1);
-  return command.toLowerCase();
-};
-
 export const classifyRequest = ({
+  botUsername,
   chatType,
+  command,
+  hasReply,
   isReplyToThisBot,
   matchesTextTrigger,
   text,
@@ -38,14 +34,26 @@ export const classifyRequest = ({
     return 'ignore';
   }
 
-  const command = getCommand(text);
-  if (command && freeCommands.has(command)) {
+  const atIndex = command?.indexOf('@') ?? -1;
+  const commandName = atIndex === -1 ? command : command?.slice(0, atIndex);
+  const commandTarget =
+    atIndex === -1 ? undefined : command?.slice(atIndex + 1);
+
+  if (commandTarget !== undefined && commandTarget !== botUsername) {
+    return 'ignore';
+  }
+
+  if (commandName && freeCommands.has(commandName)) {
     return 'free';
+  }
+
+  if (hasReply && !isReplyToThisBot) {
+    return 'ignore';
   }
 
   if (
     chatType === 'private' ||
-    command === 'shicture' ||
+    commandName === 'shicture' ||
     isReplyToThisBot ||
     matchesTextTrigger
   ) {

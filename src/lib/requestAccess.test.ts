@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 const baseInput = {
+  botUsername: 'shoe_bot',
   chatType: 'group',
+  command: undefined,
+  hasReply: false,
   isReplyToThisBot: false,
   matchesTextTrigger: false,
   text: 'обычное сообщение',
@@ -14,6 +17,7 @@ describe('classifyRequest', () => {
     assert.equal(
       classifyRequest({
         ...baseInput,
+        command: 'profile',
         text: '/profile',
       }),
       'free',
@@ -54,6 +58,7 @@ describe('classifyRequest', () => {
     assert.equal(
       classifyRequest({
         ...baseInput,
+        command: 'shicture',
         text: '/shicture',
       }),
       'generation',
@@ -68,9 +73,35 @@ describe('classifyRequest', () => {
     assert.equal(
       classifyRequest({
         ...baseInput,
+        chatType: 'private',
+        hasReply: true,
         isReplyToThisBot: false,
       }),
       'ignore',
+    );
+  });
+
+  it('ignores a command addressed to another bot', () => {
+    assert.equal(
+      classifyRequest({
+        ...baseInput,
+        chatType: 'private',
+        command: 'profile@other_bot',
+        text: '/profile@other_bot',
+      }),
+      'ignore',
+    );
+  });
+
+  it('does not treat uppercase commands as free', () => {
+    assert.equal(
+      classifyRequest({
+        ...baseInput,
+        chatType: 'private',
+        command: 'PROFILE',
+        text: '/PROFILE',
+      }),
+      'generation',
     );
   });
 });

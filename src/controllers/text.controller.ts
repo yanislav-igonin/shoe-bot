@@ -345,9 +345,14 @@ export const textController = async (
       });
     }
   } catch (error) {
-    await context.reply(replies.error, {
-      reply_to_message_id: messageId,
-    });
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
     throw error;
   }
 };

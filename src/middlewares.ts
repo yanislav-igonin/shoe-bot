@@ -266,11 +266,19 @@ export const allowedMiddleware = async (
   next: NextFunction,
 ) => {
   const text = context.message?.text;
+  const commandEntity = context.message?.entities?.find(
+    (entity) => entity.type === 'bot_command' && entity.offset === 0,
+  );
+  const command =
+    text && commandEntity ? text.slice(1, commandEntity.length) : undefined;
   const replyFrom = context.message?.reply_to_message?.from;
   const isReplyToThisBot =
     replyFrom?.is_bot === true && replyFrom.id === context.me.id;
   const access = classifyRequest({
+    botUsername: context.me.username,
     chatType: context.chat?.type,
+    command,
+    hasReply: replyFrom !== undefined,
     isReplyToThisBot,
     matchesTextTrigger: textTriggerRegexp.test(text ?? ''),
     text,
