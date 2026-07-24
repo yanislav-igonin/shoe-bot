@@ -9,9 +9,38 @@ process.env.OPENAI_API_KEY = 'test';
 process.env.TOGETHER_API_KEY = 'test';
 /* eslint-enable node/no-process-env */
 
-const { getGeneratedImageUrl, parseImageGenerationSettings } = await import(
-  'lib/imageGeneration.js'
-);
+const {
+  getGeneratedImageUrl,
+  parseImageGenerationSettings,
+  requireTogetherApiKey,
+} = await import('lib/imageGeneration.js');
+
+describe('requireTogetherApiKey', () => {
+  it('returns a configured key', () => {
+    assert.equal(requireTogetherApiKey('test-key'), 'test-key');
+  });
+
+  it('rejects a missing key', () => {
+    assert.throws(
+      () => requireTogetherApiKey(undefined),
+      /TOGETHER_API_KEY is not set/u,
+    );
+  });
+
+  it('rejects an empty key', () => {
+    assert.throws(
+      () => requireTogetherApiKey(''),
+      /TOGETHER_API_KEY is not set/u,
+    );
+  });
+
+  it('rejects a whitespace-only key', () => {
+    assert.throws(
+      () => requireTogetherApiKey('   '),
+      /TOGETHER_API_KEY is not set/u,
+    );
+  });
+});
 
 describe('parseImageGenerationSettings', () => {
   it('parses Together settings', () => {

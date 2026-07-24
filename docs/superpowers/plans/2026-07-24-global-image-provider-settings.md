@@ -327,7 +327,14 @@ import Together from 'together-ai';
 import { grok } from 'lib/ai.js';
 import { config } from 'lib/config.js';
 import { database } from 'lib/database.js';
-import { valueOrThrow } from 'lib/values.js';
+
+export const requireTogetherApiKey = (apiKey: string | undefined) => {
+  if (!apiKey?.trim()) {
+    throw new Error('TOGETHER_API_KEY is not set');
+  }
+
+  return apiKey;
+};
 
 const generateWithXai = async (text: string, model: string) => {
   const response = await grok.images.generate({
@@ -342,10 +349,7 @@ const generateWithXai = async (text: string, model: string) => {
 };
 
 const generateWithTogether = async (text: string, model: string) => {
-  const apiKey = valueOrThrow(
-    config.togetherApiKey,
-    'TOGETHER_API_KEY is not set',
-  );
+  const apiKey = requireTogetherApiKey(config.togetherApiKey);
   const together = new Together({ apiKey });
   const response = await together.images.generate({
     disable_safety_checker: true,

@@ -152,6 +152,8 @@ the ignored local key. Do not print or commit the key.
 Switch back to xAI:
 
 ```sql
+BEGIN;
+
 UPDATE settings
 SET value = 'xai'
 WHERE key = 'imageProvider';
@@ -159,6 +161,8 @@ WHERE key = 'imageProvider';
 UPDATE settings
 SET value = 'grok-imagine-image-quality'
 WHERE key = 'imageModel';
+
+COMMIT;
 ```
 
 Switch to another Together model by updating `imageModel`; keep
