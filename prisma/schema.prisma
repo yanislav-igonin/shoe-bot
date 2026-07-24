@@ -8,19 +8,31 @@ datasource db {
 }
 
 model NewUser {
-  id              Int              @id @default(autoincrement())
-  username        String?
-  firstName       String?
-  lastName        String?
-  languageCode    String?
-  tgId            String           @unique
-  allowedTill     DateTime?        @db.Date
-  createdAt       DateTime         @default(now())
-  messages        Message[]
-  activationCodes ActivationCode[]
-  settings        UserSettings?
+  id                 Int                 @id @default(autoincrement())
+  username           String?
+  firstName          String?
+  lastName           String?
+  languageCode       String?
+  tgId               String              @unique
+  allowedTill        DateTime?           @db.Date
+  createdAt          DateTime            @default(now())
+  messages           Message[]
+  dailyRequestUsages DailyRequestUsage[]
+  activationCodes    ActivationCode[]
+  settings           UserSettings?
 
   @@map("new_users")
+}
+
+model DailyRequestUsage {
+  id     Int      @id @default(autoincrement())
+  userId Int
+  user   NewUser  @relation(fields: [userId], references: [id])
+  date   DateTime @db.Date
+  used   Int
+
+  @@unique([userId, date])
+  @@map("daily_request_usages")
 }
 
 enum ChatType {
@@ -99,13 +111,13 @@ model BotRole {
 }
 
 model UserSettings {
-  id            Int      @id @default(autoincrement())
-  user          NewUser  @relation(fields: [userId], references: [id])
-  userId        Int      @unique
+  id        Int      @id @default(autoincrement())
+  user      NewUser  @relation(fields: [userId], references: [id])
+  userId    Int      @unique
   botRoleId Int      @default(1)
   botRole   BotRole  @relation(fields: [botRoleId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("user_settings")
 }
