@@ -24,7 +24,8 @@ model Setting {
 }
 ```
 
-The migration inserts these initial settings:
+The migration creates the table when it does not already exist and inserts
+these initial settings without overwriting existing values:
 
 | key | value |
 | --- | --- |
