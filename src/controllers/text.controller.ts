@@ -73,8 +73,14 @@ const generateBetterImageController = async (
     },
   });
   if (!previousMessage) {
-    await context.reply(replies.noPreviosData);
-    throw new Error('Previous message is not available');
+    const error = new Error('Previous message is not available');
+    try {
+      await context.reply(replies.noPreviosData);
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const newUserMessage = await database.message.create({
@@ -111,11 +117,17 @@ const generateBetterImageController = async (
   ]);
   const imageUrl = await generateImage(upgradedContext[0]);
   if (!imageUrl) {
-    await context.reply(replies.error, {
-      reply_to_message_id: messageId,
-    });
+    const error = new Error('Failed to generate image');
     logger.error('Failed to generate image');
-    throw new Error('Failed to generate image');
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const file = new InputFile(new URL(imageUrl), 'image.png');
@@ -266,8 +278,14 @@ export const textController = async (
     },
   });
   if (!previousMessage) {
-    await context.reply(replies.noPreviosData);
-    throw new Error('Previous message is not available');
+    const error = new Error('Previous message is not available');
+    try {
+      await context.reply(replies.noPreviosData);
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const newUserMessage = await database.message.create({
@@ -295,9 +313,17 @@ export const textController = async (
     where: { id: userSettings.botRoleId },
   });
   if (!botRole) {
+    const error = new Error('Bot role is undefined');
     logger.error('Bot role is undefined');
-    await context.reply(replies.error, { reply_to_message_id: messageId });
-    throw new Error('Bot role is undefined');
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   // Assgign each message to user context or bot context

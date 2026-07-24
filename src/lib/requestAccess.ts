@@ -4,7 +4,7 @@ export type RequestAccessInput = {
   botUsername: string | undefined;
   chatType: string | undefined;
   command: string | undefined;
-  hasReply: boolean;
+  isReplyToAnotherBot: boolean;
   isReplyToThisBot: boolean;
   matchesTextTrigger: boolean;
   text: string | undefined;
@@ -25,7 +25,7 @@ export const classifyRequest = ({
   botUsername,
   chatType,
   command,
-  hasReply,
+  isReplyToAnotherBot,
   isReplyToThisBot,
   matchesTextTrigger,
   text,
@@ -47,7 +47,7 @@ export const classifyRequest = ({
     return 'free';
   }
 
-  if (hasReply && !isReplyToThisBot) {
+  if (isReplyToAnotherBot) {
     return 'ignore';
   }
 

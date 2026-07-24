@@ -6,7 +6,7 @@ const baseInput = {
   botUsername: 'shoe_bot',
   chatType: 'group',
   command: undefined,
-  hasReply: false,
+  isReplyToAnotherBot: false,
   isReplyToThisBot: false,
   matchesTextTrigger: false,
   text: 'обычное сообщение',
@@ -74,7 +74,7 @@ describe('classifyRequest', () => {
       classifyRequest({
         ...baseInput,
         chatType: 'private',
-        hasReply: true,
+        isReplyToAnotherBot: true,
         isReplyToThisBot: false,
       }),
       'ignore',

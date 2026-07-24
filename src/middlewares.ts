@@ -107,8 +107,15 @@ export const dialogMiddleware = async (
   const replyOnBotMessage =
     replyToMessage.from?.is_bot && replyToMessage.from.id === context.me.id;
   if (!replyOnBotMessage) {
-    // Do nothing if user replied to a message that is not from the bot
-    // TODO: Add a reply to the user so bot will be able to answer on text from different users message
+    newDialog = await database.newDialog.create({
+      data: {
+        chatId: chat.id,
+      },
+    });
+    // eslint-disable-next-line require-atomic-updates
+    context.state.dialog = newDialog;
+    // eslint-disable-next-line node/callback-return
+    await next();
     return;
   }
 
@@ -117,8 +124,14 @@ export const dialogMiddleware = async (
   });
   // If no previous message in the DB, but there is a reply
   if (!previousMessage) {
-    await context.reply(replies.noPreviosData);
-    throw new Error('Previous message is not available');
+    const error = new Error('Previous message is not available');
+    try {
+      await context.reply(replies.noPreviosData);
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const dialog = await database.newDialog.findFirst({
@@ -271,14 +284,17 @@ export const allowedMiddleware = async (
   );
   const command =
     text && commandEntity ? text.slice(1, commandEntity.length) : undefined;
-  const replyFrom = context.message?.reply_to_message?.from;
+  const replyMessage = context.message?.reply_to_message;
+  const replyFrom = replyMessage?.from;
   const isReplyToThisBot =
     replyFrom?.is_bot === true && replyFrom.id === context.me.id;
+  const isReplyToAnotherBot =
+    replyFrom?.is_bot === true && replyFrom.id !== context.me.id;
   const access = classifyRequest({
     botUsername: context.me.username,
     chatType: context.chat?.type,
     command,
-    hasReply: replyFrom !== undefined,
+    isReplyToAnotherBot,
     isReplyToThisBot,
     matchesTextTrigger: textTriggerRegexp.test(text ?? ''),
     text,

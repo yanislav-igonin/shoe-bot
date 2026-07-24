@@ -56,9 +56,17 @@ export const textTriggerController = async (
     where: { id: userSettings.botRoleId },
   });
   if (!botRole) {
+    const error = new Error('Bot role is undefined');
     logger.error('Bot role is undefined');
-    await context.reply(replies.error, { reply_to_message_id: messageId });
-    throw new Error('Bot role is undefined');
+    try {
+      await context.reply(replies.error, {
+        reply_to_message_id: messageId,
+      });
+    } catch (replyError) {
+      logger.error(replyError);
+    }
+
+    throw error;
   }
 
   const systemContext: ChatCompletionMessageParam[] = [
