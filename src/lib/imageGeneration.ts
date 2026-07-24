@@ -1,5 +1,8 @@
 import { grok } from 'lib/ai.js';
+import { config } from 'lib/config.js';
 import { database } from 'lib/database.js';
+import { valueOrThrow } from 'lib/values.js';
+import { Together } from 'together-ai';
 
 type ImageProvider = 'togetherai' | 'xai';
 
@@ -72,14 +75,44 @@ const loadImageGenerationSettings = async () => {
   return parseImageGenerationSettings(rows);
 };
 
-export const generateImage = async (text: string) => {
+const generateWithXai = async (text: string, model: string) => {
   const response = await grok.images.generate({
-    // @ts-expect-error Stupid typings
+    // @ts-expect-error xAI image parameters are not in OpenAI SDK types
     aspect_ratio: '16:9',
-    model: 'grok-imagine-image-quality',
+    model,
     prompt: text,
     resolution: '2k',
   });
 
   return getGeneratedImageUrl(response);
+};
+
+const generateWithTogether = async (text: string, model: string) => {
+  const apiKey = valueOrThrow(
+    config.togetherApiKey,
+    'TOGETHER_API_KEY is not set',
+  );
+  const together = new Together({ apiKey });
+  const response = await together.images.generate({
+    disable_safety_checker: true,
+    height: 768,
+    model,
+    prompt: text,
+    width: 1_344,
+  });
+
+  return getGeneratedImageUrl(response);
+};
+
+export const generateImage = async (text: string) => {
+  const { model, provider } = await loadImageGenerationSettings();
+
+  switch (provider) {
+    case 'togetherai':
+      return await generateWithTogether(text, model);
+    case 'xai':
+      return await generateWithXai(text, model);
+    default:
+      throw new Error(`Unsupported image provider: ${String(provider)}`);
+  }
 };

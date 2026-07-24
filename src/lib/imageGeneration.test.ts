@@ -6,6 +6,7 @@ process.env.BOT_TOKEN = 'test';
 process.env.GROK_API_KEY = 'test';
 process.env.MISTRAL_API_KEY = 'test';
 process.env.OPENAI_API_KEY = 'test';
+process.env.TOGETHER_API_KEY = 'test';
 /* eslint-enable node/no-process-env */
 
 const { getGeneratedImageUrl, parseImageGenerationSettings } = await import(
@@ -45,10 +46,8 @@ describe('parseImageGenerationSettings', () => {
   it('rejects a missing image provider', () => {
     assert.throws(
       () =>
-        parseImageGenerationSettings([
-          { key: 'imageModel', value: 'model' },
-        ]),
-      /imageProvider setting is missing/,
+        parseImageGenerationSettings([{ key: 'imageModel', value: 'model' }]),
+      /imageProvider setting is missing/u,
     );
   });
 
@@ -58,7 +57,7 @@ describe('parseImageGenerationSettings', () => {
         parseImageGenerationSettings([
           { key: 'imageProvider', value: 'togetherai' },
         ]),
-      /imageModel setting is missing/,
+      /imageModel setting is missing/u,
     );
   });
 
@@ -69,7 +68,7 @@ describe('parseImageGenerationSettings', () => {
           { key: 'imageProvider', value: 'togetherai' },
           { key: 'imageModel', value: '   ' },
         ]),
-      /imageModel setting is empty/,
+      /imageModel setting is empty/u,
     );
   });
 
@@ -80,7 +79,7 @@ describe('parseImageGenerationSettings', () => {
           { key: 'imageProvider', value: 'unknown' },
           { key: 'imageModel', value: 'model' },
         ]),
-      /Unsupported image provider: unknown/,
+      /Unsupported image provider: unknown/u,
     );
   });
 });

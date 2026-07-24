@@ -16,6 +16,7 @@ export const config = {
     process.env.OPENAI_API_KEY,
     'OPENAI_API_KEY is not set',
   ),
+  togetherApiKey: process.env.TOGETHER_API_KEY,
 };
 /* eslint-enable node/no-process-env */
 
