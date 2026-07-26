@@ -96,31 +96,40 @@ const models: BenchmarkModel[] = [
     height: 768,
     id: 'Qwen/Qwen-Image-2.0',
     width: 1_344,
+    // Прям хуево следует промпту
   },
   {
     height: 768,
     id: 'ByteDance-Seed/Seedream-4.0',
     width: 1_344,
+    // Хуево следует промпту
   },
   {
     height: 768,
     id: 'black-forest-labs/FLUX.2-max',
     width: 1_344,
+    // Отказывается генерировать
+    // ну и генерит так себе
   },
   {
     height: 768,
     id: 'black-forest-labs/FLUX.2-pro',
     width: 1_344,
+    // Отказывается генерировать
+    // ну и генерит так себе
   },
   {
     height: 768,
     id: 'RunDiffusion/Juggernaut-pro-flux',
     width: 1_344,
+    // ВООБЩЕ НЕ СЛЕДУЕТ ПРОМПТУ, ВОТ ТУПО НИ ОДНОЙ КАРТИНКИ
+    // ОБОСРЕНЬК
   },
   {
     height: 768,
     id: 'Qwen/Qwen-Image',
     width: 1_344,
+    // Генерит скуфов на аниме nsfw пикчах
   },
 ];
 
