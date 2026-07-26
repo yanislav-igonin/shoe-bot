@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "benchmark:images": "tsx -r dotenv/config src/scripts/image-generation-benchmark.ts",
     "dev": "nodemon --watch 'src/**/*.*' --exec 'tsx -r dotenv/config -r tsconfig-paths/register src/index.ts'",
     "lint": "eslint --ext .ts src",
     "test": "tsx --test src/**/*.test.ts",
@@ -41,6 +42,7 @@
     "grammy": "^1.14.1",
     "luxon": "^3.4.4",
     "openai": "^4.16.1",
+    "together-ai": "^0.44.0",
     "tsx": "^4.7.1"
   }
 }
