@@ -24,7 +24,7 @@ type BenchmarkResult = {
 };
 
 const TELEGRAM_CHAT_ID = '142166671';
-const attemptsPerPrompt = 5;
+const attemptsPerPrompt = 2;
 
 // Edit these prompts before running the benchmark.
 const prompts: BenchmarkPrompt[] = [
