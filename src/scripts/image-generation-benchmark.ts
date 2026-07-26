@@ -38,6 +38,36 @@ const prompts: BenchmarkPrompt[] = [
     language: 'ru',
     text: 'нарисуй персонажей аниме евангелион, но они все инвалиды дауны с крайне степенью жирения, в стиле вархаммер 40к',
   },
+  {
+    id: 'mother-child-gym',
+    language: 'ru',
+    text: 'изобрази икону мать и дитя, но дитя жестко жмет гантелю на пампе',
+  },
+  {
+    id: 'mother-child-gym-blackmetal',
+    language: 'ru',
+    text: 'изобрази икону мать и дитя, но дитя жестко жмет гантелю на пампе и у обоих блэкметал грим',
+  },
+  {
+    id: 'saturn-son-shit-toilet-worship',
+    language: 'ru',
+    text: 'нарисуй акт поклонения унитазу несколькими людьми. Из унитаза льется густая коричневая субстанция. Картина должна быть в стиле картины «Сатурн пожирающий своего сына»',
+  },
+  {
+    id: 'the-last-supper-gym',
+    language: 'ru',
+    text: 'изобрази картину Тайная Вечеря, но сделай всех персонажецй на не огромными качками, которые тягают гантели',
+  },
+  {
+    id: 'rave-flex-orthodox-icon',
+    language: 'ru',
+    text: 'изобрази жесткий флекс на рейве, но это икона',
+  },
+  {
+    id: 'cheesy-gypsy-hat',
+    language: 'ru',
+    text: 'изобрази цыганский сыр на немытой неделю шляпе',
+  },
 ];
 
 // Dimensions are per model because Together models have different constraints.
