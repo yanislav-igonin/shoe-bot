@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "migration:baseline": "mikro-orm migration:check && mikro-orm migration:log --name Migration20260727000000",
+    "migration:baseline": "tsx -r dotenv/config src/scripts/baseline-migration.ts",
     "migration:down": "mikro-orm migration:down",
     "migration:status": "mikro-orm migration:list",
     "migration:up": "mikro-orm migration:up"
