@@ -1,12 +1,14 @@
 import { type Message } from '@prisma/client';
-import { grok, mistral, openai } from 'lib/ai.js';
+import { generateText, type Prompt } from 'ai';
+import { mistral, openai, xai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
 import { replies } from 'lib/replies.js';
 // eslint-disable-next-line import/no-named-as-default
 import type OpenAI from 'openai';
 
-type ChatCompletionRequestMessage =
+type ChatCompletionRequestMessage = NonNullable<Prompt['messages']>[number];
+type OpenAiChatCompletionRequestMessage =
   OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 enum ContextRole {
@@ -79,10 +81,13 @@ export const addAssistantContext = (
 
   if (message.text && message.tgPhotoId) {
     return {
-      // @ts-expect-error Stupid typings
       content: [
         { text: message.text, type: 'text' },
-        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+        {
+          data: new URL(imagesMap[message.id]),
+          mediaType: 'image',
+          type: 'file',
+        },
       ],
       role: ContextRole.Assistant,
     };
@@ -90,16 +95,19 @@ export const addAssistantContext = (
 
   if (message.tgPhotoId) {
     return {
-      // @ts-expect-error Stupid typings
       content: [
-        { image_url: { url: imagesMap[message.id] }, type: 'image_url' },
+        {
+          data: new URL(imagesMap[message.id]),
+          mediaType: 'image',
+          type: 'file',
+        },
       ],
       role: ContextRole.Assistant,
     };
   }
 
   return {
-    content: message.text,
+    content: message.text ?? '',
     role: ContextRole.Assistant,
   };
 };
@@ -120,8 +128,8 @@ export const addUserContext = (
       content: [
         { text: message.text, type: 'text' },
         {
-          image_url: { detail: 'high', url: imagesMap[message.id] },
-          type: 'image_url',
+          image: new URL(imagesMap[message.id]),
+          type: 'image',
         },
       ],
       role: ContextRole.User,
@@ -132,8 +140,8 @@ export const addUserContext = (
     return {
       content: [
         {
-          image_url: { detail: 'high', url: imagesMap[message.id] },
-          type: 'image_url',
+          image: new URL(imagesMap[message.id]),
+          type: 'image',
         },
       ],
       role: ContextRole.User,
@@ -141,7 +149,7 @@ export const addUserContext = (
   }
 
   return {
-    content: message.text,
+    content: message.text ?? '',
     role: ContextRole.User,
   };
 };
@@ -177,22 +185,25 @@ export const getGrokCompletion = async (
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
-  const response = await grok.chat.completions.create({
+  const { text } = await generateText({
+    allowSystemInMessages: true,
     messages,
-    model,
+    model: xai(model),
   });
-  const text = response.choices[0].message?.content;
-  return text?.trim() ?? replies.noAnswer;
+  return text.trim() || replies.noAnswer;
 };
 
 export const getOpenAiCompletion = async (
   message: string,
-  context: ChatCompletionRequestMessage[] = [],
+  context: OpenAiChatCompletionRequestMessage[] = [],
   model: Model = Model.MistralLarge,
 ) => {
-  const userMessage = addUserContext(message);
+  const userMessage: OpenAiChatCompletionRequestMessage = {
+    content: message,
+    role: 'user',
+  };
   const messages = [...context, userMessage];
-  const response = await grok.chat.completions.create({
+  const response = await openai.chat.completions.create({
     messages,
     model,
   });
@@ -314,9 +325,16 @@ const taskModelChoiceSystemPrompt =
  * @deprecated
  */
 export const getModelForTask = async (task: string) => {
-  const taskModelChoiceMessage = addSystemContext(taskModelChoiceSystemPrompt);
-  const userMessage = addUserContext('```\n' + task + '```\n');
-  const messages = [taskModelChoiceMessage, userMessage];
+  const messages: OpenAiChatCompletionRequestMessage[] = [
+    {
+      content: taskModelChoiceSystemPrompt,
+      role: 'system',
+    },
+    {
+      content: '```\n' + task + '```\n',
+      role: 'user',
+    },
+  ];
   const response = await openai.chat.completions.create({
     messages,
     model: Model.Gpt3Turbo,
@@ -356,12 +374,12 @@ export const chooseTask = async (text: string) => {
   const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
   const userMessage = addUserContext(text);
   const messages = [chooseTaskMessage, userMessage];
-  const response = await grok.chat.completions.create({
+  const response = await generateText({
+    allowSystemInMessages: true,
     messages,
-    model: Model.Grok3Mini,
-    response_format: { type: 'json_object' },
+    model: xai(Model.Grok3Mini),
   });
-  const task = response.choices[0].message?.content;
+  const task = response.text;
   try {
     const parsed = JSON.parse(task ?? '{}') as {
       task: 'image' | 'text';

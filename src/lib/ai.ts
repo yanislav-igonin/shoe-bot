@@ -1,3 +1,4 @@
+import { createXai } from '@ai-sdk/xai';
 import MistralClient from '@mistralai/mistralai';
 import { config } from 'lib/config.js';
 // eslint-disable-next-line import/no-named-as-default
@@ -9,7 +10,7 @@ export const openai = new OpenAI({
 
 export const mistral = new MistralClient(config.mistralApiKey);
 
-export const grok = new OpenAI({
+export const xai = createXai({
   apiKey: config.grokApiKey,
   baseURL: config.grokApiUrl,
 });

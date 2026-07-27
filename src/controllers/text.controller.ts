@@ -115,8 +115,8 @@ const generateBetterImageController = async (
       'Результат должен быть новым четким описанием того, что попросили изменить.',
     ),
   ]);
-  const imageUrl = await generateImage(upgradedContext[0]);
-  if (!imageUrl) {
+  const image = await generateImage(upgradedContext[0]);
+  if (!image) {
     const error = new Error('Failed to generate image');
     logger.error('Failed to generate image');
     try {
@@ -130,7 +130,8 @@ const generateBetterImageController = async (
     throw error;
   }
 
-  const file = new InputFile(new URL(imageUrl), 'image.png');
+  const source = typeof image === 'string' ? new URL(image) : image;
+  const file = new InputFile(source, 'image.png');
   const botReply = await context.replyWithPhoto(file, {
     reply_to_message_id: messageId,
   });

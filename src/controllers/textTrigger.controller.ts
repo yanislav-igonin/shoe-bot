@@ -113,13 +113,14 @@ export const textTriggerController = async (
   const imageController = async () => {
     await context.replyWithChatAction('upload_photo');
 
-    const imageUrl = await generateImage(prompt);
-    if (!imageUrl) {
+    const image = await generateImage(prompt);
+    if (!image) {
       logger.error('Failed to generate image');
       throw new Error('Failed to generate image');
     }
 
-    const file = new InputFile(new URL(imageUrl), 'image.png');
+    const source = typeof image === 'string' ? new URL(image) : image;
+    const file = new InputFile(source, 'image.png');
 
     const botReply = await context.replyWithPhoto(file, {
       reply_to_message_id: messageId,
