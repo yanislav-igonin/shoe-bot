@@ -17,6 +17,7 @@ export const createOrmConfig = (clientUrl?: string) => {
     migrations: {
       path: 'dist/migrations',
       pathTs: 'src/migrations',
+      snapshotName: '.snapshot',
       tableName: 'mikro_orm_migrations',
       transactional: true,
     },
