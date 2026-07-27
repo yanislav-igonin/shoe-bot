@@ -1,4 +1,3 @@
-import { createDatabase } from './database.js';
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
@@ -6,12 +5,17 @@ import { describe, it } from 'node:test';
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 /* eslint-enable node/no-process-env */
 
-if (!testDatabaseUrl?.endsWith('_test')) {
+if (testDatabaseUrl && !testDatabaseUrl.endsWith('_test')) {
   throw new Error('TEST_DATABASE_URL must target a database ending in _test');
 }
 
-describe('MikroORM baseline migration', () => {
+describe('MikroORM baseline migration', { skip: !testDatabaseUrl }, () => {
   it('creates the current application schema', async () => {
+    if (!testDatabaseUrl) {
+      throw new Error('TEST_DATABASE_URL is not set');
+    }
+
+    const { createDatabase } = await import('./database.js');
     const orm = await createDatabase(testDatabaseUrl);
 
     try {

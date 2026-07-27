@@ -1,13 +1,10 @@
-import ormConfig from '../mikro-orm.config.js';
+import { createOrmConfig } from '../mikro-orm.config.js';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { PrismaClient } from '@prisma/client';
 
-export const createDatabase = async (
-  clientUrl = ormConfig.clientUrl,
-): Promise<MikroORM> =>
+export const createDatabase = async (clientUrl?: string): Promise<MikroORM> =>
   await MikroORM.init({
-    ...ormConfig,
-    clientUrl,
+    ...createOrmConfig(clientUrl),
   });
 
 let orm: MikroORM | undefined;

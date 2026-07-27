@@ -1,3 +1,4 @@
+import { OptionalProps } from '@mikro-orm/core';
 import {
   Check,
   Entity,
@@ -37,6 +38,14 @@ export enum MessageType {
 
 @Entity({ tableName: 'users' })
 export class User {
+  [OptionalProps]?:
+    | 'allowedTill'
+    | 'createdAt'
+    | 'firstName'
+    | 'languageCode'
+    | 'lastName'
+    | 'username';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -117,6 +126,8 @@ export class DailyRequestUsage {
 
 @Entity({ tableName: 'chats' })
 export class Chat {
+  [OptionalProps]?: 'createdAt';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -135,6 +146,8 @@ export class Chat {
 
 @Entity({ tableName: 'dialogs' })
 export class Dialog {
+  [OptionalProps]?: 'createdAt' | 'isViolatesOpenAiPolicy';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -159,6 +172,14 @@ export class Dialog {
 
 @Entity({ tableName: 'messages' })
 export class Message {
+  [OptionalProps]?:
+    | 'createdAt'
+    | 'dialog'
+    | 'replyTo'
+    | 'text'
+    | 'tgPhotoId'
+    | 'tgVoiceId';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -219,6 +240,8 @@ export class Message {
 
 @Entity({ tableName: 'activation_codes' })
 export class ActivationCode {
+  [OptionalProps]?: 'code' | 'createdAt' | 'usedByUser';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -244,6 +267,8 @@ export class ActivationCode {
 
 @Entity({ tableName: 'bot_roles' })
 export class BotRole {
+  [OptionalProps]?: 'createdAt' | 'updatedAt';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -270,6 +295,8 @@ export class BotRole {
 
 @Entity({ tableName: 'user_settings' })
 export class UserSettings {
+  [OptionalProps]?: 'botRoleId' | 'createdAt' | 'updatedAt';
+
   @PrimaryKey({ type: 'number' })
   id!: number;
 
@@ -292,6 +319,10 @@ export class UserSettings {
   })
   botRole!: BotRole;
 
+  public get botRoleId() {
+    return this.botRole.id;
+  }
+
   @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 
@@ -305,6 +336,8 @@ export class UserSettings {
 
 @Entity({ tableName: 'settings' })
 export class Setting {
+  [OptionalProps]?: 'createdAt' | 'updatedAt';
+
   @PrimaryKey({ columnType: 'text', type: 'string' })
   key!: string;
 
