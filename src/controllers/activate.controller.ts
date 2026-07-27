@@ -41,7 +41,7 @@ export const activateController = async (
   const { allowedTill: userAllowedDate } = user;
   const newAllowedTill = getNewAllowedTill(userAllowedDate);
 
-  await database.newUser.update({
+  await database.user.update({
     data: {
       allowedTill: newAllowedTill,
     },

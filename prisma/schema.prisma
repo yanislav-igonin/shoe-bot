@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model NewUser {
+model User {
   id                 Int                 @id @default(autoincrement())
   username           String?
   firstName          String?
@@ -21,13 +21,13 @@ model NewUser {
   activationCodes    ActivationCode[]
   settings           UserSettings?
 
-  @@map("new_users")
+  @@map("users")
 }
 
 model DailyRequestUsage {
   id     Int      @id @default(autoincrement())
   userId Int
-  user   NewUser  @relation(fields: [userId], references: [id])
+  user   User     @relation(fields: [userId], references: [id])
   date   DateTime @db.Date
   used   Int
 
@@ -42,26 +42,26 @@ enum ChatType {
   channel
 }
 
-model NewChat {
-  id        Int         @id @default(autoincrement())
+model Chat {
+  id        Int      @id @default(autoincrement())
   name      String
   type      ChatType
   tgId      String
-  createdAt DateTime    @default(now())
-  dialogs   NewDialog[]
+  createdAt DateTime @default(now())
+  dialogs   Dialog[]
 
-  @@map("new_chats")
+  @@map("chats")
 }
 
-model NewDialog {
+model Dialog {
   id                     Int       @id @default(autoincrement())
   createdAt              DateTime  @default(now())
   chatId                 Int
-  chat                   NewChat   @relation(fields: [chatId], references: [id])
+  chat                   Chat      @relation(fields: [chatId], references: [id])
   messages               Message[]
   isViolatesOpenAiPolicy Boolean   @default(false)
 
-  @@map("new_dialogs")
+  @@map("dialogs")
 }
 
 enum MessageType {
@@ -75,9 +75,9 @@ model Message {
   text        String?
   type        MessageType
   userId      Int
-  user        NewUser     @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
   dialogId    Int?
-  dialog      NewDialog?  @relation(fields: [dialogId], references: [id])
+  dialog      Dialog?     @relation(fields: [dialogId], references: [id])
   tgPhotoId   String?
   tgMessageId String
   tgVoiceId   String?
@@ -94,7 +94,7 @@ model ActivationCode {
   code         String   @unique @default(cuid())
   createdAt    DateTime @default(now())
   usedByUserId Int?
-  usedByUser   NewUser? @relation(fields: [usedByUserId], references: [id])
+  usedByUser   User?    @relation(fields: [usedByUserId], references: [id])
 
   @@map("activation_codes")
 }
@@ -112,7 +112,7 @@ model BotRole {
 
 model UserSettings {
   id        Int      @id @default(autoincrement())
-  user      NewUser  @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
   userId    Int      @unique
   botRoleId Int      @default(1)
   botRole   BotRole  @relation(fields: [botRoleId], references: [id])
