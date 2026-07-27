@@ -99,7 +99,6 @@ bot.on('message:text', textController);
 const start = async () => {
   await database.$connect();
   logger.info('database connected');
-  // eslint-disable-next-line promise/prefer-await-to-then
   bot.start().catch(async (error) => {
     logger.error(error);
     await database.$disconnect();

@@ -1,4 +1,3 @@
-/* eslint-disable complexity */
 import { telegram } from '../telegram.js';
 import { textTriggerController } from './textTrigger.controller.js';
 import { type Message } from '@prisma/client';
@@ -24,7 +23,6 @@ import {
 import { replies } from 'lib/replies.js';
 
 const getImagesMapById = async (messages: Message[]) => {
-  // eslint-disable-next-line unicorn/no-array-reduce
   const tgImagesInDialog = messages.reduce<
     Array<{ messageId: number; tgPhotoId: string }>
   >((accumulator, message) => {
@@ -46,7 +44,6 @@ const getImagesMapById = async (messages: Message[]) => {
       };
     }),
   );
-  // eslint-disable-next-line unicorn/no-array-reduce
   const tgImagesMapById = tgImagesUrlsInDialog.reduce<Record<number, string>>(
     (accumulator, current) => {
       accumulator[current.messageId] = current.url;

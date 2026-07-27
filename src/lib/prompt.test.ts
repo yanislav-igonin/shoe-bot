@@ -2,11 +2,9 @@ import { type Message, MessageType } from '@prisma/client';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-/* eslint-disable node/no-process-env */
 process.env.BOT_TOKEN = 'test';
 process.env.GROK_API_KEY = 'test';
 process.env.OPENAI_API_KEY = 'test';
-/* eslint-enable node/no-process-env */
 
 const { addUserContext } = await import('lib/prompt.js');
 

@@ -1,6 +1,5 @@
 import { valueOrDefault, valueOrThrow } from './values.js';
 
-/* eslint-disable node/no-process-env */
 export const config = {
   adminsUsernames: valueOrDefault(process.env.ADMINS_USERNAMES?.split(','), []),
   botId: 0,
@@ -14,6 +13,5 @@ export const config = {
   ),
   togetherApiKey: process.env.TOGETHER_API_KEY,
 };
-/* eslint-enable node/no-process-env */
 
 export const isProduction = config.env === 'production';

@@ -1,5 +1,3 @@
-/* eslint-disable no-console, node/no-process-env */
-
 import { PrismaClient } from '@prisma/client';
 import { Together } from 'together-ai';
 

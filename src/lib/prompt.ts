@@ -4,7 +4,6 @@ import { openai, xai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
 import { replies } from 'lib/replies.js';
-// eslint-disable-next-line import/no-named-as-default
 import type OpenAI from 'openai';
 
 type ChatCompletionRequestMessage = NonNullable<Prompt['messages']>[number];

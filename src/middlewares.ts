@@ -8,7 +8,6 @@ import {
 } from '@prisma/client';
 import { type NextFunction } from 'grammy';
 // @ts-expect-error openai/resources not found
-// eslint-disable-next-line import/extensions
 import { type Chat as TelegramChat } from 'grammy/out/types.node';
 import { type BotContext } from 'lib/context.js';
 import { refundDailyRequest, reserveDailyRequest } from 'lib/dailyQuota.js';
@@ -28,7 +27,6 @@ export const stateMiddleware = async (
 ) => {
   // @ts-expect-error Property user   is missing in type {} but required in type
   context.state = {};
-  // eslint-disable-next-line node/callback-return
   await next();
 };
 
@@ -41,7 +39,6 @@ export const chatMiddleware = async (
 ) => {
   const chatId = context.chat?.id;
   if (!chatId) {
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -55,9 +52,7 @@ export const chatMiddleware = async (
       data: { name: newName },
       where: { id: chat.id },
     });
-    // eslint-disable-next-line require-atomic-updates
     context.state.chat = chat;
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -69,10 +64,8 @@ export const chatMiddleware = async (
     type: context.chat?.type,
   };
   const newChat = await database.chat.create({ data: toCreate });
-  // eslint-disable-next-line require-atomic-updates
   context.state.chat = newChat;
 
-  // eslint-disable-next-line node/callback-return
   await next();
 };
 
@@ -82,7 +75,6 @@ export const dialogMiddleware = async (
 ) => {
   const { message } = context;
   if (!message) {
-    // eslint-disable-next-line node/callback-return
     return;
   }
 
@@ -97,9 +89,7 @@ export const dialogMiddleware = async (
         chatId: chat.id,
       },
     });
-    // eslint-disable-next-line require-atomic-updates
     context.state.dialog = newDialog;
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -112,9 +102,7 @@ export const dialogMiddleware = async (
         chatId: chat.id,
       },
     });
-    // eslint-disable-next-line require-atomic-updates
     context.state.dialog = newDialog;
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -143,17 +131,13 @@ export const dialogMiddleware = async (
         chatId: chat.id,
       },
     });
-    // eslint-disable-next-line require-atomic-updates
     context.state.dialog = newDialog;
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
 
-  // eslint-disable-next-line require-atomic-updates
   context.state.dialog = dialog;
 
-  // eslint-disable-next-line node/callback-return
   await next();
 };
 
@@ -166,7 +150,6 @@ export const userMiddleware = async (
 ) => {
   const { from: user } = context;
   if (!user) {
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -186,9 +169,7 @@ export const userMiddleware = async (
       },
       where: { id: databaseUser.id },
     });
-    // eslint-disable-next-line require-atomic-updates
     context.state.user = databaseUser;
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -210,10 +191,8 @@ export const userMiddleware = async (
     };
 
   const newUser = await database.user.create({ data: toCreate });
-  // eslint-disable-next-line require-atomic-updates
   context.state.user = newUser;
 
-  // eslint-disable-next-line node/callback-return
   await next();
 };
 
@@ -232,9 +211,7 @@ export const userSettingsMiddleware = async (
     where: { userId: user.id },
   });
   if (databaseUserSettings) {
-    // eslint-disable-next-line require-atomic-updates
     context.state.userSettings = databaseUserSettings;
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -247,10 +224,8 @@ export const userSettingsMiddleware = async (
   const newUserSettings = await database.userSettings.create({
     data: toCreate,
   });
-  // eslint-disable-next-line require-atomic-updates
   context.state.userSettings = newUserSettings;
 
-  // eslint-disable-next-line node/callback-return
   await next();
 };
 
@@ -268,7 +243,6 @@ export const adminMiddleware = async (
     return;
   }
 
-  // eslint-disable-next-line node/callback-return
   await next();
 };
 
@@ -303,7 +277,6 @@ export const allowedMiddleware = async (
   }
 
   if (access === 'free') {
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -317,7 +290,6 @@ export const allowedMiddleware = async (
   const isAdmin = config.adminsUsernames.includes(user.username ?? '');
 
   if (subscriptionIsActive || isAdmin) {
-    // eslint-disable-next-line node/callback-return
     await next();
     return;
   }
@@ -331,7 +303,6 @@ export const allowedMiddleware = async (
   }
 
   try {
-    // eslint-disable-next-line node/callback-return
     await next();
   } catch (error) {
     try {
