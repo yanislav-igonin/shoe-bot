@@ -1,34 +1,34 @@
-import { type CommandContext } from 'grammy';
-import { type BotContext } from 'lib/context.js';
-import { stats as statsRepo } from 'repositories/index.js';
+import type { CommandContext } from "grammy";
+import type { BotContext } from "lib/context.js";
+import { stats as statsRepo } from "repositories/index.js";
 
 export const statsController = async (context: CommandContext<BotContext>) => {
-  const [texts, photos, voices] = await Promise.all([
-    statsRepo.getTextMessagesCountForLastMonthGroupedByUser(context.state.em),
-    statsRepo.getImageMessagesCountForLastMonthGroupedByUser(context.state.em),
-    statsRepo.getVoiceMessagesCountForLastMonthGroupedByUser(context.state.em),
-  ]);
+	const [texts, photos, voices] = await Promise.all([
+		statsRepo.getTextMessagesCountForLastMonthGroupedByUser(context.state.em),
+		statsRepo.getImageMessagesCountForLastMonthGroupedByUser(context.state.em),
+		statsRepo.getVoiceMessagesCountForLastMonthGroupedByUser(context.state.em),
+	]);
 
-  let text = 'Статистика за последний месяц:\n\n**Текст:**\n\n';
-  for (const stat of texts) {
-    const { firstName, lastName, messagesCount, username } = stat;
-    const row = `${firstName} ${lastName} (@${username}): ${messagesCount}\n`;
-    text += row;
-  }
+	let text = "Статистика за последний месяц:\n\n**Текст:**\n\n";
+	for (const stat of texts) {
+		const { firstName, lastName, messagesCount, username } = stat;
+		const row = `${firstName} ${lastName} (@${username}): ${messagesCount}\n`;
+		text += row;
+	}
 
-  text += '\n**Пикчи:**\n\n';
-  for (const stat of photos) {
-    const { firstName, lastName, messagesCount, username } = stat;
-    const row = `${firstName} ${lastName} (@${username}): ${messagesCount}\n`;
-    text += row;
-  }
+	text += "\n**Пикчи:**\n\n";
+	for (const stat of photos) {
+		const { firstName, lastName, messagesCount, username } = stat;
+		const row = `${firstName} ${lastName} (@${username}): ${messagesCount}\n`;
+		text += row;
+	}
 
-  text += '\n**Войсы:**\n\n';
-  for (const stat of voices) {
-    const { firstName, lastName, messagesCount, username } = stat;
-    const row = `${firstName} ${lastName} (@${username}): ${messagesCount}\n`;
-    text += row;
-  }
+	text += "\n**Войсы:**\n\n";
+	for (const stat of voices) {
+		const { firstName, lastName, messagesCount, username } = stat;
+		const row = `${firstName} ${lastName} (@${username}): ${messagesCount}\n`;
+		text += row;
+	}
 
-  await context.reply(text, { parse_mode: 'Markdown' });
+	await context.reply(text, { parse_mode: "Markdown" });
 };

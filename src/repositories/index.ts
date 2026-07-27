@@ -1,1 +1,1 @@
-export * as stats from './stats.repository.js';
+export * as stats from "./stats.repository.js";

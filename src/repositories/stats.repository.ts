@@ -1,23 +1,23 @@
-import { MessageType } from '../entities.js';
-import { type EntityManager } from '@mikro-orm/postgresql';
-import { MONTH_MS } from 'lib/date.js';
+import type { EntityManager } from "@mikro-orm/postgresql";
+import { MONTH_MS } from "lib/date.js";
+import { MessageType } from "../entities.js";
 
 type PromptsCountResult = {
-  firstName: string;
-  lastName: string;
-  messagesCount: number;
-  userId: string;
-  username: string;
+	firstName: string;
+	lastName: string;
+	messagesCount: number;
+	userId: string;
+	username: string;
 };
 
 const getMessagesCountForLastMonthGroupedByUser = async (
-  em: EntityManager,
-  type: MessageType,
+	em: EntityManager,
+	type: MessageType,
 ) => {
-  const minusMonth = new Date(Date.now() - MONTH_MS);
+	const minusMonth = new Date(Date.now() - MONTH_MS);
 
-  return await em.getConnection().execute<PromptsCountResult[]>(
-    `
+	return await em.getConnection().execute<PromptsCountResult[]>(
+		`
     SELECT
       COUNT(m.id)::int AS "messagesCount",
       u.username,
@@ -33,18 +33,18 @@ const getMessagesCountForLastMonthGroupedByUser = async (
     GROUP BY m."userId", u.username, u."firstName", u."lastName"
     ORDER BY "messagesCount" DESC
     `,
-    [minusMonth, type],
-  );
+		[minusMonth, type],
+	);
 };
 
 export const getTextMessagesCountForLastMonthGroupedByUser = async (
-  em: EntityManager,
+	em: EntityManager,
 ) => await getMessagesCountForLastMonthGroupedByUser(em, MessageType.text);
 
 export const getImageMessagesCountForLastMonthGroupedByUser = async (
-  em: EntityManager,
+	em: EntityManager,
 ) => await getMessagesCountForLastMonthGroupedByUser(em, MessageType.image);
 
 export const getVoiceMessagesCountForLastMonthGroupedByUser = async (
-  em: EntityManager,
+	em: EntityManager,
 ) => await getMessagesCountForLastMonthGroupedByUser(em, MessageType.voice);
