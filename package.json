@@ -18,7 +18,10 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "migration:up": "prisma migrate deploy"
+    "migration:baseline": "mikro-orm migration:log",
+    "migration:down": "mikro-orm migration:down",
+    "migration:status": "mikro-orm migration:list",
+    "migration:up": "mikro-orm migration:up"
   },
   "repository": {
     "type": "git",
@@ -63,7 +66,7 @@
     "openai": "^4.16.1",
     "reflect-metadata": "^0.2.2",
     "together-ai": "^0.44.0",
-    "tsx": "^4.7.1",
+    "tsx": "^4.23.1",
     "zod": "^4.4.3"
   }
 }

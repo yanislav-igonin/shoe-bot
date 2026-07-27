@@ -12,10 +12,14 @@ import { randomUUID } from 'node:crypto';
 
 /* eslint-disable @typescript-eslint/explicit-member-accessibility */
 
-const timestampOptions = {
+const timestampColumnOptions = {
   columnType: 'timestamp(3)',
-  defaultRaw: 'current_timestamp',
   type: 'Date',
+} as const;
+
+const createdTimestampOptions = {
+  ...timestampColumnOptions,
+  defaultRaw: 'current_timestamp',
 } as const;
 
 export enum ChatType {
@@ -36,19 +40,39 @@ export class User {
   @PrimaryKey({ type: 'number' })
   id!: number;
 
-  @Property({ nullable: true, type: 'string' })
+  @Property({ columnType: 'text', nullable: true, type: 'string' })
   username: string | null = null;
 
-  @Property({ fieldName: 'firstName', nullable: true, type: 'string' })
+  @Property({
+    columnType: 'text',
+    fieldName: 'firstName',
+    nullable: true,
+    type: 'string',
+  })
   firstName: string | null = null;
 
-  @Property({ fieldName: 'lastName', nullable: true, type: 'string' })
+  @Property({
+    columnType: 'text',
+    fieldName: 'lastName',
+    nullable: true,
+    type: 'string',
+  })
   lastName: string | null = null;
 
-  @Property({ fieldName: 'languageCode', nullable: true, type: 'string' })
+  @Property({
+    columnType: 'text',
+    fieldName: 'languageCode',
+    nullable: true,
+    type: 'string',
+  })
   languageCode: string | null = null;
 
-  @Property({ fieldName: 'tgId', type: 'string', unique: true })
+  @Property({
+    columnType: 'text',
+    fieldName: 'tgId',
+    type: 'string',
+    unique: 'new_users_tgId_key',
+  })
   tgId!: string;
 
   @Property({
@@ -59,7 +83,7 @@ export class User {
   })
   allowedTill: Date | null = null;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 }
 
@@ -79,6 +103,7 @@ export class DailyRequestUsage {
   @ManyToOne(() => User, {
     deleteRule: 'restrict',
     fieldName: 'userId',
+    foreignKeyName: 'daily_request_usages_userId_fkey',
     updateRule: 'cascade',
   })
   user!: User;
@@ -95,16 +120,16 @@ export class Chat {
   @PrimaryKey({ type: 'number' })
   id!: number;
 
-  @Property({ type: 'string' })
+  @Property({ columnType: 'text', type: 'string' })
   name!: string;
 
   @Enum({ items: () => ChatType, nativeEnumName: 'ChatType' })
   type!: ChatType;
 
-  @Property({ fieldName: 'tgId', type: 'string' })
+  @Property({ columnType: 'text', fieldName: 'tgId', type: 'string' })
   tgId!: string;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 }
 
@@ -113,12 +138,13 @@ export class Dialog {
   @PrimaryKey({ type: 'number' })
   id!: number;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 
   @ManyToOne(() => Chat, {
     deleteRule: 'restrict',
     fieldName: 'chatId',
+    foreignKeyName: 'new_dialogs_chatId_fkey',
     updateRule: 'cascade',
   })
   chat!: Chat;
@@ -136,7 +162,7 @@ export class Message {
   @PrimaryKey({ type: 'number' })
   id!: number;
 
-  @Property({ nullable: true, type: 'string' })
+  @Property({ columnType: 'text', nullable: true, type: 'string' })
   text: string | null = null;
 
   @Enum({ items: () => MessageType, nativeEnumName: 'MessageType' })
@@ -145,6 +171,7 @@ export class Message {
   @ManyToOne(() => User, {
     deleteRule: 'restrict',
     fieldName: 'userId',
+    foreignKeyName: 'messages_userId_fkey',
     updateRule: 'cascade',
   })
   user!: User;
@@ -152,29 +179,41 @@ export class Message {
   @ManyToOne(() => Dialog, {
     deleteRule: 'set null',
     fieldName: 'dialogId',
+    foreignKeyName: 'messages_dialogId_fkey',
     nullable: true,
     updateRule: 'cascade',
   })
   dialog: Dialog | null = null;
 
-  @Property({ fieldName: 'tgPhotoId', nullable: true, type: 'string' })
+  @Property({
+    columnType: 'text',
+    fieldName: 'tgPhotoId',
+    nullable: true,
+    type: 'string',
+  })
   tgPhotoId: string | null = null;
 
-  @Property({ fieldName: 'tgMessageId', type: 'string' })
+  @Property({ columnType: 'text', fieldName: 'tgMessageId', type: 'string' })
   tgMessageId!: string;
 
-  @Property({ fieldName: 'tgVoiceId', nullable: true, type: 'string' })
+  @Property({
+    columnType: 'text',
+    fieldName: 'tgVoiceId',
+    nullable: true,
+    type: 'string',
+  })
   tgVoiceId: string | null = null;
 
   @ManyToOne(() => Message, {
     deleteRule: 'set null',
     fieldName: 'replyToId',
+    foreignKeyName: 'messages_replyToId_fkey',
     nullable: true,
     updateRule: 'cascade',
   })
   replyTo: Message | null = null;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 }
 
@@ -183,15 +222,20 @@ export class ActivationCode {
   @PrimaryKey({ type: 'number' })
   id!: number;
 
-  @Property({ type: 'string', unique: true })
+  @Property({
+    columnType: 'text',
+    type: 'string',
+    unique: 'activation_codes_code_key',
+  })
   code = randomUUID();
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 
   @ManyToOne(() => User, {
     deleteRule: 'set null',
     fieldName: 'usedByUserId',
+    foreignKeyName: 'activation_codes_usedByUserId_fkey',
     nullable: true,
     updateRule: 'cascade',
   })
@@ -203,19 +247,23 @@ export class BotRole {
   @PrimaryKey({ type: 'number' })
   id!: number;
 
-  @Property({ type: 'string' })
+  @Property({ columnType: 'text', type: 'string' })
   name!: string;
 
-  @Property({ fieldName: 'systemPrompt', type: 'string' })
+  @Property({
+    columnType: 'text',
+    fieldName: 'systemPrompt',
+    type: 'string',
+  })
   systemPrompt!: string;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 
   @Property({
     fieldName: 'updatedAt',
     onUpdate: () => new Date(),
-    ...timestampOptions,
+    ...timestampColumnOptions,
   })
   updatedAt = new Date();
 }
@@ -228,7 +276,9 @@ export class UserSettings {
   @OneToOne(() => User, {
     deleteRule: 'restrict',
     fieldName: 'userId',
+    foreignKeyName: 'user_settings_userId_fkey',
     owner: true,
+    unique: 'user_settings_userId_key',
     updateRule: 'cascade',
   })
   user!: User;
@@ -237,36 +287,37 @@ export class UserSettings {
     default: 1,
     deleteRule: 'restrict',
     fieldName: 'botRoleId',
+    foreignKeyName: 'user_settings_botRoleId_fkey',
     updateRule: 'cascade',
   })
   botRole!: BotRole;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 
   @Property({
     fieldName: 'updatedAt',
     onUpdate: () => new Date(),
-    ...timestampOptions,
+    ...timestampColumnOptions,
   })
   updatedAt = new Date();
 }
 
 @Entity({ tableName: 'settings' })
 export class Setting {
-  @PrimaryKey({ type: 'string' })
+  @PrimaryKey({ columnType: 'text', type: 'string' })
   key!: string;
 
-  @Property({ type: 'string' })
+  @Property({ columnType: 'text', type: 'string' })
   value!: string;
 
-  @Property({ fieldName: 'createdAt', ...timestampOptions })
+  @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
 
   @Property({
     fieldName: 'updatedAt',
     onUpdate: () => new Date(),
-    ...timestampOptions,
+    ...timestampColumnOptions,
   })
   updatedAt = new Date();
 }
