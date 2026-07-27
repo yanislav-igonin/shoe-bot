@@ -86,7 +86,6 @@ export const textTriggerController = async (
     //     data: { isViolatesOpenAiPolicy: true },
     //     where: { id: dialog.id },
     //   });
-    //   model = Model.MistralLarge;
     // }
 
     const completition = await getCompletion(prompt, systemContext, model);

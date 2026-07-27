@@ -1,6 +1,6 @@
 import { type Message } from '@prisma/client';
 import { generateText, type Prompt } from 'ai';
-import { mistral, openai, xai } from 'lib/ai.js';
+import { openai, xai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
 import { logger } from 'lib/logger.js';
 import { replies } from 'lib/replies.js';
@@ -28,7 +28,6 @@ export enum Model {
   Grok4 = 'grok-4',
   Grok43 = 'grok-4.3',
   GrokBeta = 'grok-beta',
-  MistralLarge = 'mistral-large-latest',
 }
 
 const chunkMessage = (message: string) => {
@@ -163,25 +162,10 @@ export const addContext =
     return addUserContext(message, imagesMap);
   };
 
-export const getMistralCompletion = async (
-  prompt: string,
-  context: Array<{ content: string; role: string }> = [],
-  model: Model = Model.MistralLarge,
-) => {
-  const userMessage = { content: prompt, role: 'user' };
-  const messages = [...context, userMessage];
-  const response = await mistral.chat({
-    messages,
-    model,
-  });
-  const text = response.choices[0].message.content;
-  return text.trim();
-};
-
 export const getGrokCompletion = async (
   message: string,
   context: ChatCompletionRequestMessage[] = [],
-  model: Model = Model.MistralLarge,
+  model: Model = Model.Grok3,
 ) => {
   const userMessage = addUserContext(message);
   const messages = [...context, userMessage];
@@ -196,7 +180,7 @@ export const getGrokCompletion = async (
 export const getOpenAiCompletion = async (
   message: string,
   context: OpenAiChatCompletionRequestMessage[] = [],
-  model: Model = Model.MistralLarge,
+  model: Model = Model.Gpt3Turbo,
 ) => {
   const userMessage: OpenAiChatCompletionRequestMessage = {
     content: message,
@@ -216,17 +200,8 @@ export const getCompletion = async (
   context: ChatCompletionRequestMessage[] = [],
   model: Model = Model.Grok3,
 ) => {
-  // if (model === Model.MistralLarge) {
-  //   // @ts-expect-error asdasd
-  //   return await getMistralCompletion(message as string, context, model);
-  // }
-
   const result = await getGrokCompletion(message as string, context, model);
   return chunkMessage(result);
-  // if (model === Model.GrokBeta) {
-  // }
-
-  // return await getOpenAiCompletion(message as string, context, model);
 };
 
 export const understandImage = async (

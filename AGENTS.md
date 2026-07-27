@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**shoe-bot** is a Telegram bot written in TypeScript that provides AI-powered text generation and image generation capabilities. The bot uses multiple AI providers (Grok/xAI, OpenAI, Mistral) and supports subscription-based access control with activation codes.
+**shoe-bot** is a Telegram bot written in TypeScript that provides AI-powered text generation and image generation capabilities. The bot uses Grok/xAI and OpenAI and supports subscription-based access control with activation codes.
 
 The bot is primarily designed for Russian-speaking users (UI strings are in Russian) and responds to trigger words like "ботинок," (shoe) or "блинное," in production, and "бомж," (hobo) in development.
 
@@ -15,7 +15,6 @@ The bot is primarily designed for Russian-speaking users (UI strings are in Russ
 - **AI Providers**:
   - Grok/xAI (primary, via OpenAI-compatible API)
   - OpenAI (GPT-3.5/4 for specific tasks)
-  - Mistral (fallback)
 
 ## Project Structure
 
@@ -38,7 +37,7 @@ shoe-bot/
 │   │       ├── generate.controller.ts
 │   │       └── stats.controller.ts
 │   ├── lib/                  # Shared utilities
-│   │   ├── ai.ts             # AI client instances (OpenAI, Mistral, Grok)
+│   │   ├── ai.ts             # AI client instances (OpenAI, Grok)
 │   │   ├── config.ts         # Environment configuration
 │   │   ├── context.ts        # BotContext type definition
 │   │   ├── database.ts       # Prisma client instance
@@ -104,7 +103,6 @@ Required in `.env` file (see `.env.example`):
 | `BOT_TOKEN` | Telegram Bot API token |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `GROK_API_KEY` | Grok/xAI API key |
-| `MISTRAL_API_KEY` | Mistral AI API key |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `ENV` | `development` or `production` |
 | `ADMINS_USERNAMES` | Comma-separated admin Telegram usernames |

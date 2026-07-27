@@ -343,7 +343,6 @@ export const textController = async (
     // if (hasImages) {
     //   model = Model.Gpt4O;
     // } else if (dialog.isViolatesOpenAiPolicy) {
-    //   model = Model.MistralLarge;
     // } else {
     //   model = await getModelForTask(prompt);
     // }

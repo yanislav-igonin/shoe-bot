@@ -5,7 +5,6 @@ import { describe, it } from 'node:test';
 /* eslint-disable node/no-process-env */
 process.env.BOT_TOKEN = 'test';
 process.env.GROK_API_KEY = 'test';
-process.env.MISTRAL_API_KEY = 'test';
 process.env.OPENAI_API_KEY = 'test';
 /* eslint-enable node/no-process-env */
 

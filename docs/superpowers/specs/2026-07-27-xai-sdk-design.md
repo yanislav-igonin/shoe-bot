@@ -24,7 +24,7 @@ OpenAI API call unchanged.
 ## Design
 
 `src/lib/ai.ts` will own the configured xAI provider alongside the existing
-OpenAI and Mistral clients. `src/lib/prompt.ts` will use AI SDK message types
+OpenAI client. `src/lib/prompt.ts` will use AI SDK message types
 and `generateText` for xAI text calls. Message conversion will retain text and
 image context while removing the OpenAI-specific message shapes.
 
