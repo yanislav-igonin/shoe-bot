@@ -103,7 +103,7 @@ const generateWithXai = async (text: string, model: string) => {
     prompt: text,
     providerOptions: {
       xai: {
-        resolution: '2k',
+        resolution: '1k',
       } satisfies XaiImageModelOptions,
     },
   });
