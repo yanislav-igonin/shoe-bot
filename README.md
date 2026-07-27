@@ -27,7 +27,8 @@ npm run migration:baseline
 
 The baseline command first introspects the connected database and verifies that
 it matches the entity metadata, then records the initial migration without
-executing its DDL.
+executing its DDL. The legacy `_prisma_migrations` table is ignored and left
+untouched.
 
 5. Run bot:
 ```

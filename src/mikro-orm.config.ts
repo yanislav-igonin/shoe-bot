@@ -21,6 +21,9 @@ export const createOrmConfig = (clientUrl?: string) => {
       tableName: 'mikro_orm_migrations',
       transactional: true,
     },
+    schemaGenerator: {
+      skipTables: ['_prisma_migrations'],
+    },
   });
 };
 
