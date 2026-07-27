@@ -1,4 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+/* eslint-disable no-console, node/no-process-env */
+
+import { Setting } from '../entities.js';
+import { createDatabase } from '../lib/database.js';
 import { Together } from 'together-ai';
 
 type BenchmarkModel = {
@@ -252,17 +255,17 @@ const runBenchmark = async () => {
     throw new Error('BOT_TOKEN is not set');
   }
 
-  const database = new PrismaClient();
+  const orm = await createDatabase();
+  const em = orm.em.fork();
   const together = new Together({ apiKey });
   const results: BenchmarkResult[] = [];
+  let modelSetting: Setting | null = null;
   let originalModel: string | undefined;
   let totalFailed = 0;
   let totalSucceeded = 0;
 
   try {
-    const modelSetting = await database.setting.findUnique({
-      where: { key: 'imageModel' },
-    });
+    modelSetting = await em.findOne(Setting, { key: 'imageModel' });
 
     if (!modelSetting) {
       throw new Error('imageModel setting is missing');
@@ -280,10 +283,8 @@ const runBenchmark = async () => {
     );
 
     for (const model of models) {
-      await database.setting.update({
-        data: { value: model.id },
-        where: { key: 'imageModel' },
-      });
+      modelSetting.value = model.id;
+      await em.flush();
       await sendMessageSafely(botToken, `Benchmark model: ${model.id}`);
 
       const modelResults: BenchmarkResult[] = [];
@@ -361,14 +362,12 @@ const runBenchmark = async () => {
     ]);
   } finally {
     try {
-      if (originalModel !== undefined) {
-        await database.setting.update({
-          data: { value: originalModel },
-          where: { key: 'imageModel' },
-        });
+      if (modelSetting && originalModel !== undefined) {
+        modelSetting.value = originalModel;
+        await em.flush();
       }
     } finally {
-      await database.$disconnect();
+      await orm.close(true);
     }
   }
 };

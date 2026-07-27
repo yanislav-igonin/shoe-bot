@@ -11,7 +11,7 @@ The bot is primarily designed for Russian-speaking users (UI strings are in Russ
 - **Runtime**: Node.js 18+
 - **Language**: TypeScript (ES2022, NodeNext modules)
 - **Telegram Framework**: grammY
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: PostgreSQL with MikroORM
 - **AI Providers**:
   - Grok/xAI (primary, via OpenAI-compatible API)
   - OpenAI (GPT-3.5/4 for specific tasks)
@@ -40,17 +40,16 @@ shoe-bot/
 │   │   ├── ai.ts             # AI client instances (OpenAI, Grok)
 │   │   ├── config.ts         # Environment configuration
 │   │   ├── context.ts        # BotContext type definition
-│   │   ├── database.ts       # Prisma client instance
+│   │   ├── database.ts       # MikroORM lifecycle
 │   │   ├── prompt.ts         # AI prompt utilities and completions
 │   │   ├── imageGeneration.ts # Image generation helpers
 │   │   ├── replies.ts        # Bot reply templates
 │   │   ├── logger.ts         # Logging utility
 │   │   ├── values.ts         # Value helpers (valueOrNull, etc.)
 │   │   └── date.ts           # Date utilities
-│   └── repositories/         # Data access layer
-│       └── stats.repository.ts
-├── prisma/
-│   ├── schema.prisma         # Database schema
+│   ├── repositories/         # Data access layer
+│   │   └── stats.repository.ts
+│   ├── entities.ts           # MikroORM entities
 │   └── migrations/           # Database migrations
 ├── .github/workflows/
 │   └── push.yml              # CI: lint + typecheck on push
@@ -83,14 +82,14 @@ npm run start
 # Start PostgreSQL database
 docker compose up
 
-# Push Prisma schema to database
-npx prisma db push
+# Apply migrations
+npm run migration:up
 
-# Generate Prisma client
-npx prisma generate
+# Mark a matching existing database as baselined
+npm run migration:baseline
 
 # Create migration
-npx prisma migrate dev --name <migration_name>
+npx mikro-orm migration:create
 ```
 
 ## Environment Variables

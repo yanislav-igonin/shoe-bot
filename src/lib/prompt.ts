@@ -1,4 +1,4 @@
-import { type Message } from '@prisma/client';
+import { type Message, MessageType } from '../entities.js';
 import { generateText, type Prompt } from 'ai';
 import { openai, xai } from 'lib/ai.js';
 import { config, isProduction } from 'lib/config.js';
@@ -154,7 +154,7 @@ export const addUserContext = (
 
 export const addContext =
   (imagesMap: Record<number, string>) => (message: Message) => {
-    if (message.userId === config.botId) {
+    if (message.user.id === config.botId) {
       return addAssistantContext(message, imagesMap);
     }
 
@@ -344,7 +344,9 @@ const chooseTaskPrompt =
  * @param text User input.
  * @returns Task type.
  */
-export const chooseTask = async (text: string) => {
+export const chooseTask = async (
+  text: string,
+): Promise<MessageType.image | MessageType.text> => {
   const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
   const userMessage = addUserContext(text);
   const messages = [chooseTaskMessage, userMessage];
@@ -355,12 +357,12 @@ export const chooseTask = async (text: string) => {
   });
   const task = response.text;
   try {
-    const parsed = JSON.parse(task ?? '{}') as {
-      task: 'image' | 'text';
-    };
-    return parsed.task;
+    const parsed = JSON.parse(task ?? '{}') as { task?: unknown };
+    return parsed.task === MessageType.image
+      ? MessageType.image
+      : MessageType.text;
   } catch (error) {
     logger.error('Prompt: ChooseTask: Parsing answer from model:', task, error);
-    return 'text';
+    return MessageType.text;
   }
 };

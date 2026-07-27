@@ -1,11 +1,11 @@
-import { MessageType } from '@prisma/client';
+import { Message, MessageType, User } from '../entities.js';
 import { type CommandContext } from 'grammy';
 import { InputFile } from 'grammy';
 import { config } from 'lib/config.js';
 import { type BotContext } from 'lib/context.js';
-import { database } from 'lib/database.js';
 import { generateImage } from 'lib/imageGeneration.js';
 import { logger } from 'lib/logger.js';
+import { runPersistedGeneration } from 'lib/persistedGeneration.js';
 import { getShictureDescription } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
 
@@ -14,7 +14,7 @@ export const shictureController = async (
 ) => {
   const {
     message,
-    state: { user, dialog },
+    state: { dialog, em, user },
   } = context;
 
   if (!message) {
@@ -23,43 +23,49 @@ export const shictureController = async (
 
   const { message_id: messageId } = message;
 
-  const newUserMessage = await database.message.create({
-    data: {
-      dialogId: dialog.id,
-      text: message.text,
-      tgMessageId: messageId.toString(),
-      type: MessageType.image,
-      userId: user.id,
-    },
+  const newUserMessage = em.create(Message, {
+    dialog,
+    text: message.text,
+    tgMessageId: messageId.toString(),
+    type: MessageType.image,
+    user,
   });
 
-  let prompt = '';
   try {
     await context.replyWithChatAction('upload_photo');
-    prompt = await getShictureDescription();
-    const image = await generateImage(prompt);
-    if (!image) {
-      logger.error('Failed to generate image');
-      throw new Error('Failed to generate image');
-    }
+    await runPersistedGeneration({
+      generate: async () => {
+        const prompt = await getShictureDescription();
+        const image = await generateImage(em, prompt);
+        if (!image) {
+          logger.error('Failed to generate image');
+          throw new Error('Failed to generate image');
+        }
 
-    const source = typeof image === 'string' ? new URL(image) : image;
-    const file = new InputFile(source, 'image.png');
-    const botReply = await context.replyWithPhoto(file, {
-      caption: prompt,
-      reply_to_message_id: messageId,
-    });
-    const botMessageId = botReply.message_id.toString();
-    const botFileId = botReply.photo[botReply.photo.length - 1].file_id;
-    await database.message.create({
-      data: {
-        dialogId: dialog.id,
-        replyToId: newUserMessage.id,
-        text: prompt,
-        tgMessageId: botMessageId,
-        tgPhotoId: botFileId,
-        type: MessageType.image,
-        userId: config.botId,
+        return { image, prompt };
+      },
+      persistRequest: async () => {
+        em.persist(newUserMessage);
+        await em.flush();
+      },
+      persistResponse: async ({ image, prompt }) => {
+        const source = typeof image === 'string' ? new URL(image) : image;
+        const file = new InputFile(source, 'image.png');
+        const botReply = await context.replyWithPhoto(file, {
+          caption: prompt,
+          reply_to_message_id: messageId,
+        });
+        const botMessage = em.create(Message, {
+          dialog,
+          replyTo: newUserMessage,
+          text: prompt,
+          tgMessageId: botReply.message_id.toString(),
+          tgPhotoId: botReply.photo[botReply.photo.length - 1].file_id,
+          type: MessageType.image,
+          user: em.getReference(User, config.botId),
+        });
+        em.persist(botMessage);
+        await em.flush();
       },
     });
   } catch (error) {

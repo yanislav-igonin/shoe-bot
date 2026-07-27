@@ -1,4 +1,4 @@
-import { type Message, MessageType } from '@prisma/client';
+import { Message, MessageType, User } from '../entities.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -8,18 +8,18 @@ process.env.OPENAI_API_KEY = 'test';
 
 const { addUserContext } = await import('lib/prompt.js');
 
-const message: Message = {
-  createdAt: new Date(0),
-  dialogId: 1,
-  id: 1,
-  replyToId: null,
-  text: 'describe this',
-  tgMessageId: '1',
-  tgPhotoId: 'photo-id',
-  tgVoiceId: null,
-  type: MessageType.image,
-  userId: 1,
-};
+const user = new User();
+user.id = 1;
+user.tgId = '1';
+
+const message = new Message();
+message.createdAt = new Date(0);
+message.id = 1;
+message.text = 'describe this';
+message.tgMessageId = '1';
+message.tgPhotoId = 'photo-id';
+message.type = MessageType.image;
+message.user = user;
 
 describe('addUserContext', () => {
   it('converts a Telegram image message to AI SDK content', () => {

@@ -1,5 +1,5 @@
-import { Prisma } from '@prisma/client';
-import { database } from 'lib/database.js';
+import { MessageType } from '../entities.js';
+import { type EntityManager } from '@mikro-orm/postgresql';
 import { MONTH_MS } from 'lib/date.js';
 
 type PromptsCountResult = {
@@ -9,11 +9,17 @@ type PromptsCountResult = {
   userId: string;
   username: string;
 };
-export const getTextMessagesCountForLastMonthGroupedByUser = async () => {
+
+const getMessagesCountForLastMonthGroupedByUser = async (
+  em: EntityManager,
+  type: MessageType,
+) => {
   const minusMonth = new Date(Date.now() - MONTH_MS);
-  const query = Prisma.sql`
-    SELECT 
-      COUNT(m.id) as "messagesCount",
+
+  return await em.getConnection().execute<PromptsCountResult[]>(
+    `
+    SELECT
+      COUNT(m.id)::int AS "messagesCount",
       u.username,
       u."firstName",
       u."lastName",
@@ -21,56 +27,24 @@ export const getTextMessagesCountForLastMonthGroupedByUser = async () => {
     FROM messages m
     LEFT JOIN users u
       ON m."userId" = u.id
-    WHERE m."createdAt" > ${minusMonth}
-      AND m.type = 'text'
+    WHERE m."createdAt" > ?
+      AND m.type = ?
       AND u.id != 0
     GROUP BY m."userId", u.username, u."firstName", u."lastName"
     ORDER BY "messagesCount" DESC
-  `;
-  const result = await database.$queryRaw<PromptsCountResult[]>(query);
-  return result;
+    `,
+    [minusMonth, type],
+  );
 };
 
-export const getImageMessagesCountForLastMonthGroupedByUser = async () => {
-  const minusMonth = new Date(Date.now() - MONTH_MS);
-  const query = Prisma.sql`
-    SELECT 
-      COUNT(m.id) as "messagesCount",
-      u.username,
-      u."firstName",
-      u."lastName",
-      m."userId"
-    FROM messages m
-    LEFT JOIN users u
-      ON m."userId" = u.id
-    WHERE m."createdAt" > ${minusMonth}
-      AND m.type = 'image'
-      AND u.id != 0
-    GROUP BY m."userId", u.username, u."firstName", u."lastName"
-    ORDER BY "messagesCount" DESC
-  `;
-  const result = await database.$queryRaw<PromptsCountResult[]>(query);
-  return result;
-};
+export const getTextMessagesCountForLastMonthGroupedByUser = async (
+  em: EntityManager,
+) => await getMessagesCountForLastMonthGroupedByUser(em, MessageType.text);
 
-export const getVoiceMessagesCountForLastMonthGroupedByUser = async () => {
-  const minusMonth = new Date(Date.now() - MONTH_MS);
-  const query = Prisma.sql`
-    SELECT 
-      COUNT(m.id) as "messagesCount",
-      u.username,
-      u."firstName",
-      u."lastName",
-      m."userId"
-    FROM messages m
-    LEFT JOIN users u
-      ON m."userId" = u.id
-    WHERE m."createdAt" > ${minusMonth}
-      AND m.type = 'voice'
-      AND u.id != 0
-    GROUP BY m."userId", u.username, u."firstName", u."lastName"
-    ORDER BY "messagesCount" DESC
-  `;
-  const result = await database.$queryRaw<PromptsCountResult[]>(query);
-  return result;
-};
+export const getImageMessagesCountForLastMonthGroupedByUser = async (
+  em: EntityManager,
+) => await getMessagesCountForLastMonthGroupedByUser(em, MessageType.image);
+
+export const getVoiceMessagesCountForLastMonthGroupedByUser = async (
+  em: EntityManager,
+) => await getMessagesCountForLastMonthGroupedByUser(em, MessageType.voice);

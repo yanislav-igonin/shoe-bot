@@ -1,8 +1,9 @@
+import { Setting } from '../entities.js';
 import { type XaiImageModelOptions } from '@ai-sdk/xai';
+import { type EntityManager } from '@mikro-orm/postgresql';
 import { type GeneratedFile, generateImage as generateAiImage } from 'ai';
 import { xai } from 'lib/ai.js';
 import { config } from 'lib/config.js';
-import { database } from 'lib/database.js';
 import { Together } from 'together-ai';
 
 type ImageProvider = 'togetherai' | 'xai';
@@ -86,9 +87,10 @@ export const getGeneratedImageData = (
   return image.uint8Array;
 };
 
-const loadImageGenerationSettings = async () => {
-  const rows = await database.setting.findMany({
-    where: { key: { in: IMAGE_SETTING_KEYS } },
+const loadImageGenerationSettings = async (em: EntityManager) => {
+  // eslint-disable-next-line unicorn/no-array-method-this-argument
+  const rows = await em.find(Setting, {
+    key: { $in: IMAGE_SETTING_KEYS },
   });
 
   return parseImageGenerationSettings(rows);
@@ -101,7 +103,7 @@ const generateWithXai = async (text: string, model: string) => {
     prompt: text,
     providerOptions: {
       xai: {
-        resolution: '2k',
+        resolution: '1k',
       } satisfies XaiImageModelOptions,
     },
   });
@@ -123,8 +125,8 @@ const generateWithTogether = async (text: string, model: string) => {
   return getGeneratedImageUrl(response);
 };
 
-export const generateImage = async (text: string) => {
-  const { model, provider } = await loadImageGenerationSettings();
+export const generateImage = async (em: EntityManager, text: string) => {
+  const { model, provider } = await loadImageGenerationSettings(em);
 
   switch (provider) {
     case 'togetherai':
