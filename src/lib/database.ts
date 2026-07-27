@@ -1,6 +1,5 @@
 import { createOrmConfig } from '../mikro-orm.config.js';
 import { MikroORM } from '@mikro-orm/postgresql';
-import { PrismaClient } from '@prisma/client';
 
 export const createDatabase = async (clientUrl?: string): Promise<MikroORM> =>
   await MikroORM.init({
@@ -8,9 +7,6 @@ export const createDatabase = async (clientUrl?: string): Promise<MikroORM> =>
   });
 
 let orm: MikroORM | undefined;
-
-// Removed after all data-access consumers migrate to MikroORM.
-export const database = new PrismaClient();
 
 export const getOrm = () => {
   if (!orm) {

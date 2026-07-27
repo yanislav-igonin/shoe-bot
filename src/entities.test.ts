@@ -48,7 +48,7 @@ describe('MikroORM entity metadata', () => {
     ]);
   });
 
-  it('keeps Prisma-compatible relation column names', async () => {
+  it('keeps the existing relation column names', async () => {
     const orm = new MikroORM({
       clientUrl: 'postgresql://postgres:postgres@localhost/shoe_bot_metadata',
       entities,

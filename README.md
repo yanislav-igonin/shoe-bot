@@ -3,7 +3,7 @@
 # Stack
 - Typescript
 - grammY
-- Prisma
+- MikroORM
 
 # Run
 1. Install dependencies:
@@ -15,9 +15,9 @@ npm install
 ```
 docker compose up
 ```
-4. Push database schema:
+4. Apply database migrations:
 ```
-npx prisma db push
+npm run migration:up
 ```
 5. Run bot:
 ```

@@ -78,14 +78,7 @@ export const textTriggerController = async (
 
   const textController = async () => {
     await context.replyWithChatAction('typing');
-    // let model = await getModelForTask(prompt);
     const model = MAIN_MODEL;
-    // if (model === Model.Gpt4) {
-    //   await database.dialog.update({
-    //     data: { isViolatesOpenAiPolicy: true },
-    //     where: { id: dialog.id },
-    //   });
-    // }
 
     const completition = await getCompletion(prompt, systemContext, model);
     const botUser = em.getReference(User, config.botId);
