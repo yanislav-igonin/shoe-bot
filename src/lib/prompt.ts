@@ -277,7 +277,7 @@ export const getShictureDescription = async () => {
 		description += " в стиле ";
 	}
 
-	const withStyle = description + " " + getShictureStyle();
+	const withStyle = `${description} ${getShictureStyle()}`;
 	return withStyle;
 };
 
@@ -305,7 +305,7 @@ export const getModelForTask = async (task: string) => {
 			role: "system",
 		},
 		{
-			content: "```\n" + task + "```\n",
+			content: `\`\`\`\n${task}\`\`\`\n`,
 			role: "user",
 		},
 	];

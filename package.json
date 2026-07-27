@@ -13,7 +13,7 @@
   "scripts": {
     "benchmark:images": "tsx -r dotenv/config src/scripts/image-generation-benchmark.ts",
     "dev": "nodemon --watch 'src/**/*.*' --exec 'tsx -r dotenv/config -r tsconfig-paths/register src/index.ts'",
-    "lint": "biome check --write src",
+    "lint": "biome check --write --unsafe src",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
