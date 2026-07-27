@@ -20,8 +20,8 @@ import { logger } from 'lib/logger.js';
 import { textTriggerRegexp } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
 import { classifyRequest } from 'lib/requestAccess.js';
+import { isSubscriptionActive } from 'lib/subscription.js';
 import { valueOrNull } from 'lib/values.js';
-import { DateTime } from 'luxon';
 
 /**
  * Makes state object inside the context to store some shit across the request.
@@ -309,10 +309,7 @@ export const allowedMiddleware = async (
 
   const { em, user } = context.state;
   const { allowedTill } = user;
-  const subscriptionIsActive =
-    allowedTill !== null &&
-    DateTime.now().toUTC() <
-      DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
+  const subscriptionIsActive = isSubscriptionActive(allowedTill);
   const isAdmin = config.adminsUsernames.includes(user.username ?? '');
 
   if (subscriptionIsActive || isAdmin) {

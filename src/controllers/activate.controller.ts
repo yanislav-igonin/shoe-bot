@@ -2,21 +2,7 @@ import { ActivationCode } from '../entities.js';
 import { type CommandContext } from 'grammy';
 import { type BotContext } from 'lib/context.js';
 import { replies } from 'lib/replies.js';
-import { DateTime } from 'luxon';
-
-const getNewAllowedTill = (userAllowedTill: Date | null) => {
-  const now = DateTime.now().toUTC();
-  if (!userAllowedTill) {
-    return now.plus({ month: 1 }).toJSDate();
-  }
-
-  const subscriptionIsExpired = now > DateTime.fromJSDate(userAllowedTill);
-  if (subscriptionIsExpired) {
-    return now.plus({ month: 1 }).toJSDate();
-  }
-
-  return DateTime.fromJSDate(userAllowedTill).plus({ month: 1 }).toJSDate();
-};
+import { formatAllowedTill, getNewAllowedTill } from 'lib/subscription.js';
 
 export const activateController = async (
   context: CommandContext<BotContext>,
@@ -41,8 +27,7 @@ export const activateController = async (
   activationCode.usedByUser = user;
   await em.flush();
 
-  const beutifiedNewAllowedTill =
-    DateTime.fromJSDate(newAllowedTill).toFormat('dd.MM.yyyy');
+  const beutifiedNewAllowedTill = formatAllowedTill(newAllowedTill);
   await context.reply(replies.activationSuccess(beutifiedNewAllowedTill), {
     reply_to_message_id: context.message?.message_id,
   });

@@ -1,3 +1,4 @@
+import { User } from '../entities.js';
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
@@ -41,6 +42,39 @@ describe('MikroORM baseline migration', { skip: !testDatabaseUrl }, () => {
            FROM pg_constraint
            WHERE conname = 'daily_request_usages_used_check'`,
         );
+      const enumValues = await orm.em
+        .getConnection()
+        .execute<Array<{ enumlabel: string; typname: string }>>(
+          `SELECT type.typname, enum.enumlabel
+           FROM pg_enum enum
+           JOIN pg_type type ON type.oid = enum.enumtypid
+           WHERE type.typname IN ('ChatType', 'MessageType')
+           ORDER BY type.typname, enum.enumsortorder`,
+        );
+      const indexes = await orm.em
+        .getConnection()
+        .execute<Array<{ indexname: string }>>(
+          `SELECT indexname
+           FROM pg_indexes
+           WHERE schemaname = 'public'
+             AND indexname IN (
+               'activation_codes_code_key',
+               'daily_request_usages_userId_date_key',
+               'new_users_tgId_key',
+               'user_settings_userId_key'
+             )
+           ORDER BY indexname`,
+        );
+      const seedCounts = await orm.em
+        .getConnection()
+        .execute<
+          Array<{ botRoles: number; botUsers: number; settings: number }>
+        >(
+          `SELECT
+             (SELECT COUNT(*)::int FROM "bot_roles") AS "botRoles",
+             (SELECT COUNT(*)::int FROM "users" WHERE id = 0) AS "botUsers",
+             (SELECT COUNT(*)::int FROM "settings") AS "settings"`,
+        );
 
       assert.deepEqual(
         tables.map(({ table_name: tableName }) => tableName),
@@ -57,6 +91,25 @@ describe('MikroORM baseline migration', { skip: !testDatabaseUrl }, () => {
         ],
       );
       assert.equal(constraints.length, 1);
+      assert.deepEqual(enumValues, [
+        { enumlabel: 'private', typname: 'ChatType' },
+        { enumlabel: 'group', typname: 'ChatType' },
+        { enumlabel: 'supergroup', typname: 'ChatType' },
+        { enumlabel: 'channel', typname: 'ChatType' },
+        { enumlabel: 'text', typname: 'MessageType' },
+        { enumlabel: 'image', typname: 'MessageType' },
+        { enumlabel: 'voice', typname: 'MessageType' },
+      ]);
+      assert.deepEqual(
+        indexes.map(({ indexname }) => indexname),
+        [
+          'activation_codes_code_key',
+          'daily_request_usages_userId_date_key',
+          'new_users_tgId_key',
+          'user_settings_userId_key',
+        ],
+      );
+      assert.deepEqual(seedCounts, [{ botRoles: 2, botUsers: 1, settings: 2 }]);
     } finally {
       await orm.close(true);
     }
@@ -83,10 +136,12 @@ describe('MikroORM baseline migration', { skip: !testDatabaseUrl }, () => {
       const [{ id: userId }] = await orm.em
         .getConnection()
         .execute<Array<{ id: number }>>(
-          `INSERT INTO "users" ("tgId")
-           VALUES ('quota-test-user')
+          `INSERT INTO "users" ("tgId", "allowedTill")
+           VALUES ('quota-test-user', '2030-01-02')
            RETURNING "id"`,
         );
+      const hydratedUser = await orm.em.fork().findOneOrFail(User, userId);
+      assert.equal(hydratedUser.allowedTill, '2030-01-02');
       const reservations = await Promise.all([
         reserveDailyRequest(orm.em.fork(), userId),
         reserveDailyRequest(orm.em.fork(), userId),

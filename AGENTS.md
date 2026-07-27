@@ -86,6 +86,9 @@ docker compose up
 # Apply migrations
 npm run migration:up
 
+# Mark a matching existing database as baselined
+npm run migration:baseline
+
 # Create migration
 npx mikro-orm migration:create
 ```

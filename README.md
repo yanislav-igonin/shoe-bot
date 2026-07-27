@@ -19,6 +19,15 @@ docker compose up
 ```
 npm run migration:up
 ```
+
+For an existing database that already matches the baseline schema:
+```
+npm run migration:baseline
+```
+
+The baseline command first verifies that entity metadata matches the database,
+then records the initial migration without executing its DDL.
+
 5. Run bot:
 ```
 npm run dev

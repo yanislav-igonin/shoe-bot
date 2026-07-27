@@ -90,7 +90,7 @@ export class User {
     nullable: true,
     type: 'Date',
   })
-  allowedTill: Date | null = null;
+  allowedTill: string | null = null;
 
   @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
