@@ -36,7 +36,7 @@ export const shictureController = async (
     await runPersistedGeneration({
       generate: async () => {
         const prompt = await getShictureDescription();
-        const image = await generateImage(prompt);
+        const image = await generateImage(em, prompt);
         if (!image) {
           logger.error('Failed to generate image');
           throw new Error('Failed to generate image');

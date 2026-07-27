@@ -112,7 +112,7 @@ const generateBetterImageController = async (
             'Результат должен быть новым четким описанием того, что попросили изменить.',
           ),
         ]);
-        const image = await generateImage(upgradedContext[0]);
+        const image = await generateImage(em, upgradedContext[0]);
         if (!image) {
           logger.error('Failed to generate image');
           throw new Error('Failed to generate image');

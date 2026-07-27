@@ -307,7 +307,7 @@ export const allowedMiddleware = async (
     return;
   }
 
-  const { user } = context.state;
+  const { em, user } = context.state;
   const { allowedTill } = user;
   const subscriptionIsActive =
     allowedTill !== null &&
@@ -321,7 +321,7 @@ export const allowedMiddleware = async (
     return;
   }
 
-  const usage = await reserveDailyRequest(user.id);
+  const usage = await reserveDailyRequest(em, user.id);
   if (usage === null) {
     await context.reply(replies.dailyQuotaExhausted, {
       reply_to_message_id: context.message?.message_id,
@@ -334,7 +334,7 @@ export const allowedMiddleware = async (
     await next();
   } catch (error) {
     try {
-      await refundDailyRequest(user.id);
+      await refundDailyRequest(em, user.id);
     } catch (refundError) {
       logger.error(refundError);
     }

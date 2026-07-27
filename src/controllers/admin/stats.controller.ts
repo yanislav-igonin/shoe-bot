@@ -4,9 +4,9 @@ import { stats as statsRepo } from 'repositories/index.js';
 
 export const statsController = async (context: CommandContext<BotContext>) => {
   const [texts, photos, voices] = await Promise.all([
-    statsRepo.getTextMessagesCountForLastMonthGroupedByUser(),
-    statsRepo.getImageMessagesCountForLastMonthGroupedByUser(),
-    statsRepo.getVoiceMessagesCountForLastMonthGroupedByUser(),
+    statsRepo.getTextMessagesCountForLastMonthGroupedByUser(context.state.em),
+    statsRepo.getImageMessagesCountForLastMonthGroupedByUser(context.state.em),
+    statsRepo.getVoiceMessagesCountForLastMonthGroupedByUser(context.state.em),
   ]);
 
   let text = 'Статистика за последний месяц:\n\n**Текст:**\n\n';
