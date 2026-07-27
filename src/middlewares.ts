@@ -1,9 +1,9 @@
 import { config } from './lib/config.js';
 import { database } from './lib/database.js';
 import {
-  type NewChat,
-  type NewDialog,
-  type NewUser,
+  type Chat,
+  type Dialog,
+  type User,
   type UserSettings,
 } from '@prisma/client';
 import { type NextFunction } from 'grammy';
@@ -46,12 +46,12 @@ export const chatMiddleware = async (
     return;
   }
 
-  const chat = await database.newChat.findFirst({
+  const chat = await database.chat.findFirst({
     where: { tgId: chatId.toString() },
   });
   if (chat) {
     const newName = (context.chat as TelegramChat.GroupChat).title ?? 'user';
-    await database.newChat.update({
+    await database.chat.update({
       data: { name: newName },
       where: { id: chat.id },
     });
@@ -63,12 +63,12 @@ export const chatMiddleware = async (
   }
 
   const name = (context.chat as TelegramChat.GroupChat).title ?? 'user';
-  const toCreate: Omit<NewChat, 'createdAt' | 'id'> = {
+  const toCreate: Omit<Chat, 'createdAt' | 'id'> = {
     name,
     tgId: chatId.toString(),
     type: context.chat?.type,
   };
-  const newChat = await database.newChat.create({ data: toCreate });
+  const newChat = await database.chat.create({ data: toCreate });
   // eslint-disable-next-line require-atomic-updates
   context.state.chat = newChat;
 
@@ -88,11 +88,11 @@ export const dialogMiddleware = async (
 
   const { reply_to_message: replyToMessage } = message;
   const { chat } = context.state;
-  let newDialog: NewDialog;
+  let newDialog: Dialog;
 
   // If its a new dialog
   if (!replyToMessage) {
-    newDialog = await database.newDialog.create({
+    newDialog = await database.dialog.create({
       data: {
         chatId: chat.id,
       },
@@ -107,7 +107,7 @@ export const dialogMiddleware = async (
   const replyOnBotMessage =
     replyToMessage.from?.is_bot && replyToMessage.from.id === context.me.id;
   if (!replyOnBotMessage) {
-    newDialog = await database.newDialog.create({
+    newDialog = await database.dialog.create({
       data: {
         chatId: chat.id,
       },
@@ -134,11 +134,11 @@ export const dialogMiddleware = async (
     throw error;
   }
 
-  const dialog = await database.newDialog.findFirst({
+  const dialog = await database.dialog.findFirst({
     where: { id: previousMessage?.dialogId ?? undefined },
   });
   if (!dialog) {
-    newDialog = await database.newDialog.create({
+    newDialog = await database.dialog.create({
       data: {
         chatId: chat.id,
       },
@@ -173,11 +173,11 @@ export const userMiddleware = async (
 
   const { id: tgUserId } = user;
 
-  const databaseUser = await database.newUser.findFirst({
+  const databaseUser = await database.user.findFirst({
     where: { tgId: tgUserId.toString() },
   });
   if (databaseUser) {
-    await database.newUser.update({
+    await database.user.update({
       data: {
         firstName: valueOrNull(user.first_name),
         languageCode: valueOrNull(user.language_code),
@@ -200,18 +200,16 @@ export const userMiddleware = async (
     username,
   } = user;
 
-  const toCreate: Omit<
-    NewUser,
-    'allowedTill' | 'createdAt' | 'id' | 'isAllowed'
-  > = {
-    firstName: valueOrNull(firstName),
-    languageCode: valueOrNull(language),
-    lastName: valueOrNull(lastName),
-    tgId: tgUserId.toString(),
-    username: valueOrNull(username),
-  };
+  const toCreate: Omit<User, 'allowedTill' | 'createdAt' | 'id' | 'isAllowed'> =
+    {
+      firstName: valueOrNull(firstName),
+      languageCode: valueOrNull(language),
+      lastName: valueOrNull(lastName),
+      tgId: tgUserId.toString(),
+      username: valueOrNull(username),
+    };
 
-  const newUser = await database.newUser.create({ data: toCreate });
+  const newUser = await database.user.create({ data: toCreate });
   // eslint-disable-next-line require-atomic-updates
   context.state.user = newUser;
 

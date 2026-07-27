@@ -9,7 +9,7 @@ user, chat, and dialog names without losing data.
 Rename Prisma models/client delegates in place, then use PostgreSQL
 `ALTER TABLE ... RENAME TO` statements so rows and relationships survive.
 
-**Tech Stack:** TypeScript 4.9, Prisma ORM 4, PostgreSQL, Node test runner
+**Tech Stack:** TypeScript 4.9, Prisma ORM 4, PostgreSQL
 
 ## Global Constraints
 
@@ -23,7 +23,6 @@ Rename Prisma models/client delegates in place, then use PostgreSQL
 ### Task 1: Rename Prisma models
 
 **Files:**
-- Create: `src/lib/databaseNaming.test.ts`
 - Modify: `prisma/schema.prisma`
 
 **Interfaces:**
@@ -31,46 +30,24 @@ Rename Prisma models/client delegates in place, then use PostgreSQL
 - Produces: Prisma models `User`, `Chat`, and `Dialog`, mapped to `users`,
   `chats`, and `dialogs`
 
-- [ ] **Step 1: Write the failing schema test**
-
-```typescript
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
-
-const schema = readFileSync('prisma/schema.prisma', 'utf8');
-
-test('uses final user, chat, and dialog model names', () => {
-  assert.match(schema, /model User \{/u);
-  assert.match(schema, /model Chat \{/u);
-  assert.match(schema, /model Dialog \{/u);
-  assert.match(schema, /@@map\("users"\)/u);
-  assert.match(schema, /@@map\("chats"\)/u);
-  assert.match(schema, /@@map\("dialogs"\)/u);
-
-  assert.doesNotMatch(schema, /\bNew(?:User|Chat|Dialog)\b/u);
-  assert.doesNotMatch(schema, /@@map\("new_(?:users|chats|dialogs)"\)/u);
-});
-```
-
-- [ ] **Step 2: Run the test and verify RED**
-
-Run: `node --import tsx --test src/lib/databaseNaming.test.ts`
-
-Expected: FAIL because the schema still contains `model NewUser`.
-
-- [ ] **Step 3: Rename models and table mappings**
+- [ ] **Step 1: Rename models and table mappings**
 
 Change all schema relations to `User`, `Chat`, and `Dialog`, and map those
 models to `users`, `chats`, and `dialogs`.
 
-- [ ] **Step 4: Generate Prisma Client and verify schema test GREEN**
+- [ ] **Step 2: Format, validate, and generate Prisma Client**
 
 Run: `npx prisma format && npx prisma validate && npx prisma generate`
 
-Run: `node --import tsx --test src/lib/databaseNaming.test.ts`
+Expected: all Prisma commands exit 0.
 
-Expected: Prisma commands and test exit 0.
+- [ ] **Step 3: Verify the generated-client boundary is RED**
+
+Run: `npm run typecheck`
+
+Expected: FAIL on removed `New*` imports and `database.new*` delegates. This
+is the behavior boundary for the declarative schema change; a test that
+greps Prisma source text would only duplicate the implementation.
 
 ### Task 2: Rename TypeScript client references
 
@@ -88,19 +65,13 @@ Expected: Prisma commands and test exit 0.
 - Produces: application code with no `NewUser`, `NewChat`, `NewDialog`,
   `database.newUser`, `database.newChat`, or `database.newDialog` references
 
-- [ ] **Step 1: Verify generated-client typecheck RED**
-
-Run: `npm run typecheck`
-
-Expected: FAIL on removed `New*` imports and `database.new*` delegates.
-
-- [ ] **Step 2: Update active and commented TypeScript references**
+- [ ] **Step 1: Update active and commented TypeScript references**
 
 Replace Prisma types with `User`, `Chat`, and `Dialog`. Replace client
 delegates with `database.user`, `database.chat`, and `database.dialog`.
 Update matching project documentation names.
 
-- [ ] **Step 3: Verify typecheck GREEN**
+- [ ] **Step 2: Verify typecheck GREEN**
 
 Run: `npm run typecheck`
 
@@ -109,7 +80,6 @@ Expected: exit 0.
 ### Task 3: Add the data-preserving migration
 
 **Files:**
-- Modify: `src/lib/databaseNaming.test.ts`
 - Create:
   `prisma/migrations/20260727000000_rename_new_tables/migration.sql`
 
@@ -117,42 +87,17 @@ Expected: exit 0.
 - Consumes: PostgreSQL tables `new_users`, `new_chats`, and `new_dialogs`
 - Produces: PostgreSQL tables `users`, `chats`, and `dialogs`
 
-- [ ] **Step 1: Add a failing migration-content test**
-
-Read the migration file in a new test and assert exact SQL:
-
-```typescript
-test('renames tables without recreating them', () => {
-  const migration = readFileSync(
-    'prisma/migrations/20260727000000_rename_new_tables/migration.sql',
-    'utf8',
-  );
-
-  assert.equal(
-    migration,
-    `ALTER TABLE "new_users" RENAME TO "users";
-ALTER TABLE "new_chats" RENAME TO "chats";
-ALTER TABLE "new_dialogs" RENAME TO "dialogs";
-`,
-  );
-});
-```
-
-- [ ] **Step 2: Run the test and verify RED**
-
-Run: `node --import tsx --test src/lib/databaseNaming.test.ts`
-
-Expected: FAIL because the migration file does not exist.
-
-- [ ] **Step 3: Add the three rename statements**
+- [ ] **Step 1: Add the three rename statements**
 
 Create the migration containing only the three `ALTER TABLE` statements.
 
-- [ ] **Step 4: Run the test and verify GREEN**
+- [ ] **Step 2: Verify migration scope**
 
-Run: `node --import tsx --test src/lib/databaseNaming.test.ts`
+Run:
+`git diff -- prisma/migrations/20260727000000_rename_new_tables/migration.sql`
 
-Expected: both tests pass.
+Expected: exactly three `ALTER TABLE ... RENAME TO` statements and no
+drop/create/data-copy statements.
 
 ### Task 4: Verify and commit
 

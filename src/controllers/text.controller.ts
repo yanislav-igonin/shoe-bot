@@ -184,11 +184,11 @@ export const textController = async (
   //     throw new Error('User replied on is undefined');
   //   }
 
-  //   let userToAnswer = await database.newUser.findFirst({
+  //   let userToAnswer = await database.user.findFirst({
   //     where: { tgId: replyToMessage.from?.id.toString() },
   //   });
   //   if (!userToAnswer) {
-  //     userToAnswer = await database.newUser.create({
+  //     userToAnswer = await database.user.create({
   //       data: {
   //         firstName: valueOrNull(tgUserToAnswer.first_name),
   //         languageCode: valueOrNull(tgUserToAnswer.language_code),

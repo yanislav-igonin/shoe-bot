@@ -136,7 +136,7 @@ Required in `.env` file (see `.env.example`):
 
 - Controllers: `<name>.controller.ts`
 - Middlewares: `<name>Middleware` functions in `middlewares.ts`
-- Database models: PascalCase (e.g., `NewUser`, `NewChat`, `NewDialog`)
+- Database models: PascalCase (e.g., `User`, `Chat`, `Dialog`)
 
 ## Architecture Patterns
 
@@ -155,9 +155,9 @@ The bot uses grammY middlewares in this order:
 The `BotContext` extends grammY's Context with:
 ```typescript
 state: {
-  chat: NewChat;
-  dialog: NewDialog;
-  user: NewUser;
+  chat: Chat;
+  dialog: Dialog;
+  user: User;
   userSettings: UserSettings;
 }
 ```
@@ -174,9 +174,9 @@ state: {
 
 ### Database Models
 
-- **NewUser** - Telegram users with subscription status
-- **NewChat** - Telegram chats (private/group/supergroup)
-- **NewDialog** - Conversation sessions within chats
+- **User** - Telegram users with subscription status
+- **Chat** - Telegram chats (private/group/supergroup)
+- **Dialog** - Conversation sessions within chats
 - **Message** - Individual messages (text/image/voice)
 - **ActivationCode** - Subscription activation codes
 - **BotRole** - Customizable bot personalities

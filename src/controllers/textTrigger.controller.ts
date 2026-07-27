@@ -82,7 +82,7 @@ export const textTriggerController = async (
     // let model = await getModelForTask(prompt);
     const model = MAIN_MODEL;
     // if (model === Model.Gpt4) {
-    //   await database.newDialog.update({
+    //   await database.dialog.update({
     //     data: { isViolatesOpenAiPolicy: true },
     //     where: { id: dialog.id },
     //   });
