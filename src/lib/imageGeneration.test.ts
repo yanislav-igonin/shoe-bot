@@ -4,16 +4,17 @@ import { describe, it } from 'node:test';
 /* eslint-disable node/no-process-env */
 process.env.BOT_TOKEN = 'test';
 process.env.GROK_API_KEY = 'test';
-process.env.MISTRAL_API_KEY = 'test';
 process.env.OPENAI_API_KEY = 'test';
 process.env.TOGETHER_API_KEY = 'test';
 /* eslint-enable node/no-process-env */
 
+const imageGeneration = await import('lib/imageGeneration.js');
 const {
+  getGeneratedImageData,
   getGeneratedImageUrl,
   parseImageGenerationSettings,
   requireTogetherApiKey,
-} = await import('lib/imageGeneration.js');
+} = imageGeneration;
 
 describe('requireTogetherApiKey', () => {
   it('returns a configured key', () => {
@@ -132,5 +133,20 @@ describe('getGeneratedImageUrl', () => {
     const imageUrl = getGeneratedImageUrl({ data: [{ url: 'not-a-url' }] });
 
     assert.equal(imageUrl, undefined);
+  });
+});
+
+describe('getGeneratedImageData', () => {
+  it('returns generated image bytes', () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+
+    assert.deepEqual(getGeneratedImageData({ uint8Array: bytes }), bytes);
+  });
+
+  it('returns undefined for an empty generated image', () => {
+    assert.equal(
+      getGeneratedImageData({ uint8Array: new Uint8Array() }),
+      undefined,
+    );
   });
 });

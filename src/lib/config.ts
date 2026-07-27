@@ -8,10 +8,6 @@ export const config = {
   env: valueOrDefault(process.env.ENV, 'development'),
   grokApiKey: valueOrThrow(process.env.GROK_API_KEY, 'GROK_API_KEY is not set'),
   grokApiUrl: 'https://api.x.ai/v1',
-  mistralApiKey: valueOrThrow(
-    process.env.MISTRAL_API_KEY,
-    'MISTRAL_API_KEY is not set',
-  ),
   openAiApiKey: valueOrThrow(
     process.env.OPENAI_API_KEY,
     'OPENAI_API_KEY is not set',

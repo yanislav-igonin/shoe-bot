@@ -1,4 +1,6 @@
-import { grok } from 'lib/ai.js';
+import { type XaiImageModelOptions } from '@ai-sdk/xai';
+import { type GeneratedFile, generateImage as generateAiImage } from 'ai';
+import { xai } from 'lib/ai.js';
 import { config } from 'lib/config.js';
 import { database } from 'lib/database.js';
 import { Together } from 'together-ai';
@@ -74,6 +76,16 @@ export const getGeneratedImageUrl = (response: GeneratedImageResponse) => {
   }
 };
 
+export const getGeneratedImageData = (
+  image: Pick<GeneratedFile, 'uint8Array'>,
+) => {
+  if (image.uint8Array.length === 0) {
+    return undefined;
+  }
+
+  return image.uint8Array;
+};
+
 const loadImageGenerationSettings = async () => {
   const rows = await database.setting.findMany({
     where: { key: { in: IMAGE_SETTING_KEYS } },
@@ -83,15 +95,18 @@ const loadImageGenerationSettings = async () => {
 };
 
 const generateWithXai = async (text: string, model: string) => {
-  const response = await grok.images.generate({
-    // @ts-expect-error xAI image parameters are not in OpenAI SDK types
-    aspect_ratio: '16:9',
-    model,
+  const { image } = await generateAiImage({
+    aspectRatio: '16:9',
+    model: xai.image(model),
     prompt: text,
-    resolution: '2k',
+    providerOptions: {
+      xai: {
+        resolution: '2k',
+      } satisfies XaiImageModelOptions,
+    },
   });
 
-  return getGeneratedImageUrl(response);
+  return getGeneratedImageData(image);
 };
 
 const generateWithTogether = async (text: string, model: string) => {
