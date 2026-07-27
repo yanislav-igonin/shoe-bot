@@ -12,7 +12,7 @@ import {
 import { Bot } from 'grammy';
 import { config } from 'lib/config.js';
 import { type BotContext } from 'lib/context.js';
-import { database } from 'lib/database.js';
+import { closeDatabase, initializeDatabase } from 'lib/database.js';
 import { logger } from 'lib/logger.js';
 import { textTriggerRegexp } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
@@ -21,6 +21,7 @@ import {
   allowedMiddleware,
   chatMiddleware,
   dialogMiddleware,
+  entityManagerMiddleware,
   stateMiddleware,
   userMiddleware,
   userSettingsMiddleware,
@@ -40,6 +41,7 @@ bot.catch((error) => {
 });
 
 bot.use(stateMiddleware);
+bot.use(entityManagerMiddleware);
 bot.use(chatMiddleware);
 bot.use(userMiddleware);
 bot.use(allowedMiddleware);
@@ -97,12 +99,12 @@ bot.on('message:text').hears(textTriggerRegexp, textTriggerController);
 bot.on('message:text', textController);
 
 const start = async () => {
-  await database.$connect();
+  await initializeDatabase();
   logger.info('database connected');
   // eslint-disable-next-line promise/prefer-await-to-then
   bot.start().catch(async (error) => {
     logger.error(error);
-    await database.$disconnect();
+    await closeDatabase();
   });
 };
 

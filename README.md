@@ -3,7 +3,7 @@
 # Stack
 - Typescript
 - grammY
-- Prisma
+- MikroORM
 
 # Run
 1. Install dependencies:
@@ -15,10 +15,21 @@ npm install
 ```
 docker compose up
 ```
-4. Push database schema:
+4. Apply database migrations:
 ```
-npx prisma db push
+npm run migration:up
 ```
+
+For an existing database that already matches the baseline schema:
+```
+npm run migration:baseline
+```
+
+The baseline command first introspects the connected database and verifies that
+it matches the entity metadata, then records the initial migration without
+executing its DDL. The legacy `_prisma_migrations` table is ignored and left
+untouched.
+
 5. Run bot:
 ```
 npm run dev

@@ -1,11 +1,15 @@
-import { config } from './lib/config.js';
-import { database } from './lib/database.js';
+import { type ChatType } from './entities.js';
 import {
-  type Chat,
-  type Dialog,
-  type User,
-  type UserSettings,
-} from '@prisma/client';
+  BotRole,
+  Chat,
+  Dialog,
+  Message,
+  User,
+  UserSettings,
+} from './entities.js';
+import { config } from './lib/config.js';
+import { getOrm } from './lib/database.js';
+import { type EntityManager } from '@mikro-orm/postgresql';
 import { type NextFunction } from 'grammy';
 // @ts-expect-error openai/resources not found
 // eslint-disable-next-line import/extensions
@@ -16,8 +20,8 @@ import { logger } from 'lib/logger.js';
 import { textTriggerRegexp } from 'lib/prompt.js';
 import { replies } from 'lib/replies.js';
 import { classifyRequest } from 'lib/requestAccess.js';
+import { isSubscriptionActive } from 'lib/subscription.js';
 import { valueOrNull } from 'lib/values.js';
-import { DateTime } from 'luxon';
 
 /**
  * Makes state object inside the context to store some shit across the request.
@@ -31,6 +35,19 @@ export const stateMiddleware = async (
   // eslint-disable-next-line node/callback-return
   await next();
 };
+
+export const createEntityManagerMiddleware = (
+  fork: () => EntityManager = () => getOrm().em.fork(),
+) => {
+  return async (context: BotContext, next: NextFunction) => {
+    // eslint-disable-next-line require-atomic-updates
+    context.state.em = fork();
+    // eslint-disable-next-line node/callback-return
+    await next();
+  };
+};
+
+export const entityManagerMiddleware = createEntityManagerMiddleware();
 
 /**
  * Saves chat to the DB.
@@ -46,15 +63,12 @@ export const chatMiddleware = async (
     return;
   }
 
-  const chat = await database.chat.findFirst({
-    where: { tgId: chatId.toString() },
-  });
+  const { em } = context.state;
+  const chat = await em.findOne(Chat, { tgId: chatId.toString() });
   if (chat) {
     const newName = (context.chat as TelegramChat.GroupChat).title ?? 'user';
-    await database.chat.update({
-      data: { name: newName },
-      where: { id: chat.id },
-    });
+    chat.name = newName;
+    await em.flush();
     // eslint-disable-next-line require-atomic-updates
     context.state.chat = chat;
     // eslint-disable-next-line node/callback-return
@@ -63,12 +77,13 @@ export const chatMiddleware = async (
   }
 
   const name = (context.chat as TelegramChat.GroupChat).title ?? 'user';
-  const toCreate: Omit<Chat, 'createdAt' | 'id'> = {
+  const newChat = em.create(Chat, {
     name,
     tgId: chatId.toString(),
-    type: context.chat?.type,
-  };
-  const newChat = await database.chat.create({ data: toCreate });
+    type: context.chat?.type as ChatType,
+  });
+  em.persist(newChat);
+  await em.flush();
   // eslint-disable-next-line require-atomic-updates
   context.state.chat = newChat;
 
@@ -87,16 +102,14 @@ export const dialogMiddleware = async (
   }
 
   const { reply_to_message: replyToMessage } = message;
-  const { chat } = context.state;
+  const { chat, em } = context.state;
   let newDialog: Dialog;
 
   // If its a new dialog
   if (!replyToMessage) {
-    newDialog = await database.dialog.create({
-      data: {
-        chatId: chat.id,
-      },
-    });
+    newDialog = em.create(Dialog, { chat });
+    em.persist(newDialog);
+    await em.flush();
     // eslint-disable-next-line require-atomic-updates
     context.state.dialog = newDialog;
     // eslint-disable-next-line node/callback-return
@@ -107,11 +120,9 @@ export const dialogMiddleware = async (
   const replyOnBotMessage =
     replyToMessage.from?.is_bot && replyToMessage.from.id === context.me.id;
   if (!replyOnBotMessage) {
-    newDialog = await database.dialog.create({
-      data: {
-        chatId: chat.id,
-      },
-    });
+    newDialog = em.create(Dialog, { chat });
+    em.persist(newDialog);
+    await em.flush();
     // eslint-disable-next-line require-atomic-updates
     context.state.dialog = newDialog;
     // eslint-disable-next-line node/callback-return
@@ -119,9 +130,11 @@ export const dialogMiddleware = async (
     return;
   }
 
-  const previousMessage = await database.message.findFirst({
-    where: { tgMessageId: replyToMessage.message_id.toString() },
-  });
+  const previousMessage = await em.findOne(
+    Message,
+    { tgMessageId: replyToMessage.message_id.toString() },
+    { populate: ['dialog'] },
+  );
   // If no previous message in the DB, but there is a reply
   if (!previousMessage) {
     const error = new Error('Previous message is not available');
@@ -134,15 +147,11 @@ export const dialogMiddleware = async (
     throw error;
   }
 
-  const dialog = await database.dialog.findFirst({
-    where: { id: previousMessage?.dialogId ?? undefined },
-  });
+  const { dialog } = previousMessage;
   if (!dialog) {
-    newDialog = await database.dialog.create({
-      data: {
-        chatId: chat.id,
-      },
-    });
+    newDialog = em.create(Dialog, { chat });
+    em.persist(newDialog);
+    await em.flush();
     // eslint-disable-next-line require-atomic-updates
     context.state.dialog = newDialog;
     // eslint-disable-next-line node/callback-return
@@ -172,20 +181,15 @@ export const userMiddleware = async (
   }
 
   const { id: tgUserId } = user;
+  const { em } = context.state;
 
-  const databaseUser = await database.user.findFirst({
-    where: { tgId: tgUserId.toString() },
-  });
+  const databaseUser = await em.findOne(User, { tgId: tgUserId.toString() });
   if (databaseUser) {
-    await database.user.update({
-      data: {
-        firstName: valueOrNull(user.first_name),
-        languageCode: valueOrNull(user.language_code),
-        lastName: valueOrNull(user.last_name),
-        username: valueOrNull(user.username),
-      },
-      where: { id: databaseUser.id },
-    });
+    databaseUser.firstName = valueOrNull(user.first_name);
+    databaseUser.languageCode = valueOrNull(user.language_code);
+    databaseUser.lastName = valueOrNull(user.last_name);
+    databaseUser.username = valueOrNull(user.username);
+    await em.flush();
     // eslint-disable-next-line require-atomic-updates
     context.state.user = databaseUser;
     // eslint-disable-next-line node/callback-return
@@ -200,16 +204,15 @@ export const userMiddleware = async (
     username,
   } = user;
 
-  const toCreate: Omit<User, 'allowedTill' | 'createdAt' | 'id' | 'isAllowed'> =
-    {
-      firstName: valueOrNull(firstName),
-      languageCode: valueOrNull(language),
-      lastName: valueOrNull(lastName),
-      tgId: tgUserId.toString(),
-      username: valueOrNull(username),
-    };
-
-  const newUser = await database.user.create({ data: toCreate });
+  const newUser = em.create(User, {
+    firstName: valueOrNull(firstName),
+    languageCode: valueOrNull(language),
+    lastName: valueOrNull(lastName),
+    tgId: tgUserId.toString(),
+    username: valueOrNull(username),
+  });
+  em.persist(newUser);
+  await em.flush();
   // eslint-disable-next-line require-atomic-updates
   context.state.user = newUser;
 
@@ -225,12 +228,10 @@ export const userSettingsMiddleware = async (
   next: NextFunction,
 ) => {
   const {
-    state: { user },
+    state: { em, user },
   } = context;
 
-  const databaseUserSettings = await database.userSettings.findFirst({
-    where: { userId: user.id },
-  });
+  const databaseUserSettings = await em.findOne(UserSettings, { user });
   if (databaseUserSettings) {
     // eslint-disable-next-line require-atomic-updates
     context.state.userSettings = databaseUserSettings;
@@ -239,14 +240,12 @@ export const userSettingsMiddleware = async (
     return;
   }
 
-  const toCreate: Omit<UserSettings, 'createdAt' | 'id' | 'updatedAt'> = {
-    botRoleId: 1,
-    userId: user.id,
-  };
-
-  const newUserSettings = await database.userSettings.create({
-    data: toCreate,
+  const newUserSettings = em.create(UserSettings, {
+    botRole: em.getReference(BotRole, 1),
+    user,
   });
+  em.persist(newUserSettings);
+  await em.flush();
   // eslint-disable-next-line require-atomic-updates
   context.state.userSettings = newUserSettings;
 
@@ -308,12 +307,9 @@ export const allowedMiddleware = async (
     return;
   }
 
-  const { user } = context.state;
+  const { em, user } = context.state;
   const { allowedTill } = user;
-  const subscriptionIsActive =
-    allowedTill !== null &&
-    DateTime.now().toUTC() <
-      DateTime.fromJSDate(allowedTill).toUTC().endOf('day');
+  const subscriptionIsActive = isSubscriptionActive(allowedTill);
   const isAdmin = config.adminsUsernames.includes(user.username ?? '');
 
   if (subscriptionIsActive || isAdmin) {
@@ -322,7 +318,7 @@ export const allowedMiddleware = async (
     return;
   }
 
-  const usage = await reserveDailyRequest(user.id);
+  const usage = await reserveDailyRequest(em, user.id);
   if (usage === null) {
     await context.reply(replies.dailyQuotaExhausted, {
       reply_to_message_id: context.message?.message_id,
@@ -335,7 +331,7 @@ export const allowedMiddleware = async (
     await next();
   } catch (error) {
     try {
-      await refundDailyRequest(user.id);
+      await refundDailyRequest(em, user.id);
     } catch (refundError) {
       logger.error(refundError);
     }
