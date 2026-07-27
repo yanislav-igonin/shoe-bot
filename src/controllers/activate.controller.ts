@@ -1,6 +1,6 @@
+import { ActivationCode } from '../entities.js';
 import { type CommandContext } from 'grammy';
 import { type BotContext } from 'lib/context.js';
-import { database } from 'lib/database.js';
 import { replies } from 'lib/replies.js';
 import { DateTime } from 'luxon';
 
@@ -27,36 +27,19 @@ export const activateController = async (
     return;
   }
 
-  const activationCode = await database.activationCode.findUnique({
-    where: {
-      code,
-    },
-  });
-  if (!activationCode || activationCode.usedByUserId) {
+  const { em, user } = context.state;
+  const activationCode = await em.findOne(ActivationCode, { code });
+  if (!activationCode || activationCode.usedByUser) {
     await context.reply(replies.wrongActivationCode);
     return;
   }
 
-  const { user } = context.state;
   const { allowedTill: userAllowedDate } = user;
   const newAllowedTill = getNewAllowedTill(userAllowedDate);
 
-  await database.user.update({
-    data: {
-      allowedTill: newAllowedTill,
-    },
-    where: {
-      id: user.id,
-    },
-  });
-  await database.activationCode.update({
-    data: {
-      usedByUserId: user.id,
-    },
-    where: {
-      id: activationCode.id,
-    },
-  });
+  user.allowedTill = newAllowedTill;
+  activationCode.usedByUser = user;
+  await em.flush();
 
   const beutifiedNewAllowedTill =
     DateTime.fromJSDate(newAllowedTill).toFormat('dd.MM.yyyy');

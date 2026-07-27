@@ -24,16 +24,16 @@ const createdTimestampOptions = {
 } as const;
 
 export enum ChatType {
-  Channel = 'channel',
-  Group = 'group',
-  Private = 'private',
-  Supergroup = 'supergroup',
+  channel = 'channel',
+  group = 'group',
+  private = 'private',
+  supergroup = 'supergroup',
 }
 
 export enum MessageType {
-  Image = 'image',
-  Text = 'text',
-  Voice = 'voice',
+  image = 'image',
+  text = 'text',
+  voice = 'voice',
 }
 
 @Entity({ tableName: 'users' })
@@ -250,7 +250,7 @@ export class ActivationCode {
     type: 'string',
     unique: 'activation_codes_code_key',
   })
-  code = randomUUID();
+  code: string = randomUUID();
 
   @Property({ fieldName: 'createdAt', ...createdTimestampOptions })
   createdAt = new Date();
