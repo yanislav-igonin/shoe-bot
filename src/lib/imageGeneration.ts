@@ -1,139 +1,139 @@
-import { Setting } from '../entities.js';
-import { type XaiImageModelOptions } from '@ai-sdk/xai';
-import { type EntityManager } from '@mikro-orm/postgresql';
-import { type GeneratedFile, generateImage as generateAiImage } from 'ai';
-import { xai } from 'lib/ai.js';
-import { config } from 'lib/config.js';
-import { Together } from 'together-ai';
+import type { XaiImageModelOptions } from "@ai-sdk/xai";
+import type { EntityManager } from "@mikro-orm/postgresql";
+import { type GeneratedFile, generateImage as generateAiImage } from "ai";
+import { xai } from "lib/ai.js";
+import { config } from "lib/config.js";
+import { Together } from "together-ai";
+import { Setting } from "../entities.js";
 
-type ImageProvider = 'togetherai' | 'xai';
+type ImageProvider = "togetherai" | "xai";
 
-const IMAGE_SETTING_KEYS = ['imageProvider', 'imageModel'];
+const IMAGE_SETTING_KEYS = ["imageProvider", "imageModel"];
 
 type GeneratedImageResponse = {
-  data: Array<{
-    url?: string | null;
-  }>;
+	data: Array<{
+		url?: string | null;
+	}>;
 };
 
 type SettingRow = {
-  key: string;
-  value: string;
+	key: string;
+	value: string;
 };
 
 export type ImageGenerationSettings = {
-  model: string;
-  provider: ImageProvider;
+	model: string;
+	provider: ImageProvider;
 };
 
 export const requireTogetherApiKey = (apiKey: string | undefined) => {
-  if (!apiKey?.trim()) {
-    throw new Error('TOGETHER_API_KEY is not set');
-  }
+	if (!apiKey?.trim()) {
+		throw new Error("TOGETHER_API_KEY is not set");
+	}
 
-  return apiKey;
+	return apiKey;
 };
 
 export const parseImageGenerationSettings = (
-  rows: SettingRow[],
+	rows: SettingRow[],
 ): ImageGenerationSettings => {
-  const provider = rows.find(({ key }) => key === 'imageProvider')?.value;
-  const model = rows.find(({ key }) => key === 'imageModel')?.value;
+	const provider = rows.find(({ key }) => key === "imageProvider")?.value;
+	const model = rows.find(({ key }) => key === "imageModel")?.value;
 
-  if (!provider) {
-    throw new Error('imageProvider setting is missing');
-  }
+	if (!provider) {
+		throw new Error("imageProvider setting is missing");
+	}
 
-  if (model === undefined) {
-    throw new Error('imageModel setting is missing');
-  }
+	if (model === undefined) {
+		throw new Error("imageModel setting is missing");
+	}
 
-  if (model.trim() === '') {
-    throw new Error('imageModel setting is empty');
-  }
+	if (model.trim() === "") {
+		throw new Error("imageModel setting is empty");
+	}
 
-  if (provider !== 'togetherai' && provider !== 'xai') {
-    throw new Error(`Unsupported image provider: ${provider}`);
-  }
+	if (provider !== "togetherai" && provider !== "xai") {
+		throw new Error(`Unsupported image provider: ${provider}`);
+	}
 
-  return { model, provider };
+	return { model, provider };
 };
 
 export const getGeneratedImageUrl = (response: GeneratedImageResponse) => {
-  const imageUrl = response.data[0]?.url;
-  if (!imageUrl) {
-    return undefined;
-  }
+	const imageUrl = response.data[0]?.url;
+	if (!imageUrl) {
+		return undefined;
+	}
 
-  try {
-    const url = new URL(imageUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return undefined;
-    }
+	try {
+		const url = new URL(imageUrl);
+		if (url.protocol !== "http:" && url.protocol !== "https:") {
+			return undefined;
+		}
 
-    return imageUrl;
-  } catch {
-    return undefined;
-  }
+		return imageUrl;
+	} catch {
+		return undefined;
+	}
 };
 
 export const getGeneratedImageData = (
-  image: Pick<GeneratedFile, 'uint8Array'>,
+	image: Pick<GeneratedFile, "uint8Array">,
 ) => {
-  if (image.uint8Array.length === 0) {
-    return undefined;
-  }
+	if (image.uint8Array.length === 0) {
+		return undefined;
+	}
 
-  return image.uint8Array;
+	return image.uint8Array;
 };
 
 const loadImageGenerationSettings = async (em: EntityManager) => {
-  // eslint-disable-next-line unicorn/no-array-method-this-argument
-  const rows = await em.find(Setting, {
-    key: { $in: IMAGE_SETTING_KEYS },
-  });
+	// eslint-disable-next-line unicorn/no-array-method-this-argument
+	const rows = await em.find(Setting, {
+		key: { $in: IMAGE_SETTING_KEYS },
+	});
 
-  return parseImageGenerationSettings(rows);
+	return parseImageGenerationSettings(rows);
 };
 
 const generateWithXai = async (text: string, model: string) => {
-  const { image } = await generateAiImage({
-    aspectRatio: '16:9',
-    model: xai.image(model),
-    prompt: text,
-    providerOptions: {
-      xai: {
-        resolution: '1k',
-      } satisfies XaiImageModelOptions,
-    },
-  });
+	const { image } = await generateAiImage({
+		aspectRatio: "16:9",
+		model: xai.image(model),
+		prompt: text,
+		providerOptions: {
+			xai: {
+				resolution: "1k",
+			} satisfies XaiImageModelOptions,
+		},
+	});
 
-  return getGeneratedImageData(image);
+	return getGeneratedImageData(image);
 };
 
 const generateWithTogether = async (text: string, model: string) => {
-  const apiKey = requireTogetherApiKey(config.togetherApiKey);
-  const together = new Together({ apiKey });
-  const response = await together.images.generate({
-    disable_safety_checker: true,
-    height: 768,
-    model,
-    prompt: text,
-    width: 1_344,
-  });
+	const apiKey = requireTogetherApiKey(config.togetherApiKey);
+	const together = new Together({ apiKey });
+	const response = await together.images.generate({
+		disable_safety_checker: true,
+		height: 768,
+		model,
+		prompt: text,
+		width: 1_344,
+	});
 
-  return getGeneratedImageUrl(response);
+	return getGeneratedImageUrl(response);
 };
 
 export const generateImage = async (em: EntityManager, text: string) => {
-  const { model, provider } = await loadImageGenerationSettings(em);
+	const { model, provider } = await loadImageGenerationSettings(em);
 
-  switch (provider) {
-    case 'togetherai':
-      return await generateWithTogether(text, model);
-    case 'xai':
-      return await generateWithXai(text, model);
-    default:
-      throw new Error(`Unsupported image provider: ${String(provider)}`);
-  }
+	switch (provider) {
+		case "togetherai":
+			return await generateWithTogether(text, model);
+		case "xai":
+			return await generateWithXai(text, model);
+		default:
+			throw new Error(`Unsupported image provider: ${String(provider)}`);
+	}
 };

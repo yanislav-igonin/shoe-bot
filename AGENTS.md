@@ -54,9 +54,8 @@ shoe-bot/
 ├── .github/workflows/
 │   └── push.yml              # CI: lint + typecheck on push
 ├── docker-compose.yml        # PostgreSQL for local dev
-├── package.json
-├── tsconfig.json
-└── .eslintrc.json
+├── package.json              # Scripts and dependencies, including Biome
+└── tsconfig.json
 ```
 
 ## Development Commands
@@ -116,11 +115,12 @@ Required in `.env` file (see `.env.example`):
 - Path aliases configured in `tsconfig.json` (e.g., `lib/config.js`, `controllers/index.js`)
 - Uses `tsc-alias` for build-time path resolution
 
-### ESLint
+### Biome
 
-- Uses `eslint-config-canonical` with TypeScript and Prettier
-- Max line length: 85 characters (ignores strings, URLs, templates, regex)
-- Many `@ts-expect-error` comments exist for typing issues with external libraries
+- Uses Biome's default linting and formatting rules
+- `npm run lint` applies formatting and safe lint fixes to `src`
+- No project-specific Biome configuration file
+- Some `@ts-expect-error` comments exist for typing issues with external libraries
 
 ### File Organization
 
