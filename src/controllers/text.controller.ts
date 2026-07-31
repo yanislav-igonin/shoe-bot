@@ -32,15 +32,25 @@ export const downloadImageAsDataUrl = async (
 		throw new Error(`Failed to download source image: ${response.status}`);
 	}
 
-	const mediaType = response.headers
+	const responseMediaType = response.headers
 		.get("content-type")
 		?.split(";", 1)[0]
 		.trim();
-	if (!mediaType?.startsWith("image/")) {
+	const bytes = Buffer.from(await response.arrayBuffer());
+	const isJpeg =
+		bytes.length >= 3 &&
+		bytes[0] === 0xff &&
+		bytes[1] === 0xd8 &&
+		bytes[2] === 0xff;
+	const mediaType = responseMediaType?.startsWith("image/")
+		? responseMediaType
+		: isJpeg
+			? "image/jpeg"
+			: undefined;
+	if (!mediaType) {
 		throw new Error("Downloaded source is not an image");
 	}
 
-	const bytes = Buffer.from(await response.arrayBuffer());
 	return `data:${mediaType};base64,${bytes.toString("base64")}`;
 };
 

@@ -40,6 +40,20 @@ describe("downloadImageAsDataUrl", () => {
 		assert.equal(result, "data:image/jpeg;base64,AQID");
 		assert.equal(result.includes("secret-token"), false);
 	});
+
+	it("detects a Telegram JPEG returned as application/octet-stream", async () => {
+		const result = await downloadImageAsDataUrl(
+			"https://api.telegram.org/file/bottest/photos/source.jpg",
+			async () => {
+				return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), {
+					headers: { "content-type": "application/octet-stream" },
+					status: 200,
+				});
+			},
+		);
+
+		assert.equal(result, "data:image/jpeg;base64,/9j/4A==");
+	});
 });
 
 describe("getImageGenerationErrorReply", () => {
