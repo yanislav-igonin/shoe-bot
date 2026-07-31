@@ -1,25 +1,68 @@
 /* eslint-disable complexity */
 
+import { Buffer } from "node:buffer";
 import { type Filter, InputFile } from "grammy";
 import { config } from "lib/config.js";
 import type { BotContext } from "lib/context.js";
-import { generateImage } from "lib/imageGeneration.js";
+import {
+	generateImage,
+	ImageEditingNotSupportedError,
+} from "lib/imageGeneration.js";
 import { logger } from "lib/logger.js";
 import { runPersistedGeneration } from "lib/persistedGeneration.js";
 import {
-	addAssistantContext,
 	addContext,
 	addSystemContext,
 	getCompletion,
 	MAIN_MODEL,
 	maximumMessageLengthPrompt,
 	preparePrompt,
-	understandImage,
 } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
 import { BotRole, Message, MessageType, User } from "../entities.js";
 import { telegram } from "../telegram.js";
 import { textTriggerController } from "./textTrigger.controller.js";
+
+export const downloadImageAsDataUrl = async (
+	sourceUrl: string,
+	fetchImage: typeof fetch = fetch,
+) => {
+	const response = await fetchImage(sourceUrl);
+	if (!response.ok) {
+		throw new Error(`Failed to download source image: ${response.status}`);
+	}
+
+	const responseMediaType = response.headers
+		.get("content-type")
+		?.split(";", 1)[0]
+		.trim();
+	const bytes = Buffer.from(await response.arrayBuffer());
+	const isJpeg =
+		bytes.length >= 3 &&
+		bytes[0] === 0xff &&
+		bytes[1] === 0xd8 &&
+		bytes[2] === 0xff;
+	const mediaType = responseMediaType?.startsWith("image/")
+		? responseMediaType
+		: isJpeg
+			? "image/jpeg"
+			: undefined;
+	if (!mediaType) {
+		throw new Error("Downloaded source is not an image");
+	}
+
+	return `data:${mediaType};base64,${bytes.toString("base64")}`;
+};
+
+const getTelegramImageDataUrl = async (tgPhotoId: string) => {
+	const file = await telegram.getFile(tgPhotoId);
+	if (!file.file_path) {
+		throw new Error("Telegram image file path is not available");
+	}
+
+	const sourceUrl = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+	return await downloadImageAsDataUrl(sourceUrl);
+};
 
 const getImagesMapById = async (messages: Message[]) => {
 	const tgImagesInDialog = messages.reduce<
@@ -35,11 +78,9 @@ const getImagesMapById = async (messages: Message[]) => {
 	}, []);
 	const tgImagesUrlsInDialog = await Promise.all(
 		tgImagesInDialog.map(async (index) => {
-			const file = await telegram.getFile(index.tgPhotoId);
-			const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
 			return {
 				messageId: index.messageId,
-				url,
+				url: await getTelegramImageDataUrl(index.tgPhotoId),
 			};
 		}),
 	);
@@ -53,29 +94,25 @@ const getImagesMapById = async (messages: Message[]) => {
 	);
 };
 
+export const isImageEditReply = (
+	message: Pick<Message, "tgPhotoId">,
+): message is Pick<Message, "tgPhotoId"> & { tgPhotoId: string } =>
+	Boolean(message.tgPhotoId);
+
+export const getImageGenerationErrorReply = (error: unknown) =>
+	error instanceof ImageEditingNotSupportedError
+		? replies.imageEditingNotSupported
+		: replies.error;
+
 const generateBetterImageController = async (
 	context: Filter<BotContext, "message:text">,
+	previousMessage: Message & { tgPhotoId: string },
 ) => {
 	await context.replyWithChatAction("upload_photo");
 
 	const { dialog, em, user } = context.state;
 	const text = context.message.text;
-	const { message_id: messageId, reply_to_message: replyToMessage } =
-		context.message;
-
-	const previousMessage = await em.findOne(Message, {
-		tgMessageId: replyToMessage?.message_id.toString() ?? "0",
-	});
-	if (!previousMessage) {
-		const error = new Error("Previous message is not available");
-		try {
-			await context.reply(replies.noPreviosData);
-		} catch (replyError) {
-			logger.error(replyError);
-		}
-
-		throw error;
-	}
+	const { message_id: messageId } = context.message;
 
 	const newUserMessage = em.create(Message, {
 		dialog,
@@ -89,30 +126,10 @@ const generateBetterImageController = async (
 	try {
 		await runPersistedGeneration({
 			generate: async () => {
-				const messagesInDialog = await em.find(
-					Message,
-					{
-						dialog,
-						id: { $ne: newUserMessage.id },
-					},
-					{ populate: ["user"] },
+				const sourceImage = await getTelegramImageDataUrl(
+					previousMessage.tgPhotoId,
 				);
-				const tgImagesMapById = await getImagesMapById(messagesInDialog);
-				const imageMessages = messagesInDialog.filter(
-					(message) => message.tgPhotoId,
-				);
-				const lastImageMessage = imageMessages[imageMessages.length - 1];
-				const whatsOnImage = await understandImage(
-					lastImageMessage,
-					tgImagesMapById,
-				);
-				const upgradedContext = await getCompletion(text, [
-					addAssistantContext(whatsOnImage),
-					addSystemContext(
-						"Результат должен быть новым четким описанием того, что попросили изменить.",
-					),
-				]);
-				const image = await generateImage(em, upgradedContext[0]);
+				const image = await generateImage(em, text, sourceImage);
 				if (!image) {
 					logger.error("Failed to generate image");
 					throw new Error("Failed to generate image");
@@ -144,7 +161,7 @@ const generateBetterImageController = async (
 		});
 	} catch (error) {
 		try {
-			await context.reply(replies.error, {
+			await context.reply(getImageGenerationErrorReply(error), {
 				reply_to_message_id: messageId,
 			});
 		} catch (replyError) {
@@ -173,16 +190,6 @@ export const textController = async (
 		return;
 	}
 
-	const hasImages =
-		(await em.count(Message, {
-			dialog,
-			type: MessageType.image,
-		})) > 0;
-	if (hasImages) {
-		await generateBetterImageController(context);
-		return;
-	}
-
 	const previousMessage = await em.findOne(Message, {
 		tgMessageId: replyToMessage?.message_id.toString() ?? "0",
 	});
@@ -195,6 +202,11 @@ export const textController = async (
 		}
 
 		throw error;
+	}
+
+	if (isImageEditReply(previousMessage)) {
+		await generateBetterImageController(context, previousMessage);
+		return;
 	}
 
 	const newUserMessage = em.create(Message, {
@@ -227,7 +239,10 @@ export const textController = async (
 					throw new Error("Bot role is undefined");
 				}
 
-				const previousMessagesContext = messagesInDialog.map(addContext([]));
+				const imagesMap = await getImagesMapById(messagesInDialog);
+				const previousMessagesContext = messagesInDialog.map(
+					addContext(imagesMap),
+				);
 				previousMessagesContext.unshift(
 					addSystemContext(maximumMessageLengthPrompt),
 					addSystemContext(botRole.systemPrompt),

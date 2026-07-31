@@ -8,6 +8,8 @@ process.env.TOGETHER_API_KEY = "test";
 
 const imageGeneration = await import("lib/imageGeneration.js");
 const {
+	createTogetherImageInput,
+	createXaiImagePrompt,
 	getGeneratedImageData,
 	getGeneratedImageUrl,
 	parseImageGenerationSettings,
@@ -145,6 +147,85 @@ describe("getGeneratedImageData", () => {
 		assert.equal(
 			getGeneratedImageData({ uint8Array: new Uint8Array() }),
 			undefined,
+		);
+	});
+});
+
+describe("createXaiImagePrompt", () => {
+	it("keeps text-only generation prompts unchanged", () => {
+		assert.equal(
+			createXaiImagePrompt(
+				"draw a shoe",
+				"grok-imagine-image-quality",
+				undefined,
+			),
+			"draw a shoe",
+		);
+	});
+
+	it("adds the source image to native edit prompts", () => {
+		assert.deepEqual(
+			createXaiImagePrompt(
+				"make it red",
+				"grok-imagine-image-quality",
+				"https://example.com/source.jpg",
+			),
+			{
+				images: ["https://example.com/source.jpg"],
+				text: "make it red",
+			},
+		);
+	});
+
+	it("rejects edits for an unsupported xAI model", () => {
+		assert.throws(
+			() =>
+				createXaiImagePrompt(
+					"make it red",
+					"grok-2-image",
+					"https://example.com/source.jpg",
+				),
+			/Image editing is not supported by xai model grok-2-image/u,
+		);
+	});
+});
+
+describe("createTogetherImageInput", () => {
+	it("uses reference_images for FLUX.2 edits", () => {
+		assert.deepEqual(
+			createTogetherImageInput(
+				"black-forest-labs/FLUX.2-dev",
+				"https://example.com/source.jpg",
+			),
+			{ reference_images: ["https://example.com/source.jpg"] },
+		);
+	});
+
+	it("uses image_url for FLUX.1 Kontext edits", () => {
+		assert.deepEqual(
+			createTogetherImageInput(
+				"black-forest-labs/FLUX.1-kontext-pro",
+				"https://example.com/source.jpg",
+			),
+			{ image_url: "https://example.com/source.jpg" },
+		);
+	});
+
+	it("does not add image parameters to text-only generation", () => {
+		assert.deepEqual(
+			createTogetherImageInput("black-forest-labs/FLUX.1-schnell", undefined),
+			{},
+		);
+	});
+
+	it("rejects edits for an unsupported Together model", () => {
+		assert.throws(
+			() =>
+				createTogetherImageInput(
+					"black-forest-labs/FLUX.1-schnell",
+					"https://example.com/source.jpg",
+				),
+			/Image editing is not supported by togetherai model black-forest-labs\/FLUX\.1-schnell/u,
 		);
 	});
 });
