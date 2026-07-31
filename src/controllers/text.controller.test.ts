@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { EntityManager } from "@mikro-orm/postgresql";
+import type { Chat, Dialog, User } from "../entities.js";
 
 process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
@@ -10,10 +12,59 @@ const { ImageEditingNotSupportedError } = await import(
 );
 const { replies } = await import("../lib/replies.js");
 const {
+	createUploadedImageMessageData,
 	downloadImageAsDataUrl,
+	findPersistedImageMessage,
+	findRepliedImageMessage,
+	generateBetterImageController,
 	getImageGenerationErrorReply,
+	handleTriggeredImageEdit,
 	isImageEditReply,
-} = await import("./text.controller.js");
+} = await import("./imageEdit.controller.js");
+const { MessageType } = await import("../entities.js");
+
+const createImageEditContext = () => {
+	const persisted: Array<Record<string, unknown>> = [];
+	const photoReplies: Array<{ reply_to_message_id?: number }> = [];
+	const errorReplies: string[] = [];
+	let replyNumber = 0;
+	const user = { id: 42, tgId: "42" };
+	const em = {
+		create: (_entity: unknown, data: Record<string, unknown>) => data,
+		findOne: async () => user,
+		flush: async () => undefined,
+		getReference: () => ({ id: 999 }),
+		persist: (message: Record<string, unknown>) => {
+			persisted.push(message);
+		},
+	};
+	const context = {
+		message: { message_id: 500, text: "restyle" },
+		reply: async (text: string) => {
+			errorReplies.push(text);
+		},
+		replyWithChatAction: async () => undefined,
+		replyWithPhoto: async (
+			_file: unknown,
+			options: { reply_to_message_id?: number },
+		) => {
+			photoReplies.push(options);
+			replyNumber += 1;
+			return {
+				message_id: 600 + replyNumber,
+				photo: [{ file_id: `result-${replyNumber}` }],
+			};
+		},
+		state: {
+			chat: { id: 5 },
+			dialog: { id: 7 },
+			em,
+			user,
+		},
+	};
+
+	return { context, errorReplies, persisted, photoReplies };
+};
 
 describe("isImageEditReply", () => {
 	it("routes a direct image reply to image editing", () => {
@@ -74,5 +125,256 @@ describe("getImageGenerationErrorReply", () => {
 			getImageGenerationErrorReply(new Error("failed")),
 			replies.error,
 		);
+	});
+});
+
+describe("uploaded image persistence", () => {
+	it("scopes bot-image lookup to the current chat", async () => {
+		const chat = { id: 5 } as Chat;
+		const expectedMessage = { tgMessageId: "101" };
+		let receivedFilter: unknown;
+		const em = {
+			findOne: async (_entity: unknown, filter: unknown) => {
+				receivedFilter = filter;
+				return expectedMessage;
+			},
+		};
+
+		const result = await findPersistedImageMessage(
+			em as unknown as EntityManager,
+			"101",
+			chat,
+		);
+
+		assert.equal(result, expectedMessage);
+		assert.deepEqual(receivedFilter, {
+			dialog: { chat },
+			tgMessageId: "101",
+		});
+	});
+
+	it("maps a cached upload to an image message in the triggered dialog", () => {
+		const dialog = { id: 7 } as Dialog;
+		const user = { id: 42 } as User;
+
+		assert.deepEqual(
+			createUploadedImageMessageData(
+				{
+					chatId: "1",
+					mediaGroupId: "album",
+					tgMessageId: "101",
+					tgPhotoId: "photo-101",
+					tgUserId: "42",
+				},
+				dialog,
+				user,
+			),
+			{
+				dialog,
+				tgMessageId: "101",
+				tgPhotoId: "photo-101",
+				type: MessageType.image,
+				user,
+			},
+		);
+	});
+
+	it("selects the exact replied album image as the request parent", () => {
+		const messages = [
+			{ tgMessageId: "101" },
+			{ tgMessageId: "102" },
+			{ tgMessageId: "103" },
+		];
+
+		assert.equal(findRepliedImageMessage(messages, "102"), messages[1]);
+	});
+});
+
+describe("generateBetterImageController", () => {
+	it("edits album sources sequentially and persists each response", async () => {
+		const { context, persisted, photoReplies } = createImageEditContext();
+		const sourceMessages = [
+			{ tgMessageId: "101", tgPhotoId: "photo-101" },
+			{ tgMessageId: "102", tgPhotoId: "photo-102" },
+		];
+		const events: string[] = [];
+
+		await generateBetterImageController(
+			context as never,
+			sourceMessages as never,
+			sourceMessages[1] as never,
+			"restyle",
+			{
+				generateImage: async (_em, _text, sourceImage) => {
+					events.push(`generate ${sourceImage}`);
+					return new Uint8Array([1]);
+				},
+				getTelegramImageDataUrl: async (tgPhotoId) => {
+					events.push(`download ${tgPhotoId}`);
+					return `data:image/jpeg;base64,${tgPhotoId}`;
+				},
+			},
+		);
+
+		assert.deepEqual(events, [
+			"download photo-101",
+			"generate data:image/jpeg;base64,photo-101",
+			"download photo-102",
+			"generate data:image/jpeg;base64,photo-102",
+		]);
+		assert.deepEqual(photoReplies, [
+			{ reply_to_message_id: 500 },
+			{ reply_to_message_id: 500 },
+		]);
+		assert.equal(persisted[0].replyTo, sourceMessages[1]);
+		assert.deepEqual(
+			persisted.slice(1).map(({ tgPhotoId }) => tgPhotoId),
+			["result-1", "result-2"],
+		);
+	});
+
+	it("continues the album after a failed edit and reports skipped photos", async (testContext) => {
+		testContext.mock.method(console, "error", () => undefined);
+		const { context, errorReplies, photoReplies } = createImageEditContext();
+		const sourceMessages = [
+			{ tgMessageId: "101", tgPhotoId: "photo-101" },
+			{ tgMessageId: "102", tgPhotoId: "photo-102" },
+			{ tgMessageId: "103", tgPhotoId: "photo-103" },
+		];
+		const downloads: string[] = [];
+
+		await generateBetterImageController(
+			context as never,
+			sourceMessages as never,
+			sourceMessages[0] as never,
+			"restyle",
+			{
+				generateImage: async (_em, _text, sourceImage) => {
+					if (sourceImage?.endsWith("photo-102")) {
+						throw new Error("provider failed");
+					}
+
+					return new Uint8Array([1]);
+				},
+				getTelegramImageDataUrl: async (tgPhotoId) => {
+					downloads.push(tgPhotoId);
+					return `data:image/jpeg;base64,${tgPhotoId}`;
+				},
+			},
+		);
+
+		assert.deepEqual(downloads, ["photo-101", "photo-102", "photo-103"]);
+		assert.equal(photoReplies.length, 2);
+		assert.deepEqual(errorReplies, [
+			"Обработано фотографий: 2 из 3. Не удалось обработать: №2.",
+		]);
+	});
+
+	it("throws after trying every photo when the whole album fails", async (testContext) => {
+		testContext.mock.method(console, "error", () => undefined);
+		const { context, errorReplies, photoReplies } = createImageEditContext();
+		const sourceMessages = [
+			{ tgMessageId: "101", tgPhotoId: "photo-101" },
+			{ tgMessageId: "102", tgPhotoId: "photo-102" },
+		];
+		const downloads: string[] = [];
+
+		await assert.rejects(
+			generateBetterImageController(
+				context as never,
+				sourceMessages as never,
+				sourceMessages[0] as never,
+				"restyle",
+				{
+					generateImage: async () => {
+						throw new Error("provider failed");
+					},
+					getTelegramImageDataUrl: async (tgPhotoId) => {
+						downloads.push(tgPhotoId);
+						return `data:image/jpeg;base64,${tgPhotoId}`;
+					},
+				},
+			),
+			/provider failed/u,
+		);
+
+		assert.deepEqual(downloads, ["photo-101", "photo-102"]);
+		assert.equal(photoReplies.length, 0);
+		assert.deepEqual(errorReplies, [replies.error]);
+	});
+});
+
+describe("handleTriggeredImageEdit", () => {
+	it("persists every resolved upload and edits the exact replied photo chain", async () => {
+		const { context, persisted } = createImageEditContext();
+		const uploadedImages = [
+			{
+				chatId: "5",
+				mediaGroupId: "album",
+				tgMessageId: "101",
+				tgPhotoId: "photo-101",
+				tgUserId: "42",
+			},
+			{
+				chatId: "5",
+				mediaGroupId: "album",
+				tgMessageId: "102",
+				tgPhotoId: "photo-102",
+				tgUserId: "42",
+			},
+		];
+		Object.assign(context, {
+			me: { id: 999 },
+			message: {
+				message_id: 500,
+				reply_to_message: {
+					chat: { id: 5 },
+					from: { id: 42, is_bot: false },
+					message_id: 102,
+					photo: [{ file_id: "photo-102" }],
+				},
+				text: "restyle",
+			},
+		});
+		let editCall:
+			| {
+					repliedMessageId: string;
+					sourceMessageIds: string[];
+					text: string;
+			  }
+			| undefined;
+
+		const handled = await handleTriggeredImageEdit(
+			context as never,
+			"restyle",
+			{
+				generateBetterImageController: async (
+					_context,
+					sourceMessages,
+					repliedMessage,
+					text,
+				) => {
+					editCall = {
+						repliedMessageId: repliedMessage.tgMessageId,
+						sourceMessageIds: sourceMessages.map(
+							({ tgMessageId }) => tgMessageId,
+						),
+						text: text ?? "",
+					};
+				},
+				uploadedImageStore: { resolve: () => uploadedImages },
+			},
+		);
+
+		assert.equal(handled, true);
+		assert.deepEqual(
+			persisted.map(({ tgMessageId }) => tgMessageId),
+			["101", "102"],
+		);
+		assert.deepEqual(editCall, {
+			repliedMessageId: "102",
+			sourceMessageIds: ["101", "102"],
+			text: "restyle",
+		});
 	});
 });

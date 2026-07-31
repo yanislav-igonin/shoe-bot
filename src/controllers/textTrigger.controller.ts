@@ -16,6 +16,7 @@ import { replies } from "lib/replies.js";
 // @ts-expect-error openai/resources not found
 import type { ChatCompletionMessageParam } from "openai/resources";
 import { BotRole, Message, MessageType, User } from "../entities.js";
+import { handleTriggeredImageEdit } from "./imageEdit.controller.js";
 
 export const textTriggerController = async (
 	context: Filter<BotContext, "message:text">,
@@ -28,6 +29,7 @@ export const textTriggerController = async (
 
 	const text = (match ? match[3] : message.text) ?? "";
 	const { message_id: messageId, reply_to_message: replyToMessage } = message;
+	if (await handleTriggeredImageEdit(context, text)) return;
 
 	const prompt = preparePrompt(text);
 	const previousMessage = await em.findOne(Message, {
