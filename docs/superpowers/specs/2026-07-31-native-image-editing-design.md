@@ -9,8 +9,9 @@ when a user replies to a generated image.
 
 - Treat a text reply as an image edit only when its direct database reply target
   has a Telegram photo ID.
-- Resolve that exact Telegram photo and pass it with the user's unchanged text to
-  the configured image provider.
+- Download that exact Telegram photo server-side and pass a data URI with the
+  user's unchanged text to the configured image provider, so the Telegram bot
+  token never appears in provider input.
 - Use Vercel AI SDK image inputs for xAI.
 - Use `reference_images` for documented Together FLUX.2/Google edit models and
   `image_url` for documented FLUX.1 Kontext models.
