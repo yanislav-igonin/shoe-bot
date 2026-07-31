@@ -1,13 +1,8 @@
 /* eslint-disable complexity */
 
-import { Buffer } from "node:buffer";
-import { type Filter, InputFile } from "grammy";
+import type { Filter } from "grammy";
 import { config } from "lib/config.js";
 import type { BotContext } from "lib/context.js";
-import {
-	generateImage,
-	ImageEditingNotSupportedError,
-} from "lib/imageGeneration.js";
 import { logger } from "lib/logger.js";
 import { runPersistedGeneration } from "lib/persistedGeneration.js";
 import {
@@ -20,49 +15,12 @@ import {
 } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
 import { BotRole, Message, MessageType, User } from "../entities.js";
-import { telegram } from "../telegram.js";
+import {
+	generateBetterImageController,
+	getTelegramImageDataUrl,
+	isImageEditReply,
+} from "./imageEdit.controller.js";
 import { textTriggerController } from "./textTrigger.controller.js";
-
-export const downloadImageAsDataUrl = async (
-	sourceUrl: string,
-	fetchImage: typeof fetch = fetch,
-) => {
-	const response = await fetchImage(sourceUrl);
-	if (!response.ok) {
-		throw new Error(`Failed to download source image: ${response.status}`);
-	}
-
-	const responseMediaType = response.headers
-		.get("content-type")
-		?.split(";", 1)[0]
-		.trim();
-	const bytes = Buffer.from(await response.arrayBuffer());
-	const isJpeg =
-		bytes.length >= 3 &&
-		bytes[0] === 0xff &&
-		bytes[1] === 0xd8 &&
-		bytes[2] === 0xff;
-	const mediaType = responseMediaType?.startsWith("image/")
-		? responseMediaType
-		: isJpeg
-			? "image/jpeg"
-			: undefined;
-	if (!mediaType) {
-		throw new Error("Downloaded source is not an image");
-	}
-
-	return `data:${mediaType};base64,${bytes.toString("base64")}`;
-};
-
-const getTelegramImageDataUrl = async (tgPhotoId: string) => {
-	const file = await telegram.getFile(tgPhotoId);
-	if (!file.file_path) {
-		throw new Error("Telegram image file path is not available");
-	}
-
-	const sourceUrl = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
-	return await downloadImageAsDataUrl(sourceUrl);
-};
 
 const getImagesMapById = async (messages: Message[]) => {
 	const tgImagesInDialog = messages.reduce<
@@ -92,84 +50,6 @@ const getImagesMapById = async (messages: Message[]) => {
 		},
 		{},
 	);
-};
-
-export const isImageEditReply = (
-	message: Pick<Message, "tgPhotoId">,
-): message is Pick<Message, "tgPhotoId"> & { tgPhotoId: string } =>
-	Boolean(message.tgPhotoId);
-
-export const getImageGenerationErrorReply = (error: unknown) =>
-	error instanceof ImageEditingNotSupportedError
-		? replies.imageEditingNotSupported
-		: replies.error;
-
-const generateBetterImageController = async (
-	context: Filter<BotContext, "message:text">,
-	previousMessage: Message & { tgPhotoId: string },
-) => {
-	await context.replyWithChatAction("upload_photo");
-
-	const { dialog, em, user } = context.state;
-	const text = context.message.text;
-	const { message_id: messageId } = context.message;
-
-	const newUserMessage = em.create(Message, {
-		dialog,
-		replyTo: previousMessage,
-		text,
-		tgMessageId: messageId.toString(),
-		type: MessageType.image,
-		user,
-	});
-
-	try {
-		await runPersistedGeneration({
-			generate: async () => {
-				const sourceImage = await getTelegramImageDataUrl(
-					previousMessage.tgPhotoId,
-				);
-				const image = await generateImage(em, text, sourceImage);
-				if (!image) {
-					logger.error("Failed to generate image");
-					throw new Error("Failed to generate image");
-				}
-
-				return image;
-			},
-			persistRequest: async () => {
-				em.persist(newUserMessage);
-				await em.flush();
-			},
-			persistResponse: async (image) => {
-				const source = typeof image === "string" ? new URL(image) : image;
-				const file = new InputFile(source, "image.png");
-				const botReply = await context.replyWithPhoto(file, {
-					reply_to_message_id: messageId,
-				});
-				const botMessage = em.create(Message, {
-					dialog,
-					replyTo: newUserMessage,
-					tgMessageId: botReply.message_id.toString(),
-					tgPhotoId: botReply.photo[botReply.photo.length - 1].file_id,
-					type: MessageType.image,
-					user: em.getReference(User, config.botId),
-				});
-				em.persist(botMessage);
-				await em.flush();
-			},
-		});
-	} catch (error) {
-		try {
-			await context.reply(getImageGenerationErrorReply(error), {
-				reply_to_message_id: messageId,
-			});
-		} catch (replyError) {
-			logger.error(replyError);
-		}
-
-		throw error;
-	}
 };
 
 export const textController = async (
@@ -205,7 +85,11 @@ export const textController = async (
 	}
 
 	if (isImageEditReply(previousMessage)) {
-		await generateBetterImageController(context, previousMessage);
+		await generateBetterImageController(
+			context,
+			[previousMessage],
+			previousMessage,
+		);
 		return;
 	}
 
