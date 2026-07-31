@@ -233,12 +233,49 @@ describe("generateBetterImageController", () => {
 		);
 	});
 
-	it("stops the album after the first failed edit", async () => {
+	it("continues the album after a failed edit and reports skipped photos", async (testContext) => {
+		testContext.mock.method(console, "error", () => undefined);
 		const { context, errorReplies, photoReplies } = createImageEditContext();
 		const sourceMessages = [
 			{ tgMessageId: "101", tgPhotoId: "photo-101" },
 			{ tgMessageId: "102", tgPhotoId: "photo-102" },
 			{ tgMessageId: "103", tgPhotoId: "photo-103" },
+		];
+		const downloads: string[] = [];
+
+		await generateBetterImageController(
+			context as never,
+			sourceMessages as never,
+			sourceMessages[0] as never,
+			"restyle",
+			{
+				generateImage: async (_em, _text, sourceImage) => {
+					if (sourceImage?.endsWith("photo-102")) {
+						throw new Error("provider failed");
+					}
+
+					return new Uint8Array([1]);
+				},
+				getTelegramImageDataUrl: async (tgPhotoId) => {
+					downloads.push(tgPhotoId);
+					return `data:image/jpeg;base64,${tgPhotoId}`;
+				},
+			},
+		);
+
+		assert.deepEqual(downloads, ["photo-101", "photo-102", "photo-103"]);
+		assert.equal(photoReplies.length, 2);
+		assert.deepEqual(errorReplies, [
+			"Обработано фотографий: 2 из 3. Не удалось обработать: №2.",
+		]);
+	});
+
+	it("throws after trying every photo when the whole album fails", async (testContext) => {
+		testContext.mock.method(console, "error", () => undefined);
+		const { context, errorReplies, photoReplies } = createImageEditContext();
+		const sourceMessages = [
+			{ tgMessageId: "101", tgPhotoId: "photo-101" },
+			{ tgMessageId: "102", tgPhotoId: "photo-102" },
 		];
 		const downloads: string[] = [];
 
@@ -249,12 +286,8 @@ describe("generateBetterImageController", () => {
 				sourceMessages[0] as never,
 				"restyle",
 				{
-					generateImage: async (_em, _text, sourceImage) => {
-						if (sourceImage?.endsWith("photo-102")) {
-							throw new Error("provider failed");
-						}
-
-						return new Uint8Array([1]);
+					generateImage: async () => {
+						throw new Error("provider failed");
 					},
 					getTelegramImageDataUrl: async (tgPhotoId) => {
 						downloads.push(tgPhotoId);
@@ -266,7 +299,7 @@ describe("generateBetterImageController", () => {
 		);
 
 		assert.deepEqual(downloads, ["photo-101", "photo-102"]);
-		assert.equal(photoReplies.length, 1);
+		assert.equal(photoReplies.length, 0);
 		assert.deepEqual(errorReplies, [replies.error]);
 	});
 });

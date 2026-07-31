@@ -29,9 +29,10 @@ the edit is requested.
 - If an album is unavailable after process restart or bounded-cache eviction,
   edit the exact photo present in `reply_to_message` instead of rejecting the
   request.
-- Stop at the first provider or Telegram failure, retain already persisted source
-  and request messages, retain any earlier successful outputs, send the existing
-  provider-specific or generic error reply, and rethrow for quota refund behavior.
+- Isolate provider or Telegram failures per photo and continue processing the
+  remaining album. Retain successful outputs and report failed photo numbers.
+- If every photo fails, send the existing provider-specific or generic error
+  reply and rethrow for quota refund behavior.
 
 ## Scope
 

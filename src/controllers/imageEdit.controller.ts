@@ -138,36 +138,53 @@ export const generateBetterImageController = async (
 		type: MessageType.image,
 		user,
 	});
+	const failedImageNumbers: number[] = [];
+	let firstError: unknown;
 
 	try {
 		em.persist(newUserMessage);
 		await em.flush();
 
-		for (const sourceMessage of sourceMessages) {
-			const sourceImage = await dependencies.getTelegramImageDataUrl(
-				sourceMessage.tgPhotoId,
-			);
-			const image = await dependencies.generateImage(em, text, sourceImage);
-			if (!image) {
-				logger.error("Failed to generate image");
-				throw new Error("Failed to generate image");
-			}
+		for (const [index, sourceMessage] of sourceMessages.entries()) {
+			try {
+				const sourceImage = await dependencies.getTelegramImageDataUrl(
+					sourceMessage.tgPhotoId,
+				);
+				const image = await dependencies.generateImage(em, text, sourceImage);
+				if (!image) {
+					throw new Error("Failed to generate image");
+				}
 
-			const source = typeof image === "string" ? new URL(image) : image;
-			const file = new InputFile(source, "image.png");
-			const botReply = await context.replyWithPhoto(file, {
-				reply_to_message_id: messageId,
-			});
-			const botMessage = em.create(Message, {
-				dialog,
-				replyTo: newUserMessage,
-				tgMessageId: botReply.message_id.toString(),
-				tgPhotoId: botReply.photo[botReply.photo.length - 1].file_id,
-				type: MessageType.image,
-				user: em.getReference(UserEntity, config.botId),
-			});
-			em.persist(botMessage);
-			await em.flush();
+				const source = typeof image === "string" ? new URL(image) : image;
+				const file = new InputFile(source, "image.png");
+				const botReply = await context.replyWithPhoto(file, {
+					reply_to_message_id: messageId,
+				});
+				const botMessage = em.create(Message, {
+					dialog,
+					replyTo: newUserMessage,
+					tgMessageId: botReply.message_id.toString(),
+					tgPhotoId: botReply.photo[botReply.photo.length - 1].file_id,
+					type: MessageType.image,
+					user: em.getReference(UserEntity, config.botId),
+				});
+				em.persist(botMessage);
+				await em.flush();
+			} catch (error) {
+				firstError ??= error;
+				failedImageNumbers.push(index + 1);
+				logger.error(
+					`Failed to edit image ${index + 1} of ${sourceMessages.length}`,
+					error,
+				);
+			}
+		}
+
+		if (
+			sourceMessages.length > 0 &&
+			failedImageNumbers.length === sourceMessages.length
+		) {
+			throw firstError;
 		}
 	} catch (error) {
 		try {
@@ -179,6 +196,21 @@ export const generateBetterImageController = async (
 		}
 
 		throw error;
+	}
+
+	if (failedImageNumbers.length > 0) {
+		try {
+			await context.reply(
+				replies.imageEditingPartialFailure(
+					sourceMessages.length - failedImageNumbers.length,
+					sourceMessages.length,
+					failedImageNumbers,
+				),
+				{ reply_to_message_id: messageId },
+			);
+		} catch (replyError) {
+			logger.error(replyError);
+		}
 	}
 };
 

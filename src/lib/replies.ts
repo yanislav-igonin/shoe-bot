@@ -24,6 +24,13 @@ export const replies = {
 	imageEditingNotSupported:
 		"Выбранная модель генерации изображений не поддерживает редактирование. " +
 		"Выберите другую модель или провайдера.",
+	imageEditingPartialFailure: (
+		successful: number,
+		total: number,
+		failedImageNumbers: number[],
+	) =>
+		`Обработано фотографий: ${successful} из ${total}. ` +
+		`Не удалось обработать: ${failedImageNumbers.map((number) => `№${number}`).join(", ")}.`,
 	no: "пидора ответ",
 	noAnswer: "У меня нет ответа на этот вопрос.",
 	noPreviosData:

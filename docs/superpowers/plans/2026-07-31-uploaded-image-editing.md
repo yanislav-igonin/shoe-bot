@@ -13,6 +13,7 @@
 - Keep changes to at most five production files.
 - Do not add a database migration or persist untriggered photo messages.
 - Process album images sequentially and send results as individual photos.
+- Continue after individual image failures; rethrow only when every image fails.
 - Fall back to the exact replied photo when the album cache has no entry.
 
 ---
