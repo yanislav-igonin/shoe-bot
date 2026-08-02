@@ -16,7 +16,7 @@ import {
 } from "lib/uploadedImages.js";
 import {
 	type Chat,
-	type Dialog,
+	Dialog,
 	Message,
 	MessageType,
 	type User,
@@ -25,6 +25,8 @@ import {
 import { telegram } from "../telegram.js";
 
 type PersistedImageMessage = Message & { tgPhotoId: string };
+
+const IMAGE_EDIT_CONCURRENCY = 5;
 
 type ImageEditDependencies = {
 	generateImage: typeof generateImage;
@@ -138,53 +140,71 @@ export const generateBetterImageController = async (
 		type: MessageType.image,
 		user,
 	});
-	const failedImageNumbers: number[] = [];
-	let firstError: unknown;
+	const imageErrors = new Map<number, unknown>();
 
 	try {
 		em.persist(newUserMessage);
 		await em.flush();
 
-		for (const [index, sourceMessage] of sourceMessages.entries()) {
-			try {
-				const sourceImage = await dependencies.getTelegramImageDataUrl(
-					sourceMessage.tgPhotoId,
-				);
-				const image = await dependencies.generateImage(em, text, sourceImage);
-				if (!image) {
-					throw new Error("Failed to generate image");
-				}
+		let nextSourceIndex = 0;
+		const editSources = async () => {
+			while (nextSourceIndex < sourceMessages.length) {
+				const index = nextSourceIndex;
+				nextSourceIndex += 1;
+				const sourceMessage = sourceMessages[index];
+				const imageEntityManager = em.fork();
+				try {
+					const sourceImage = await dependencies.getTelegramImageDataUrl(
+						sourceMessage.tgPhotoId,
+					);
+					const image = await dependencies.generateImage(
+						imageEntityManager,
+						text,
+						sourceImage,
+					);
+					if (!image) {
+						throw new Error("Failed to generate image");
+					}
 
-				const source = typeof image === "string" ? new URL(image) : image;
-				const file = new InputFile(source, "image.png");
-				const botReply = await context.replyWithPhoto(file, {
-					reply_to_message_id: messageId,
-				});
-				const botMessage = em.create(Message, {
-					dialog,
-					replyTo: newUserMessage,
-					tgMessageId: botReply.message_id.toString(),
-					tgPhotoId: botReply.photo[botReply.photo.length - 1].file_id,
-					type: MessageType.image,
-					user: em.getReference(UserEntity, config.botId),
-				});
-				em.persist(botMessage);
-				await em.flush();
-			} catch (error) {
-				firstError ??= error;
-				failedImageNumbers.push(index + 1);
-				logger.error(
-					`Failed to edit image ${index + 1} of ${sourceMessages.length}`,
-					error,
-				);
+					const source = typeof image === "string" ? new URL(image) : image;
+					const file = new InputFile(source, "image.png");
+					const botReply = await context.replyWithPhoto(file, {
+						reply_to_message_id: messageId,
+					});
+					const botMessage = imageEntityManager.create(Message, {
+						dialog: imageEntityManager.getReference(Dialog, dialog.id),
+						replyTo: imageEntityManager.getReference(
+							Message,
+							newUserMessage.id,
+						),
+						tgMessageId: botReply.message_id.toString(),
+						tgPhotoId: botReply.photo[botReply.photo.length - 1].file_id,
+						type: MessageType.image,
+						user: imageEntityManager.getReference(UserEntity, config.botId),
+					});
+					imageEntityManager.persist(botMessage);
+					await imageEntityManager.flush();
+				} catch (error) {
+					imageErrors.set(index, error);
+					logger.error(
+						`Failed to edit image ${index + 1} of ${sourceMessages.length}`,
+						error,
+					);
+				}
 			}
-		}
+		};
+		const workers = Array.from(
+			{ length: Math.min(IMAGE_EDIT_CONCURRENCY, sourceMessages.length) },
+			editSources,
+		);
+		await Promise.all(workers);
 
 		if (
 			sourceMessages.length > 0 &&
-			failedImageNumbers.length === sourceMessages.length
+			imageErrors.size === sourceMessages.length
 		) {
-			throw firstError;
+			const firstFailedIndex = Math.min(...imageErrors.keys());
+			throw imageErrors.get(firstFailedIndex);
 		}
 	} catch (error) {
 		try {
@@ -198,7 +218,10 @@ export const generateBetterImageController = async (
 		throw error;
 	}
 
-	if (failedImageNumbers.length > 0) {
+	if (imageErrors.size > 0) {
+		const failedImageNumbers = [...imageErrors.keys()]
+			.map((index) => index + 1)
+			.sort((left, right) => left - right);
 		try {
 			await context.reply(
 				replies.imageEditingPartialFailure(

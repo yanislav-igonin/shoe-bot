@@ -29,15 +29,21 @@ const createImageEditContext = () => {
 	const errorReplies: string[] = [];
 	let replyNumber = 0;
 	const user = { id: 42, tgId: "42" };
-	const em = {
-		create: (_entity: unknown, data: Record<string, unknown>) => data,
-		findOne: async () => user,
-		flush: async () => undefined,
-		getReference: () => ({ id: 999 }),
-		persist: (message: Record<string, unknown>) => {
-			persisted.push(message);
-		},
+	const createEntityManager = () => {
+		const em = {
+			create: (_entity: unknown, data: Record<string, unknown>) => data,
+			findOne: async () => user,
+			flush: async () => undefined,
+			fork: () => createEntityManager(),
+			getReference: () => ({ id: 999 }),
+			persist: (message: Record<string, unknown>) => {
+				persisted.push(message);
+			},
+		};
+
+		return em;
 	};
+	const em = createEntityManager();
 	const context = {
 		message: { message_id: 500, text: "restyle" },
 		reply: async (text: string) => {
@@ -65,6 +71,18 @@ const createImageEditContext = () => {
 
 	return { context, errorReplies, persisted, photoReplies };
 };
+
+const deferred = <Value>() => {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((resolvePromise) => {
+		resolve = resolvePromise;
+	});
+
+	return { promise, resolve };
+};
+
+const nextEventLoopTurn = async () =>
+	await new Promise<void>((resolve) => setImmediate(resolve));
 
 describe("isImageEditReply", () => {
 	it("routes a direct image reply to image editing", () => {
@@ -191,37 +209,46 @@ describe("uploaded image persistence", () => {
 });
 
 describe("generateBetterImageController", () => {
-	it("edits album sources sequentially and persists each response", async () => {
+	it("sends each parallel album result as soon as it finishes", async () => {
 		const { context, persisted, photoReplies } = createImageEditContext();
 		const sourceMessages = [
 			{ tgMessageId: "101", tgPhotoId: "photo-101" },
 			{ tgMessageId: "102", tgPhotoId: "photo-102" },
 		];
-		const events: string[] = [];
+		const edits = new Map([
+			["data:image/jpeg;base64,photo-101", deferred<Uint8Array>()],
+			["data:image/jpeg;base64,photo-102", deferred<Uint8Array>()],
+		]);
+		const generationEntityManagers = new Set<unknown>();
+		let startedEdits = 0;
 
-		await generateBetterImageController(
+		const operation = generateBetterImageController(
 			context as never,
 			sourceMessages as never,
 			sourceMessages[1] as never,
 			"restyle",
 			{
-				generateImage: async (_em, _text, sourceImage) => {
-					events.push(`generate ${sourceImage}`);
-					return new Uint8Array([1]);
+				generateImage: async (em, _text, sourceImage) => {
+					generationEntityManagers.add(em);
+					startedEdits += 1;
+					return await edits.get(sourceImage ?? "")?.promise;
 				},
-				getTelegramImageDataUrl: async (tgPhotoId) => {
-					events.push(`download ${tgPhotoId}`);
-					return `data:image/jpeg;base64,${tgPhotoId}`;
-				},
+				getTelegramImageDataUrl: async (tgPhotoId) =>
+					`data:image/jpeg;base64,${tgPhotoId}`,
 			},
 		);
 
-		assert.deepEqual(events, [
-			"download photo-101",
-			"generate data:image/jpeg;base64,photo-101",
-			"download photo-102",
-			"generate data:image/jpeg;base64,photo-102",
-		]);
+		await nextEventLoopTurn();
+		const editsStartedBeforeCompletion = startedEdits;
+		edits.get("data:image/jpeg;base64,photo-102")?.resolve(new Uint8Array([2]));
+		await nextEventLoopTurn();
+		const repliesBeforeFirstEditFinished = photoReplies.length;
+		edits.get("data:image/jpeg;base64,photo-101")?.resolve(new Uint8Array([1]));
+		await operation;
+
+		assert.equal(editsStartedBeforeCompletion, 2);
+		assert.equal(repliesBeforeFirstEditFinished, 1);
+		assert.equal(generationEntityManagers.size, 2);
 		assert.deepEqual(photoReplies, [
 			{ reply_to_message_id: 500 },
 			{ reply_to_message_id: 500 },
@@ -231,6 +258,43 @@ describe("generateBetterImageController", () => {
 			persisted.slice(1).map(({ tgPhotoId }) => tgPhotoId),
 			["result-1", "result-2"],
 		);
+	});
+
+	it("starts no more than five album edits at once", async () => {
+		const { context } = createImageEditContext();
+		const sourceMessages = Array.from({ length: 6 }, (_, index) => ({
+			tgMessageId: `${101 + index}`,
+			tgPhotoId: `photo-${index + 1}`,
+		}));
+		const edits = sourceMessages.map(() => deferred<Uint8Array>());
+		let startedEdits = 0;
+
+		const operation = generateBetterImageController(
+			context as never,
+			sourceMessages as never,
+			sourceMessages[0] as never,
+			"restyle",
+			{
+				generateImage: async (_em, _text, sourceImage) => {
+					const index = Number(sourceImage?.match(/photo-(\d+)/u)?.[1]) - 1;
+					startedEdits += 1;
+					return await edits[index].promise;
+				},
+				getTelegramImageDataUrl: async (tgPhotoId) =>
+					`data:image/jpeg;base64,${tgPhotoId}`,
+			},
+		);
+
+		await nextEventLoopTurn();
+		const initialStartedEdits = startedEdits;
+		edits[0].resolve(new Uint8Array([1]));
+		await nextEventLoopTurn();
+		const startedAfterOneFinished = startedEdits;
+		for (const edit of edits.slice(1)) edit.resolve(new Uint8Array([1]));
+		await operation;
+
+		assert.equal(initialStartedEdits, 5);
+		assert.equal(startedAfterOneFinished, 6);
 	});
 
 	it("continues the album after a failed edit and reports skipped photos", async (testContext) => {
