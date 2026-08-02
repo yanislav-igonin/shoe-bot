@@ -13,8 +13,6 @@ import {
 	preparePrompt,
 } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
-// @ts-expect-error openai/resources not found
-import type { ChatCompletionMessageParam } from "openai/resources";
 import { BotRole, Message, MessageType, User } from "../entities.js";
 import { handleTriggeredImageEdit } from "./imageEdit.controller.js";
 
@@ -69,7 +67,7 @@ export const textTriggerController = async (
 		throw error;
 	}
 
-	const systemContext: ChatCompletionMessageParam[] = [
+	const systemContext = [
 		// addSystemContext(markdownRulesPrompt),
 		addSystemContext(maximumMessageLengthPrompt),
 	];

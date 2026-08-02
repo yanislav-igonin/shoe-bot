@@ -1,12 +1,14 @@
+import { Buffer } from "node:buffer";
 import type { XaiImageModelOptions } from "@ai-sdk/xai";
 import type { EntityManager } from "@mikro-orm/postgresql";
 import { type GeneratedFile, generateImage as generateAiImage } from "ai";
-import { xai } from "lib/ai.js";
+import { openai, xai } from "lib/ai.js";
 import { config } from "lib/config.js";
+import { toFile } from "openai";
 import { Together } from "together-ai";
 import { Setting } from "../entities.js";
 
-type ImageProvider = "togetherai" | "xai";
+type ImageProvider = "openai" | "togetherai" | "xai";
 
 const IMAGE_SETTING_KEYS = ["imageProvider", "imageModel"];
 const TOGETHER_REFERENCE_IMAGE_MODELS = new Set([
@@ -23,7 +25,8 @@ const TOGETHER_IMAGE_URL_MODELS = new Set([
 const XAI_EDIT_MODEL_REGEXP = /^grok-imagine-image(?:-|$)/u;
 
 type GeneratedImageResponse = {
-	data: Array<{
+	data?: Array<{
+		b64_json?: string | null;
 		url?: string | null;
 	}>;
 };
@@ -71,7 +74,11 @@ export const parseImageGenerationSettings = (
 		throw new Error("imageModel setting is empty");
 	}
 
-	if (provider !== "togetherai" && provider !== "xai") {
+	if (
+		provider !== "openai" &&
+		provider !== "togetherai" &&
+		provider !== "xai"
+	) {
 		throw new Error(`Unsupported image provider: ${provider}`);
 	}
 
@@ -79,7 +86,7 @@ export const parseImageGenerationSettings = (
 };
 
 export const getGeneratedImageUrl = (response: GeneratedImageResponse) => {
-	const imageUrl = response.data[0]?.url;
+	const imageUrl = response.data?.[0]?.url;
 	if (!imageUrl) {
 		return undefined;
 	}
@@ -104,6 +111,48 @@ export const getGeneratedImageData = (
 	}
 
 	return image.uint8Array;
+};
+
+export const getGeneratedImageBase64Data = (
+	response: GeneratedImageResponse,
+) => {
+	const imageBase64 = response.data?.[0]?.b64_json;
+	if (!imageBase64) {
+		return undefined;
+	}
+
+	const imageData = Buffer.from(imageBase64, "base64");
+	return imageData.length > 0 ? imageData : undefined;
+};
+
+export const createOpenAiImageFile = async (sourceImageUrl: string) => {
+	const response = await fetch(sourceImageUrl);
+	if (!response.ok) {
+		throw new Error(`Failed to load OpenAI source image: ${response.status}`);
+	}
+
+	const mediaType = response.headers
+		.get("content-type")
+		?.split(";", 1)[0]
+		.trim();
+	let extension: string;
+	switch (mediaType) {
+		case "image/jpeg":
+			extension = "jpg";
+			break;
+		case "image/png":
+			extension = "png";
+			break;
+		case "image/webp":
+			extension = "webp";
+			break;
+		default:
+			throw new Error("OpenAI source image must be a PNG, JPEG, or WebP");
+	}
+
+	return await toFile(await response.arrayBuffer(), `source.${extension}`, {
+		type: mediaType,
+	});
 };
 
 export const createXaiImagePrompt = (
@@ -172,6 +221,27 @@ const generateWithXai = async (
 	return getGeneratedImageData(image);
 };
 
+const generateWithOpenAi = async (
+	text: string,
+	model: string,
+	sourceImageUrl: string | undefined,
+) => {
+	const response = sourceImageUrl
+		? await openai.images.edit({
+				image: await createOpenAiImageFile(sourceImageUrl),
+				model,
+				prompt: text,
+				size: "1536x1024",
+			})
+		: await openai.images.generate({
+				model,
+				prompt: text,
+				size: "1536x1024",
+			});
+
+	return getGeneratedImageBase64Data(response);
+};
+
 const generateWithTogether = async (
 	text: string,
 	model: string,
@@ -199,6 +269,8 @@ export const generateImage = async (
 	const { model, provider } = await loadImageGenerationSettings(em);
 
 	switch (provider) {
+		case "openai":
+			return await generateWithOpenAi(text, model, sourceImageUrl);
 		case "togetherai":
 			return await generateWithTogether(text, model, sourceImageUrl);
 		case "xai":
