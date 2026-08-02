@@ -6,10 +6,15 @@ process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 process.env.TOGETHER_API_KEY = "test";
 
+// Config reads environment variables at module load, so imports must follow setup.
 const imageGeneration = await import("lib/imageGeneration.js");
+const { openai } = await import("lib/ai.js");
 const {
+	createOpenAiImageFile,
 	createTogetherImageInput,
 	createXaiImagePrompt,
+	generateImage,
+	getGeneratedImageBase64Data,
 	getGeneratedImageData,
 	getGeneratedImageUrl,
 	parseImageGenerationSettings,
@@ -69,6 +74,19 @@ describe("parseImageGenerationSettings", () => {
 			{
 				model: "grok-imagine-image-quality",
 				provider: "xai",
+			},
+		);
+	});
+
+	it("parses OpenAI settings", () => {
+		assert.deepEqual(
+			parseImageGenerationSettings([
+				{ key: "imageProvider", value: "openai" },
+				{ key: "imageModel", value: "gpt-image-2" },
+			]),
+			{
+				model: "gpt-image-2",
+				provider: "openai",
 			},
 		);
 	});
@@ -148,6 +166,100 @@ describe("getGeneratedImageData", () => {
 			getGeneratedImageData({ uint8Array: new Uint8Array() }),
 			undefined,
 		);
+	});
+});
+
+describe("getGeneratedImageBase64Data", () => {
+	it("decodes generated image bytes", () => {
+		assert.deepEqual(
+			getGeneratedImageBase64Data({ data: [{ b64_json: "AQID" }] }),
+			Buffer.from([1, 2, 3]),
+		);
+	});
+
+	it("returns undefined when response does not contain image data", () => {
+		assert.equal(getGeneratedImageBase64Data({ data: [{}] }), undefined);
+	});
+});
+
+describe("createOpenAiImageFile", () => {
+	it("creates an uploadable image from a data URL", async () => {
+		const image = await createOpenAiImageFile("data:image/png;base64,AQID");
+
+		assert.equal(image.name, "source.png");
+		assert.equal(image.size, 3);
+		assert.equal(image.type, "image/png");
+	});
+
+	it("rejects unsupported source image types", async () => {
+		await assert.rejects(
+			createOpenAiImageFile("data:image/gif;base64,AQID"),
+			/OpenAI source image must be a PNG, JPEG, or WebP/u,
+		);
+	});
+});
+
+describe("generateImage with OpenAI", () => {
+	it("routes text prompts to OpenAI image generation", async () => {
+		const originalGenerate = openai.images.generate;
+		let request: Parameters<typeof openai.images.generate>[0] | undefined;
+		openai.images.generate = (async (parameters) => {
+			request = parameters;
+			return { data: [{ b64_json: "AQID" }] };
+		}) as typeof openai.images.generate;
+
+		try {
+			const image = await generateImage(
+				{
+					find: async () => [
+						{ key: "imageProvider", value: "openai" },
+						{ key: "imageModel", value: "gpt-image-2" },
+					],
+				} as never,
+				"draw a shoe",
+			);
+
+			assert.deepEqual(image, Buffer.from([1, 2, 3]));
+			assert.deepEqual(request, {
+				model: "gpt-image-2",
+				prompt: "draw a shoe",
+				size: "1536x1024",
+			});
+		} finally {
+			openai.images.generate = originalGenerate;
+		}
+	});
+
+	it("routes source images to OpenAI image editing", async () => {
+		const originalEdit = openai.images.edit;
+		let request: Parameters<typeof openai.images.edit>[0] | undefined;
+		openai.images.edit = (async (parameters) => {
+			request = parameters;
+			return { data: [{ b64_json: "BAUG" }] };
+		}) as typeof openai.images.edit;
+
+		try {
+			const image = await generateImage(
+				{
+					find: async () => [
+						{ key: "imageProvider", value: "openai" },
+						{ key: "imageModel", value: "gpt-image-2" },
+					],
+				} as never,
+				"make it red",
+				"data:image/jpeg;base64,AQID",
+			);
+
+			assert.deepEqual(image, Buffer.from([4, 5, 6]));
+			assert.ok(request);
+			assert.equal(request.model, "gpt-image-2");
+			assert.equal(request.prompt, "make it red");
+			assert.equal(request.size, "1536x1024");
+			assert.equal(Array.isArray(request.image), false);
+			assert.equal((request.image as File).name, "source.jpg");
+		} finally {
+			openai.images.edit = originalEdit;
+		}
 	});
 });
 
