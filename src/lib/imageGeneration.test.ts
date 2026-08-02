@@ -303,11 +303,11 @@ describe("generateImage with OpenAI", () => {
 		const originalGenerate = openai.images.generate;
 		let generateCalls = 0;
 		openai.moderations.create = (async () =>
-			moderationResponse(true)) as typeof openai.moderations.create;
+			moderationResponse(true)) as unknown as typeof openai.moderations.create;
 		openai.images.generate = (async () => {
 			generateCalls += 1;
 			return { data: [{ b64_json: "AQID" }] };
-		}) as typeof openai.images.generate;
+		}) as unknown as typeof openai.images.generate;
 
 		try {
 			await assert.rejects(
@@ -333,7 +333,7 @@ describe("generateImage with OpenAI", () => {
 		const originalModerate = openai.moderations.create;
 		const originalEdit = openai.images.edit;
 		openai.moderations.create = (async () =>
-			moderationResponse(false)) as typeof openai.moderations.create;
+			moderationResponse(false)) as unknown as typeof openai.moderations.create;
 		let request: Parameters<typeof openai.images.edit>[0] | undefined;
 		openai.images.edit = (async (parameters) => {
 			request = parameters;
@@ -379,7 +379,7 @@ describe("generateImage with OpenAI", () => {
 		openai.images.edit = (async () => {
 			editCalls += 1;
 			return { data: [{ b64_json: "BAUG" }] };
-		}) as typeof openai.images.edit;
+		}) as unknown as typeof openai.images.edit;
 
 		try {
 			await assert.rejects(

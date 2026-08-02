@@ -31,6 +31,9 @@ export const replies = {
 	) =>
 		`Обработано фотографий: ${successful} из ${total}. ` +
 		`Не удалось обработать: ${failedImageNumbers.map((number) => `№${number}`).join(", ")}.`,
+	imageModerationRejected:
+		"OpenAI отклонил запрос на генерацию изображения. " +
+		"Попробуйте изменить описание или исходное изображение.",
 	no: "пидора ответ",
 	noAnswer: "У меня нет ответа на этот вопрос.",
 	noPreviosData:

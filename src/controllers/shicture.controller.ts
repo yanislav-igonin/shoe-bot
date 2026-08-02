@@ -5,8 +5,8 @@ import { generateImage } from "lib/imageGeneration.js";
 import { logger } from "lib/logger.js";
 import { runPersistedGeneration } from "lib/persistedGeneration.js";
 import { getShictureDescription } from "lib/prompt.js";
-import { replies } from "lib/replies.js";
 import { Message, MessageType, User } from "../entities.js";
+import { getImageGenerationErrorReply } from "./imageEdit.controller.js";
 
 export const shictureController = async (
 	context: CommandContext<BotContext>,
@@ -69,7 +69,7 @@ export const shictureController = async (
 		});
 	} catch (error) {
 		try {
-			await context.reply(replies.error, {
+			await context.reply(getImageGenerationErrorReply(error), {
 				reply_to_message_id: messageId,
 			});
 		} catch (replyError) {
