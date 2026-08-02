@@ -48,6 +48,13 @@ export class ImageEditingNotSupportedError extends Error {
 	}
 }
 
+export class ImageModerationRejectedError extends Error {
+	constructor() {
+		super("OpenAI image input was rejected by moderation");
+		this.name = "ImageModerationRejectedError";
+	}
+}
+
 export const requireTogetherApiKey = (apiKey: string | undefined) => {
 	if (!apiKey?.trim()) {
 		throw new Error("TOGETHER_API_KEY is not set");
@@ -221,11 +228,36 @@ const generateWithXai = async (
 	return getGeneratedImageData(image);
 };
 
+const moderateOpenAiImageInput = async (
+	text: string,
+	sourceImageUrl: string | undefined,
+) => {
+	const input = sourceImageUrl
+		? [
+				{ text, type: "text" as const },
+				{
+					image_url: { url: sourceImageUrl },
+					type: "image_url" as const,
+				},
+			]
+		: text;
+	const moderation = await openai.moderations.create({
+		input,
+		model: "omni-moderation-latest",
+	});
+
+	if (moderation.results.some(({ flagged }) => flagged)) {
+		throw new ImageModerationRejectedError();
+	}
+};
+
 const generateWithOpenAi = async (
 	text: string,
 	model: string,
 	sourceImageUrl: string | undefined,
 ) => {
+	await moderateOpenAiImageInput(text, sourceImageUrl);
+
 	const response = sourceImageUrl
 		? await openai.images.edit({
 				image: await createOpenAiImageFile(sourceImageUrl),
