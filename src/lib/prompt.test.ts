@@ -6,7 +6,7 @@ process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 
-const { addUserContext } = await import("lib/prompt.js");
+const { addUserContext, chooseTask } = await import("lib/prompt.js");
 
 const user = new User();
 user.id = 1;
@@ -38,5 +38,21 @@ describe("addUserContext", () => {
 				role: "user",
 			},
 		);
+	});
+});
+
+describe("chooseTask", () => {
+	it("returns the validated classifier choice", async () => {
+		const task = await chooseTask("draw a boot", async () => MessageType.image);
+
+		assert.equal(task, MessageType.image);
+	});
+
+	it("falls back to text when classification fails", async () => {
+		const task = await chooseTask("draw a boot", async () => {
+			throw new Error("classifier unavailable");
+		});
+
+		assert.equal(task, MessageType.text);
 	});
 });

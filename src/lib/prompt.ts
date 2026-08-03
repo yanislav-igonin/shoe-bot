@@ -1,4 +1,4 @@
-import { generateText, type Prompt } from "ai";
+import { generateText, Output, type Prompt } from "ai";
 import { xai } from "lib/ai.js";
 import { config, isProduction } from "lib/config.js";
 import { logger } from "lib/logger.js";
@@ -244,10 +244,25 @@ const chooseTaskPrompt =
 	"Если пользователь просить рассказать что-то, или что-то спрашивает - это значит, " +
 	"что надо что-то сделать в текстовом формате." +
 	"Также пользователь может попросить создать картинку, фото, нарисовать что-то." +
-	'Твоя задача вернуть в ответе JSON объект с полем task, например: {"task":"text"}.' +
 	"Список задач:\n" +
 	"* text - пользователь просит сделать что-то в текстовом формате\n" +
 	"* image - пользователь просит сделать что-то в формате картинки\n";
+
+type Task = MessageType.image | MessageType.text;
+
+const classifyTask = async (text: string): Promise<Task> => {
+	const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
+	const userMessage = addUserContext(text);
+	const { output } = await generateText({
+		allowSystemInMessages: true,
+		messages: [chooseTaskMessage, userMessage],
+		model: xai(Model.Grok3Mini),
+		output: Output.choice({
+			options: [MessageType.text, MessageType.image] as const,
+		}),
+	});
+	return output;
+};
 
 /**
  * Choose task that user wants to do.
@@ -257,23 +272,12 @@ const chooseTaskPrompt =
  */
 export const chooseTask = async (
 	text: string,
-): Promise<MessageType.image | MessageType.text> => {
-	const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
-	const userMessage = addUserContext(text);
-	const messages = [chooseTaskMessage, userMessage];
-	const response = await generateText({
-		allowSystemInMessages: true,
-		messages,
-		model: xai(Model.Grok3Mini),
-	});
-	const task = response.text;
+ classifier: (text: string) => Promise<Task> = classifyTask,
+): Promise<Task> => {
 	try {
-		const parsed = JSON.parse(task ?? "{}") as { task?: unknown };
-		return parsed.task === MessageType.image
-			? MessageType.image
-			: MessageType.text;
+		return await classifier(text);
 	} catch (error) {
-		logger.error("Prompt: ChooseTask: Parsing answer from model:", task, error);
+		logger.error("Prompt: ChooseTask: Classification failed:", error);
 		return MessageType.text;
 	}
 };

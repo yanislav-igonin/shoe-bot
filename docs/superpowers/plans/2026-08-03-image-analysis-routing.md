@@ -30,19 +30,19 @@
 - Produces: `chooseTask(text, classify?) -> Promise<MessageType.text | MessageType.image>`.
 - Consumes: AI SDK `Output.choice({ options: ["text", "image"] })` and `Grok3Mini`.
 
-- [ ] **Step 1: Write failing classifier tests**
+- [x] **Step 1: Write failing classifier tests**
 
 Add tests showing that `chooseTask` returns a supplied valid choice and returns `MessageType.text` when the classifier dependency rejects.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run `npx tsx --test src/lib/prompt.test.ts`. Expect failure because `chooseTask` does not accept the classifier boundary and still parses JSON manually.
 
-- [ ] **Step 3: Implement typed classification**
+- [x] **Step 3: Implement typed classification**
 
 Use `generateText({ output: Output.choice({ options: [MessageType.text, MessageType.image] as const }) })`. Keep prompt instructions focused on semantic choice rather than JSON formatting. Catch errors around the complete classification call, log them, and return `MessageType.text`.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run `npx tsx --test src/lib/prompt.test.ts` and `npm run typecheck`.
 
@@ -57,20 +57,20 @@ Run `npx tsx --test src/lib/prompt.test.ts` and `npm run typecheck`.
 - Modify: `src/index.ts`
 
 **Interfaces:**
-- Produces: caption-aware `classifyRequest` input from `text ?? caption`.
+- Produces: `getRequestText({ text?, caption? }) -> string | undefined` and caption-aware `classifyRequest` input.
 - Produces: `createUploadedImageMiddleware(replayUpdate, debounceMs?)` that remembers standalone images, buffers albums, and replays one caption update after inactivity.
 
 - [ ] **Step 1: Write failing access tests**
 
-Add literal cases for a private caption being generation access, a triggered group caption being generation access, and an unrelated group caption being ignored.
+Add literal cases proving `getRequestText` prefers message text and otherwise returns caption text. Feed those results into `classifyRequest` for private, triggered-group, and unrelated-group cases.
 
 - [ ] **Step 2: Verify access RED**
 
-Run `npx tsx --test src/lib/requestAccess.test.ts`. Expect caption cases to fail because middleware currently passes only `message.text`.
+Run `npx tsx --test src/lib/requestAccess.test.ts`. Expect failure because `getRequestText` does not exist.
 
 - [ ] **Step 3: Pass caption text into access classification**
 
-Use `context.message?.text ?? context.message?.caption` in `allowedMiddleware`; keep `classifyRequest` rules unchanged.
+Add `getRequestText` to `requestAccess.ts` and use it in `allowedMiddleware`; keep `classifyRequest` rules unchanged.
 
 - [ ] **Step 4: Write failing album middleware tests**
 
