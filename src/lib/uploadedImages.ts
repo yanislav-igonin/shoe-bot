@@ -145,14 +145,3 @@ export const createUploadedImageMiddleware = ({
 		}
 	};
 };
-
-export const uploadedImageMiddleware = async (
-	context: BotContext,
-	next: NextFunction,
-) => {
-	if (context.has("message:photo")) {
-		uploadedImageStore.remember(getUploadedImage(context.message));
-	}
-
-	await next();
-};

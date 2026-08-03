@@ -234,12 +234,12 @@ const moderateOpenAiImageInput = async (
 ) => {
 	const input = sourceImageUrl
 		? [
-			{ text, type: "text" as const },
-			{
-				image_url: { url: sourceImageUrl },
-				type: "image_url" as const,
-			},
-		]
+				{ text, type: "text" as const },
+				{
+					image_url: { url: sourceImageUrl },
+					type: "image_url" as const,
+				},
+			]
 		: text;
 	const moderation = await openai.moderations.create({
 		input,
@@ -268,16 +268,16 @@ const generateWithOpenAi = async (
 	try {
 		response = sourceImageUrl
 			? await openai.images.edit({
-				image: await createOpenAiImageFile(sourceImageUrl),
-				model,
-				prompt: text,
-				size: "1536x1024",
-			})
+					image: await createOpenAiImageFile(sourceImageUrl),
+					model,
+					prompt: text,
+					size: "1536x1024",
+				})
 			: await openai.images.generate({
-				model,
-				prompt: text,
-				size: "1536x1024",
-			});
+					model,
+					prompt: text,
+					size: "1536x1024",
+				});
 	} catch (error) {
 		if (isOpenAiModerationBlockedError(error)) {
 			throw new ImageModerationRejectedError();
