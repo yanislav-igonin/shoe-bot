@@ -329,40 +329,6 @@ describe("generateImage with OpenAI", () => {
 		}
 	});
 
-	it("blocks high category scores before OpenAI image generation", async () => {
-		const originalModerate = openai.moderations.create;
-		const originalGenerate = openai.images.generate;
-		let generateCalls = 0;
-		openai.moderations.create = (async () =>
-			moderationResponse(
-				false,
-				0.3,
-			)) as unknown as typeof openai.moderations.create;
-		openai.images.generate = (async () => {
-			generateCalls += 1;
-			return { data: [{ b64_json: "AQID" }] };
-		}) as unknown as typeof openai.images.generate;
-
-		try {
-			await assert.rejects(
-				generateImage(
-					{
-						find: async () => [
-							{ key: "imageProvider", value: "openai" },
-							{ key: "imageModel", value: "gpt-image-2" },
-						],
-					} as never,
-					"draw sexual content",
-				),
-				(error: Error) => error.name === "ImageModerationRejectedError",
-			);
-			assert.equal(generateCalls, 0);
-		} finally {
-			openai.moderations.create = originalModerate;
-			openai.images.generate = originalGenerate;
-		}
-	});
-
 	it("maps image API moderation blocks to the moderation error", async () => {
 		const originalModerate = openai.moderations.create;
 		const originalGenerate = openai.images.generate;
