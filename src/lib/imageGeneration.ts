@@ -23,6 +23,7 @@ const TOGETHER_IMAGE_URL_MODELS = new Set([
 	"black-forest-labs/FLUX.1-kontext-pro",
 ]);
 const XAI_EDIT_MODEL_REGEXP = /^grok-imagine-image(?:-|$)/u;
+const OPENAI_IMAGE_MODERATION_SCORE_THRESHOLD = 0.3;
 
 type GeneratedImageResponse = {
 	data?: Array<{
@@ -45,6 +46,13 @@ export class ImageEditingNotSupportedError extends Error {
 	constructor(provider: ImageProvider, model: string) {
 		super(`Image editing is not supported by ${provider} model ${model}`);
 		this.name = "ImageEditingNotSupportedError";
+	}
+}
+
+export class ImageModerationRejectedError extends Error {
+	constructor() {
+		super("OpenAI image input was rejected by moderation");
+		this.name = "ImageModerationRejectedError";
 	}
 }
 
@@ -221,23 +229,70 @@ const generateWithXai = async (
 	return getGeneratedImageData(image);
 };
 
+const moderateOpenAiImageInput = async (
+	text: string,
+	sourceImageUrl: string | undefined,
+) => {
+	const input = sourceImageUrl
+		? [
+				{ text, type: "text" as const },
+				{
+					image_url: { url: sourceImageUrl },
+					type: "image_url" as const,
+				},
+			]
+		: text;
+	const moderation = await openai.moderations.create({
+		input,
+		model: "omni-moderation-latest",
+	});
+
+	if (
+		moderation.results.some(
+			({ flagged, category_scores: categoryScores }) =>
+				flagged ||
+				Object.values(categoryScores).some(
+					(score) => score >= OPENAI_IMAGE_MODERATION_SCORE_THRESHOLD,
+				),
+		)
+	) {
+		throw new ImageModerationRejectedError();
+	}
+};
+
+const isOpenAiModerationBlockedError = (error: unknown) =>
+	typeof error === "object" &&
+	error !== null &&
+	"code" in error &&
+	(error as { code?: unknown }).code === "moderation_blocked";
+
 const generateWithOpenAi = async (
 	text: string,
 	model: string,
 	sourceImageUrl: string | undefined,
 ) => {
-	const response = sourceImageUrl
-		? await openai.images.edit({
-				image: await createOpenAiImageFile(sourceImageUrl),
-				model,
-				prompt: text,
-				size: "1536x1024",
-			})
-		: await openai.images.generate({
-				model,
-				prompt: text,
-				size: "1536x1024",
-			});
+	await moderateOpenAiImageInput(text, sourceImageUrl);
+
+	let response: GeneratedImageResponse;
+	try {
+		response = sourceImageUrl
+			? await openai.images.edit({
+					image: await createOpenAiImageFile(sourceImageUrl),
+					model,
+					prompt: text,
+					size: "1536x1024",
+				})
+			: await openai.images.generate({
+					model,
+					prompt: text,
+					size: "1536x1024",
+				});
+	} catch (error) {
+		if (isOpenAiModerationBlockedError(error)) {
+			throw new ImageModerationRejectedError();
+		}
+		throw error;
+	}
 
 	return getGeneratedImageBase64Data(response);
 };

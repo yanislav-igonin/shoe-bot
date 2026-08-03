@@ -14,7 +14,10 @@ import {
 } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
 import { BotRole, Message, MessageType, User } from "../entities.js";
-import { handleTriggeredImageEdit } from "./imageEdit.controller.js";
+import {
+	getImageGenerationErrorReply,
+	handleTriggeredImageEdit,
+} from "./imageEdit.controller.js";
 
 export const textTriggerController = async (
 	context: Filter<BotContext, "message:text">,
@@ -139,7 +142,7 @@ export const textTriggerController = async (
 		await controllers[task]();
 	} catch (error) {
 		try {
-			await context.reply(replies.error, {
+			await context.reply(getImageGenerationErrorReply(error), {
 				reply_to_message_id: messageId,
 			});
 		} catch (replyError) {

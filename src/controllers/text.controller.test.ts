@@ -7,9 +7,8 @@ process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 
-const { ImageEditingNotSupportedError } = await import(
-	"../lib/imageGeneration.js"
-);
+const { ImageEditingNotSupportedError, ImageModerationRejectedError } =
+	await import("../lib/imageGeneration.js");
 const { replies } = await import("../lib/replies.js");
 const {
 	createUploadedImageMessageData,
@@ -126,6 +125,13 @@ describe("downloadImageAsDataUrl", () => {
 });
 
 describe("getImageGenerationErrorReply", () => {
+	it("returns the dedicated reply for rejected image inputs", () => {
+		assert.equal(
+			getImageGenerationErrorReply(new ImageModerationRejectedError()),
+			replies.imageModerationRejected,
+		);
+	});
+
 	it("returns the dedicated reply for unsupported edit models", () => {
 		const error = new ImageEditingNotSupportedError(
 			"togetherai",

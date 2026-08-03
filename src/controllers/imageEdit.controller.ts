@@ -6,6 +6,7 @@ import type { BotContext } from "lib/context.js";
 import {
 	generateImage,
 	ImageEditingNotSupportedError,
+	ImageModerationRejectedError,
 } from "lib/imageGeneration.js";
 import { logger } from "lib/logger.js";
 import { replies } from "lib/replies.js";
@@ -84,10 +85,15 @@ export const isImageEditReply = (
 ): message is Pick<Message, "tgPhotoId"> & { tgPhotoId: string } =>
 	Boolean(message.tgPhotoId);
 
-export const getImageGenerationErrorReply = (error: unknown) =>
-	error instanceof ImageEditingNotSupportedError
+export const getImageGenerationErrorReply = (error: unknown) => {
+	if (error instanceof ImageModerationRejectedError) {
+		return replies.imageModerationRejected;
+	}
+
+	return error instanceof ImageEditingNotSupportedError
 		? replies.imageEditingNotSupported
 		: replies.error;
+};
 
 export const createUploadedImageMessageData = (
 	image: UploadedImage,
