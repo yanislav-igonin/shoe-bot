@@ -17,9 +17,30 @@ const {
 	findRepliedImageMessage,
 	generateBetterImageController,
 	getImageGenerationErrorReply,
-	handleTriggeredImageEdit,
 	isImageEditReply,
+	persistUploadedImageMessages,
 } = await import("./imageEdit.controller.js");
+const imageEditController = (await import(
+	"./imageEdit.controller.js"
+)) as typeof import("./imageEdit.controller.js") & {
+	handleTriggeredImagePrompt?: (
+		context: never,
+		text: string,
+		dependencies: Record<string, unknown>,
+	) => Promise<boolean>;
+};
+const textControllerModule = (await import(
+	"./text.controller.js"
+)) as typeof import("./text.controller.js") & {
+	getImagesMapById?: (
+		messages: Array<{ id: number; tgPhotoId: string | null }>,
+		download: (tgPhotoId: string) => Promise<string>,
+	) => Promise<Record<number, string>>;
+	photoCaptionController?: (
+		context: never,
+		dependencies: Record<string, unknown>,
+	) => Promise<void>;
+};
 const { MessageType } = await import("../entities.js");
 
 const createImageEditContext = () => {
@@ -31,7 +52,8 @@ const createImageEditContext = () => {
 	const createEntityManager = () => {
 		const em = {
 			create: (_entity: unknown, data: Record<string, unknown>) => data,
-			findOne: async () => user,
+			findOne: async (_entity: unknown, filter: Record<string, unknown>) =>
+				"tgMessageId" in filter ? undefined : user,
 			flush: async () => undefined,
 			fork: () => createEntityManager(),
 			getReference: () => ({ id: 999 }),
@@ -374,26 +396,64 @@ describe("generateBetterImageController", () => {
 	});
 });
 
-describe("handleTriggeredImageEdit", () => {
-	it("persists every resolved upload and edits the exact replied photo chain", async () => {
+describe("handleTriggeredImagePrompt", () => {
+	const uploadedImages = [
+		{
+			chatId: "5",
+			mediaGroupId: "album",
+			tgMessageId: "101",
+			tgPhotoId: "photo-101",
+			tgUserId: "42",
+		},
+		{
+			chatId: "5",
+			mediaGroupId: "album",
+			tgMessageId: "102",
+			tgPhotoId: "photo-102",
+			tgUserId: "42",
+		},
+	];
+
+	it("reuses persisted uploads across repeated replies", async () => {
 		const { context, persisted } = createImageEditContext();
-		const uploadedImages = [
-			{
-				chatId: "5",
-				mediaGroupId: "album",
-				tgMessageId: "101",
-				tgPhotoId: "photo-101",
-				tgUserId: "42",
-			},
-			{
-				chatId: "5",
-				mediaGroupId: "album",
-				tgMessageId: "102",
-				tgPhotoId: "photo-102",
-				tgUserId: "42",
-			},
-		];
-		Object.assign(context, {
+		const existingByMessageId = new Map<string, Record<string, unknown>>();
+		const em = context.state.em as unknown as {
+			findOne: (
+				entity: unknown,
+				filter: Record<string, unknown>,
+			) => Promise<Record<string, unknown> | undefined>;
+			flush: () => Promise<void>;
+		};
+		em.findOne = async (_entity, filter) => {
+			if (typeof filter.tgMessageId === "string") {
+				return existingByMessageId.get(filter.tgMessageId);
+			}
+			return context.state.user;
+		};
+		em.flush = async () => {
+			for (const message of persisted) {
+				if (typeof message.tgMessageId === "string") {
+					existingByMessageId.set(message.tgMessageId, message);
+				}
+			}
+		};
+
+		const first = await persistUploadedImageMessages(
+			context as never,
+			uploadedImages,
+		);
+		const second = await persistUploadedImageMessages(
+			context as never,
+			uploadedImages,
+		);
+
+		assert.equal(persisted.length, 2);
+		assert.deepEqual(second, first);
+	});
+
+	const createReplyContext = () => {
+		const result = createImageEditContext();
+		Object.assign(result.context, {
 			me: { id: 999 },
 			message: {
 				message_id: 500,
@@ -403,48 +463,169 @@ describe("handleTriggeredImageEdit", () => {
 					message_id: 102,
 					photo: [{ file_id: "photo-102" }],
 				},
-				text: "restyle",
+				text: "what is shown?",
 			},
 		});
-		let editCall:
-			| {
-					repliedMessageId: string;
-					sourceMessageIds: string[];
-					text: string;
-			  }
-			| undefined;
+		return result;
+	};
 
-		const handled = await handleTriggeredImageEdit(
-			context as never,
-			"restyle",
-			{
-				generateBetterImageController: async (
-					_context,
-					sourceMessages,
-					repliedMessage,
-					text,
-				) => {
-					editCall = {
-						repliedMessageId: repliedMessage.tgMessageId,
-						sourceMessageIds: sourceMessages.map(
-							({ tgMessageId }) => tgMessageId,
-						),
-						text: text ?? "",
-					};
-				},
-				uploadedImageStore: { resolve: () => uploadedImages },
+	it("routes a text intent to image analysis without editing", async () => {
+		const handler = imageEditController.handleTriggeredImagePrompt;
+		assert.ok(handler, "handleTriggeredImagePrompt must be exported");
+		const { context } = createReplyContext();
+		let analyzedSourceIds: string[] = [];
+		let editCalls = 0;
+
+		const handled = await handler(context as never, "what is shown?", {
+			chooseTask: async () => MessageType.text,
+			generateBetterImageController: async () => {
+				editCalls += 1;
 			},
-		);
+			handleTextPrompt: async (
+				_sourceContext: unknown,
+				_prompt: string,
+				sourceMessages: Array<{ tgMessageId: string }>,
+			) => {
+				analyzedSourceIds = sourceMessages.map(
+					({ tgMessageId }) => tgMessageId,
+				);
+			},
+			uploadedImageStore: { resolve: () => uploadedImages },
+		});
 
 		assert.equal(handled, true);
-		assert.deepEqual(
-			persisted.map(({ tgMessageId }) => tgMessageId),
-			["101", "102"],
-		);
-		assert.deepEqual(editCall, {
-			repliedMessageId: "102",
-			sourceMessageIds: ["101", "102"],
-			text: "restyle",
+		assert.equal(editCalls, 0);
+		assert.deepEqual(analyzedSourceIds, ["101", "102"]);
+	});
+
+	it("routes an image intent to editing without text analysis", async () => {
+		const handler = imageEditController.handleTriggeredImagePrompt;
+		assert.ok(handler, "handleTriggeredImagePrompt must be exported");
+		const { context } = createReplyContext();
+		let analysisCalls = 0;
+		let editedSourceIds: string[] = [];
+
+		await handler(context as never, "make these red", {
+			chooseTask: async () => MessageType.image,
+			generateBetterImageController: async (
+				_sourceContext: unknown,
+				sourceMessages: Array<{ tgMessageId: string }>,
+			) => {
+				editedSourceIds = sourceMessages.map(({ tgMessageId }) => tgMessageId);
+			},
+			handleTextPrompt: async () => {
+				analysisCalls += 1;
+			},
+			uploadedImageStore: { resolve: () => uploadedImages },
 		});
+
+		assert.equal(analysisCalls, 0);
+		assert.deepEqual(editedSourceIds, ["101", "102"]);
+	});
+});
+
+describe("photoCaptionController", () => {
+	it("routes one multimodal caption request with every album photo", async () => {
+		const controller = textControllerModule.photoCaptionController;
+		assert.ok(controller, "photoCaptionController must be exported");
+		const { context, persisted } = createImageEditContext();
+		Object.assign(context, {
+			message: {
+				caption: "what is shown?",
+				chat: { id: 5 },
+				from: { id: 42 },
+				media_group_id: "album",
+				message_id: 102,
+				photo: [{ file_id: "photo-102" }],
+			},
+		});
+		let analyzedSourceIds: string[] = [];
+		let requestMessage:
+			| { text?: string; tgMessageId: string; tgPhotoId: string; type: string }
+			| undefined;
+
+		await controller(context as never, {
+			chooseTask: async () => MessageType.text,
+			generateBetterImageController: async () => {
+				throw new Error("must not edit");
+			},
+			handleTextPrompt: async (
+				_sourceContext: unknown,
+				_prompt: string,
+				sourceMessages: Array<{ tgMessageId: string }>,
+				_repliedMessage: unknown,
+				request: typeof requestMessage,
+			) => {
+				analyzedSourceIds = sourceMessages.map(
+					({ tgMessageId }) => tgMessageId,
+				);
+				requestMessage = request;
+			},
+			uploadedImageStore: {
+				resolve: () => [
+					{
+						chatId: "5",
+						mediaGroupId: "album",
+						tgMessageId: "101",
+						tgPhotoId: "photo-101",
+						tgUserId: "42",
+					},
+					{
+						chatId: "5",
+						mediaGroupId: "album",
+						tgMessageId: "102",
+						tgPhotoId: "photo-102",
+						tgUserId: "42",
+					},
+				],
+			},
+		});
+
+		assert.deepEqual(analyzedSourceIds, ["101", "102"]);
+		assert.equal(requestMessage?.tgMessageId, "102");
+		assert.equal(requestMessage?.tgPhotoId, "photo-102");
+		assert.equal(requestMessage?.text, "what is shown?");
+		assert.equal(requestMessage?.type, MessageType.text);
+		assert.equal(persisted.length, 2);
+	});
+});
+
+describe("getImagesMapById", () => {
+	it("downloads every image into its message slot", async () => {
+		const getImagesMapById = textControllerModule.getImagesMapById;
+		assert.ok(getImagesMapById, "getImagesMapById must be exported");
+
+		const images = await getImagesMapById(
+			[
+				{ id: 10, tgPhotoId: "photo-10" },
+				{ id: 11, tgPhotoId: null },
+				{ id: 12, tgPhotoId: "photo-12" },
+			],
+			async (tgPhotoId) => `data:image/jpeg;base64,${tgPhotoId}`,
+		);
+
+		assert.deepEqual(images, {
+			10: "data:image/jpeg;base64,photo-10",
+			12: "data:image/jpeg;base64,photo-12",
+		});
+	});
+
+	it("rejects the complete analysis when one image download fails", async () => {
+		const getImagesMapById = textControllerModule.getImagesMapById;
+		assert.ok(getImagesMapById, "getImagesMapById must be exported");
+
+		await assert.rejects(
+			getImagesMapById(
+				[
+					{ id: 10, tgPhotoId: "photo-10" },
+					{ id: 12, tgPhotoId: "photo-12" },
+				],
+				async (tgPhotoId) => {
+					if (tgPhotoId === "photo-12") throw new Error("download failed");
+					return `data:image/jpeg;base64,${tgPhotoId}`;
+				},
+			),
+			/download failed/u,
+		);
 	});
 });

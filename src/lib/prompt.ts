@@ -1,4 +1,4 @@
-import { generateText, type Prompt } from "ai";
+import { generateText, Output, type Prompt } from "ai";
 import { xai } from "lib/ai.js";
 import { config, isProduction } from "lib/config.js";
 import { logger } from "lib/logger.js";
@@ -142,6 +142,23 @@ export const addUserContext = (
 	};
 };
 
+const addUserContextWithImages = (
+	message: Message | string,
+	imageUrls: string[],
+): ChatCompletionRequestMessage => {
+	const text = typeof message === "string" ? message : message.text;
+	return {
+		content: [
+			...(text ? [{ text, type: "text" as const }] : []),
+			...imageUrls.map((image) => ({
+				image: new URL(image),
+				type: "image" as const,
+			})),
+		],
+		role: ContextRole.User,
+	};
+};
+
 export const addContext =
 	(imagesMap: Record<number, string>) => (message: Message) => {
 		if (message.user.id === config.botId) {
@@ -152,13 +169,19 @@ export const addContext =
 	};
 
 export const getGrokCompletion = async (
-	message: string,
+	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
 	model: Model = Model.Grok3,
+	imagesMap: Record<number, string> = {},
+	currentImageUrls: string[] = [],
+	generate: typeof generateText = generateText,
 ) => {
-	const userMessage = addUserContext(message);
+	const userMessage =
+		currentImageUrls.length > 0
+			? addUserContextWithImages(message, currentImageUrls)
+			: addUserContext(message, imagesMap);
 	const messages = [...context, userMessage];
-	const { text } = await generateText({
+	const { text } = await generate({
 		allowSystemInMessages: true,
 		messages,
 		model: xai(model),
@@ -170,8 +193,16 @@ export const getCompletion = async (
 	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
 	model: Model = Model.Grok3,
+	imagesMap: Record<number, string> = {},
+	currentImageUrls: string[] = [],
 ) => {
-	const result = await getGrokCompletion(message as string, context, model);
+	const result = await getGrokCompletion(
+		message,
+		context,
+		model,
+		imagesMap,
+		currentImageUrls,
+	);
 	return chunkMessage(result);
 };
 
@@ -244,10 +275,25 @@ const chooseTaskPrompt =
 	"Если пользователь просить рассказать что-то, или что-то спрашивает - это значит, " +
 	"что надо что-то сделать в текстовом формате." +
 	"Также пользователь может попросить создать картинку, фото, нарисовать что-то." +
-	'Твоя задача вернуть в ответе JSON объект с полем task, например: {"task":"text"}.' +
 	"Список задач:\n" +
 	"* text - пользователь просит сделать что-то в текстовом формате\n" +
 	"* image - пользователь просит сделать что-то в формате картинки\n";
+
+type Task = MessageType.image | MessageType.text;
+
+const classifyTask = async (text: string): Promise<Task> => {
+	const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
+	const userMessage = addUserContext(text);
+	const { output } = await generateText({
+		allowSystemInMessages: true,
+		messages: [chooseTaskMessage, userMessage],
+		model: xai(Model.Grok3Mini),
+		output: Output.choice({
+			options: [MessageType.text, MessageType.image] as const,
+		}),
+	});
+	return output;
+};
 
 /**
  * Choose task that user wants to do.
@@ -257,23 +303,12 @@ const chooseTaskPrompt =
  */
 export const chooseTask = async (
 	text: string,
-): Promise<MessageType.image | MessageType.text> => {
-	const chooseTaskMessage = addSystemContext(chooseTaskPrompt);
-	const userMessage = addUserContext(text);
-	const messages = [chooseTaskMessage, userMessage];
-	const response = await generateText({
-		allowSystemInMessages: true,
-		messages,
-		model: xai(Model.Grok3Mini),
-	});
-	const task = response.text;
+	classifier: (text: string) => Promise<Task> = classifyTask,
+): Promise<Task> => {
 	try {
-		const parsed = JSON.parse(task ?? "{}") as { task?: unknown };
-		return parsed.task === MessageType.image
-			? MessageType.image
-			: MessageType.text;
+		return await classifier(text);
 	} catch (error) {
-		logger.error("Prompt: ChooseTask: Parsing answer from model:", task, error);
+		logger.error("Prompt: ChooseTask: Classification failed:", error);
 		return MessageType.text;
 	}
 };

@@ -3,21 +3,16 @@ import { config } from "lib/config.js";
 import type { BotContext } from "lib/context.js";
 import { generateImage } from "lib/imageGeneration.js";
 import { logger } from "lib/logger.js";
-import {
-	addSystemContext,
-	chooseTask,
-	getCompletion,
-	MAIN_MODEL,
-	maximumMessageLengthPrompt,
-	// markdownRulesPrompt,
-	preparePrompt,
-} from "lib/prompt.js";
-import { replies } from "lib/replies.js";
-import { BotRole, Message, MessageType, User } from "../entities.js";
+import { chooseTask, preparePrompt } from "lib/prompt.js";
+import { Message, MessageType, User } from "../entities.js";
 import {
 	getImageGenerationErrorReply,
-	handleTriggeredImageEdit,
+	handleTriggeredImagePrompt,
 } from "./imageEdit.controller.js";
+import {
+	generateTextResponse,
+	imagePromptDependencies,
+} from "./text.controller.js";
 
 export const textTriggerController = async (
 	context: Filter<BotContext, "message:text">,
@@ -25,14 +20,18 @@ export const textTriggerController = async (
 	const {
 		match,
 		message,
-		state: { dialog, em, user, userSettings },
+		state: { dialog, em, user },
 	} = context;
 
 	const text = (match ? match[3] : message.text) ?? "";
 	const { message_id: messageId, reply_to_message: replyToMessage } = message;
-	if (await handleTriggeredImageEdit(context, text)) return;
-
 	const prompt = preparePrompt(text);
+	if (
+		await handleTriggeredImagePrompt(context, prompt, imagePromptDependencies)
+	) {
+		return;
+	}
+
 	const previousMessage = await em.findOne(Message, {
 		tgMessageId: replyToMessage?.message_id.toString() ?? "0",
 	});
@@ -53,55 +52,10 @@ export const textTriggerController = async (
 		await em.flush();
 	}
 
-	const botRole = await em.findOne(BotRole, {
-		id: userSettings.botRoleId,
-	});
-	if (!botRole) {
-		const error = new Error("Bot role is undefined");
-		logger.error("Bot role is undefined");
-		try {
-			await context.reply(replies.error, {
-				reply_to_message_id: messageId,
-			});
-		} catch (replyError) {
-			logger.error(replyError);
-		}
-
-		throw error;
-	}
-
-	const systemContext = [
-		// addSystemContext(markdownRulesPrompt),
-		addSystemContext(maximumMessageLengthPrompt),
-	];
-	if (botRole.systemPrompt) {
-		systemContext.push(addSystemContext(botRole.systemPrompt));
-	}
-
 	const textController = async () => {
-		await context.replyWithChatAction("typing");
-		const model = MAIN_MODEL;
-
-		const completition = await getCompletion(prompt, systemContext, model);
-		const botUser = em.getReference(User, config.botId);
-
-		for (const chunk of completition) {
-			const botReply = await context.reply(chunk, {
-				parse_mode: "Markdown",
-				reply_to_message_id: messageId,
-			});
-
-			const botMessage = em.create(Message, {
-				dialog,
-				replyTo: newUserMessage,
-				text: chunk,
-				tgMessageId: botReply.message_id.toString(),
-				type: MessageType.text,
-				user: botUser,
-			});
-			em.persist(botMessage);
-			await em.flush();
-		}
+		await generateTextResponse(context, prompt, {
+			requestMessage: newUserMessage,
+		});
 	};
 
 	const imageController = async () => {

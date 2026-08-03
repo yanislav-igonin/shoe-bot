@@ -6,9 +6,13 @@ export type RequestAccessInput = {
 	command: string | undefined;
 	isReplyToAnotherBot: boolean;
 	isReplyToThisBot: boolean;
+	isPhotoCaption: boolean;
 	matchesTextTrigger: boolean;
 	text: string | undefined;
 };
+
+export const getRequestText = (message: { caption?: string; text?: string }) =>
+	message.text ?? message.caption;
 
 const freeCommands = new Set([
 	"activate",
@@ -27,6 +31,7 @@ export const classifyRequest = ({
 	command,
 	isReplyToAnotherBot,
 	isReplyToThisBot,
+	isPhotoCaption,
 	matchesTextTrigger,
 	text,
 }: RequestAccessInput): RequestAccess => {
@@ -45,6 +50,10 @@ export const classifyRequest = ({
 
 	if (commandName && freeCommands.has(commandName)) {
 		return "free";
+	}
+
+	if (isPhotoCaption && chatType !== "private" && !matchesTextTrigger) {
+		return "ignore";
 	}
 
 	if (isReplyToAnotherBot) {

@@ -7,7 +7,7 @@ import { refundDailyRequest, reserveDailyRequest } from "lib/dailyQuota.js";
 import { logger } from "lib/logger.js";
 import { textTriggerRegexp } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
-import { classifyRequest } from "lib/requestAccess.js";
+import { classifyRequest, getRequestText } from "lib/requestAccess.js";
 import { isSubscriptionActive } from "lib/subscription.js";
 import { valueOrNull } from "lib/values.js";
 import {
@@ -257,7 +257,7 @@ export const allowedMiddleware = async (
 	context: BotContext,
 	next: NextFunction,
 ) => {
-	const text = context.message?.text;
+	const text = context.message ? getRequestText(context.message) : undefined;
 	const commandEntity = context.message?.entities?.find(
 		(entity) => entity.type === "bot_command" && entity.offset === 0,
 	);
@@ -275,6 +275,7 @@ export const allowedMiddleware = async (
 		command,
 		isReplyToAnotherBot,
 		isReplyToThisBot,
+		isPhotoCaption: Boolean(context.message?.photo && context.message.caption),
 		matchesTextTrigger: textTriggerRegexp.test(text ?? ""),
 		text,
 	});
