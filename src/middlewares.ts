@@ -275,6 +275,7 @@ export const allowedMiddleware = async (
 		command,
 		isReplyToAnotherBot,
 		isReplyToThisBot,
+		isPhotoCaption: Boolean(context.message?.photo && context.message.caption),
 		matchesTextTrigger: textTriggerRegexp.test(text ?? ""),
 		text,
 	});

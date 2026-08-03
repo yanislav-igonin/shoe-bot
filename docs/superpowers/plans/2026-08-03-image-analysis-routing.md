@@ -152,10 +152,10 @@ Run `npx tsx --test src/controllers/text.controller.test.ts src/lib/prompt.test.
 
 Delete only `blocks high category scores before OpenAI image generation`; threshold rejection was intentionally removed from production before this branch.
 
-- [ ] **Step 2: Run complete verification**
+- [x] **Step 2: Run complete verification**
 
 Run `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build`. All commands must exit zero.
 
-- [ ] **Step 3: Review scope**
+- [x] **Step 3: Review scope**
 
 Inspect `git diff --check`, `git status --short`, and the complete branch diff. Confirm no migration, provider fallback, generated artifact, or unrelated production change entered the branch.

@@ -18,6 +18,7 @@ const {
 	generateBetterImageController,
 	getImageGenerationErrorReply,
 	isImageEditReply,
+	persistUploadedImageMessages,
 } = await import("./imageEdit.controller.js");
 const imageEditController = (await import(
 	"./imageEdit.controller.js"
@@ -51,7 +52,8 @@ const createImageEditContext = () => {
 	const createEntityManager = () => {
 		const em = {
 			create: (_entity: unknown, data: Record<string, unknown>) => data,
-			findOne: async () => user,
+			findOne: async (_entity: unknown, filter: Record<string, unknown>) =>
+				"tgMessageId" in filter ? undefined : user,
 			flush: async () => undefined,
 			fork: () => createEntityManager(),
 			getReference: () => ({ id: 999 }),
@@ -411,6 +413,43 @@ describe("handleTriggeredImagePrompt", () => {
 			tgUserId: "42",
 		},
 	];
+
+	it("reuses persisted uploads across repeated replies", async () => {
+		const { context, persisted } = createImageEditContext();
+		const existingByMessageId = new Map<string, Record<string, unknown>>();
+		const em = context.state.em as unknown as {
+			findOne: (
+				entity: unknown,
+				filter: Record<string, unknown>,
+			) => Promise<Record<string, unknown> | undefined>;
+			flush: () => Promise<void>;
+		};
+		em.findOne = async (_entity, filter) => {
+			if (typeof filter.tgMessageId === "string") {
+				return existingByMessageId.get(filter.tgMessageId);
+			}
+			return context.state.user;
+		};
+		em.flush = async () => {
+			for (const message of persisted) {
+				if (typeof message.tgMessageId === "string") {
+					existingByMessageId.set(message.tgMessageId, message);
+				}
+			}
+		};
+
+		const first = await persistUploadedImageMessages(
+			context as never,
+			uploadedImages,
+		);
+		const second = await persistUploadedImageMessages(
+			context as never,
+			uploadedImages,
+		);
+
+		assert.equal(persisted.length, 2);
+		assert.deepEqual(second, first);
+	});
 
 	const createReplyContext = () => {
 		const result = createImageEditContext();

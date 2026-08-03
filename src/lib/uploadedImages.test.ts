@@ -1,19 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createUploadedImageStore } from "./uploadedImages.js";
-
-type MiddlewareOptions = {
-	debounceMs?: number;
-	replayUpdate: (update: unknown) => Promise<void>;
-	store: ReturnType<typeof createUploadedImageStore>;
-};
-const uploadedImages = (await import(
-	"./uploadedImages.js"
-)) as typeof import("./uploadedImages.js") & {
-	createUploadedImageMiddleware?: (
-		options: MiddlewareOptions,
-	) => (context: never, next: () => Promise<void>) => Promise<void>;
-};
+import {
+	createUploadedImageMiddleware,
+	createUploadedImageStore,
+} from "./uploadedImages.js";
 
 const image = (chatId: string, messageId: string, mediaGroupId?: string) => ({
 	chatId,
@@ -117,14 +107,13 @@ describe("uploaded image middleware", () => {
 		const store = createUploadedImageStore();
 		const replayed: unknown[] = [];
 		let nextCalls = 0;
-		const middleware = uploadedImages.createUploadedImageMiddleware?.({
+		const middleware = createUploadedImageMiddleware({
 			debounceMs: 10,
 			replayUpdate: async (update) => {
 				replayed.push(update);
 			},
 			store,
 		});
-		assert.ok(middleware, "createUploadedImageMiddleware must be exported");
 		const captionContext = albumContext(1, 12, "compare these");
 
 		await middleware(captionContext as never, async () => {
@@ -158,11 +147,10 @@ describe("uploaded image middleware", () => {
 
 	it("passes a standalone photo to the next middleware immediately", async () => {
 		let nextCalls = 0;
-		const middleware = uploadedImages.createUploadedImageMiddleware?.({
+		const middleware = createUploadedImageMiddleware({
 			replayUpdate: async () => {},
 			store: createUploadedImageStore(),
 		});
-		assert.ok(middleware, "createUploadedImageMiddleware must be exported");
 		const context = albumContext(1, 10, "describe this");
 		context.message.media_group_id = undefined as never;
 
@@ -171,5 +159,37 @@ describe("uploaded image middleware", () => {
 		});
 
 		assert.equal(nextCalls, 1);
+	});
+
+	it("serializes downstream processing across concurrent updates", async () => {
+		const middleware = createUploadedImageMiddleware({
+			replayUpdate: async () => {},
+			store: createUploadedImageStore(),
+		});
+		const firstContext = albumContext(1, 10, "first");
+		firstContext.message.media_group_id = undefined as never;
+		const secondContext = albumContext(2, 11, "second");
+		secondContext.message.media_group_id = undefined as never;
+		let releaseFirst!: () => void;
+		const firstBlocked = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		const calls: string[] = [];
+
+		const first = middleware(firstContext as never, async () => {
+			calls.push("first:start");
+			await firstBlocked;
+			calls.push("first:end");
+		});
+		await Promise.resolve();
+		const second = middleware(secondContext as never, async () => {
+			calls.push("second");
+		});
+		await Promise.resolve();
+
+		assert.deepEqual(calls, ["first:start"]);
+		releaseFirst();
+		await Promise.all([first, second]);
+		assert.deepEqual(calls, ["first:start", "first:end", "second"]);
 	});
 });

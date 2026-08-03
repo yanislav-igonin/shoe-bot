@@ -120,11 +120,11 @@ export const generateTextResponse = async (
 				throw new Error("Bot role is undefined");
 			}
 
-			const imagesMap = await getImagesMapById([
-				...messagesInDialog,
-				...sourceMessages,
-				newUserMessage,
-			]);
+			const imagesMap = await getImagesMapById(
+				Array.from(
+					new Set([...messagesInDialog, ...sourceMessages, newUserMessage]),
+				),
+			);
 			const currentImageUrls = sourceMessages.map(({ id }) => imagesMap[id]);
 			const previousMessagesContext = messagesInDialog.map(
 				addContext(imagesMap),

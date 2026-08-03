@@ -317,9 +317,22 @@ export const persistUploadedImageMessages = async (
 	context: ImagePromptContext,
 	uploadedImages: UploadedImage[],
 ) => {
-	const { dialog, em, user } = context.state;
+	const { chat, dialog, em, user } = context.state;
 	const sourceMessages: PersistedImageMessage[] = [];
 	for (const image of uploadedImages) {
+		const existingMessage = await findPersistedImageMessage(
+			em,
+			image.tgMessageId,
+			chat,
+		);
+		if (existingMessage) {
+			if (!isImageEditReply(existingMessage)) {
+				throw new Error("Persisted Telegram message is not an image");
+			}
+			sourceMessages.push(existingMessage);
+			continue;
+		}
+
 		const sourceUser = image.tgUserId
 			? ((await em.findOne(UserEntity, { tgId: image.tgUserId })) ?? user)
 			: user;

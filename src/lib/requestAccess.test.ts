@@ -1,15 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { classifyRequest } from "./requestAccess.js";
-
-const requestAccess = (await import(
-	"./requestAccess.js"
-)) as typeof import("./requestAccess.js") & {
-	getRequestText?: (message: {
-		caption?: string;
-		text?: string;
-	}) => string | undefined;
-};
+import { classifyRequest, getRequestText } from "./requestAccess.js";
 
 const baseInput = {
 	botUsername: "shoe_bot",
@@ -17,6 +8,7 @@ const baseInput = {
 	command: undefined,
 	isReplyToAnotherBot: false,
 	isReplyToThisBot: false,
+	isPhotoCaption: false,
 	matchesTextTrigger: false,
 	text: "обычное сообщение",
 };
@@ -60,6 +52,17 @@ describe("classifyRequest", () => {
 				isReplyToThisBot: true,
 			}),
 			"generation",
+		);
+	});
+
+	it("requires a trigger for group photo captions replying to this bot", () => {
+		assert.equal(
+			classifyRequest({
+				...baseInput,
+				isPhotoCaption: true,
+				isReplyToThisBot: true,
+			}),
+			"ignore",
 		);
 	});
 
@@ -118,7 +121,7 @@ describe("classifyRequest", () => {
 describe("getRequestText", () => {
 	it("prefers message text over a caption", () => {
 		assert.equal(
-			requestAccess.getRequestText?.({
+			getRequestText({
 				caption: "photo caption",
 				text: "message text",
 			}),
@@ -127,9 +130,6 @@ describe("getRequestText", () => {
 	});
 
 	it("uses a photo caption when message text is absent", () => {
-		assert.equal(
-			requestAccess.getRequestText?.({ caption: "photo caption" }),
-			"photo caption",
-		);
+		assert.equal(getRequestText({ caption: "photo caption" }), "photo caption");
 	});
 });
