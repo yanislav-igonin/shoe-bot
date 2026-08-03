@@ -104,7 +104,6 @@ Required in `.env` file (see `.env.example`):
 | `DATABASE_URL` | PostgreSQL connection string |
 | `ENV` | `development` or `production` |
 | `ADMINS_USERNAMES` | Comma-separated admin Telegram usernames |
-| `RANDOM_ENCOUNTER_CHANCE` | Probability for random replies (0.0-1.0) |
 
 ## Code Conventions
 
