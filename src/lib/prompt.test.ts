@@ -6,7 +6,8 @@ process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 
-const { addUserContext, chooseTask } = await import("lib/prompt.js");
+const prompt = await import("lib/prompt.js");
+const { addUserContext, chooseTask, Model } = prompt;
 
 const user = new User();
 user.id = 1;
@@ -54,5 +55,86 @@ describe("chooseTask", () => {
 		});
 
 		assert.equal(task, MessageType.text);
+	});
+});
+
+describe("getGrokCompletion", () => {
+	it("includes the current message image in the generated user prompt", async () => {
+		let generatedMessages: unknown;
+		const getGrokCompletion = prompt.getGrokCompletion as unknown as (
+			message: Message,
+			context: unknown[],
+			model: (typeof Model)[keyof typeof Model],
+			imagesMap: Record<number, string>,
+			currentImageUrls: string[],
+			generate: (options: { messages: unknown }) => Promise<{ text: string }>,
+		) => Promise<string>;
+
+		const completion = await getGrokCompletion(
+			message,
+			[],
+			Model.Grok3,
+			{ [message.id]: "https://example.com/image.jpg" },
+			[],
+			async ({ messages }) => {
+				generatedMessages = messages;
+				return { text: "A boot" };
+			},
+		);
+
+		assert.equal(completion, "A boot");
+		assert.deepEqual(generatedMessages, [
+			{
+				content: [
+					{ text: "describe this", type: "text" },
+					{
+						image: new URL("https://example.com/image.jpg"),
+						type: "image",
+					},
+				],
+				role: "user",
+			},
+		]);
+	});
+
+	it("keeps every current album image in the supplied order", async () => {
+		let generatedMessages: unknown;
+		const getGrokCompletion = prompt.getGrokCompletion as unknown as (
+			message: Message,
+			context: unknown[],
+			model: (typeof Model)[keyof typeof Model],
+			imagesMap: Record<number, string>,
+			currentImageUrls: string[],
+			generate: (options: { messages: unknown }) => Promise<{ text: string }>,
+		) => Promise<string>;
+
+		await getGrokCompletion(
+			message,
+			[],
+			Model.Grok3,
+			{},
+			["https://example.com/first.jpg", "https://example.com/second.jpg"],
+			async ({ messages }) => {
+				generatedMessages = messages;
+				return { text: "Two boots" };
+			},
+		);
+
+		assert.deepEqual(generatedMessages, [
+			{
+				content: [
+					{ text: "describe this", type: "text" },
+					{
+						image: new URL("https://example.com/first.jpg"),
+						type: "image",
+					},
+					{
+						image: new URL("https://example.com/second.jpg"),
+						type: "image",
+					},
+				],
+				role: "user",
+			},
+		]);
 	});
 });

@@ -84,7 +84,7 @@ Run `npx tsx --test src/lib/uploadedImages.test.ts`. Expect failure because curr
 
 Add bounded pending-group state beside the existing bounded image store. Mark replayed update IDs so re-entry calls `next` rather than buffering again. Reset the 500 ms timer for every group item and replay only when a caption-bearing update exists.
 
-- [ ] **Step 7: Wire replay in the bot**
+- [x] **Step 7: Wire replay in the bot**
 
 Construct middleware with `update => bot.handleUpdate(update)` before state/auth middleware. Register the photo-caption controller added in Task 3 after text handlers.
 
@@ -108,35 +108,35 @@ Run `npx tsx --test src/lib/requestAccess.test.ts src/lib/uploadedImages.test.ts
 - Produces: image-prompt routing for text replies and photo captions.
 - Consumes: ordered uploaded image resolution, `chooseTask`, existing `generateBetterImageController`, and existing dialog context builders.
 
-- [ ] **Step 1: Write failing multimodal prompt tests**
+- [x] **Step 1: Write failing multimodal prompt tests**
 
 Add a prompt test proving a current `Message` with `text` and `tgPhotoId` is passed to AI SDK as one user content array containing text and image data.
 
-- [ ] **Step 2: Verify prompt RED**
+- [x] **Step 2: Verify prompt RED**
 
 Run `npx tsx --test src/lib/prompt.test.ts`. Expect failure because `getCompletion` currently casts `Message` to `string` and cannot receive its current image map.
 
-- [ ] **Step 3: Implement current-message image mapping**
+- [x] **Step 3: Implement current-message image mapping**
 
 Pass `Message | string` and an optional image map through `getCompletion` and `getGrokCompletion` to `addUserContext`.
 
-- [ ] **Step 4: Write failing routing tests**
+- [x] **Step 4: Write failing routing tests**
 
 Add controller tests for: image reply + `text` invokes text completion and sends no photo; image reply + `image` invokes edit; standalone caption persists one multimodal request; caption album passes every ordered source; and one failed text-analysis download returns the normal error without calling completion.
 
-- [ ] **Step 5: Verify routing RED**
+- [x] **Step 5: Verify routing RED**
 
 Run `npx tsx --test src/controllers/text.controller.test.ts`. Expect failures on the unconditional image-edit branch and missing photo-caption controller.
 
-- [ ] **Step 6: Implement shared routing**
+- [x] **Step 6: Implement shared routing**
 
 Resolve and persist source messages once, classify once, and dispatch by the routing matrix. Reuse the existing edit worker. Refactor text response persistence into one helper used by ordinary trigger text, image analysis, and caption analysis. Keep the exact replied photo as the request parent and exclude current source messages from historical context before adding them once to the current multimodal request.
 
-- [ ] **Step 7: Implement caption controller**
+- [x] **Step 7: Implement caption controller**
 
 Extract caption text, strip an optional existing trigger, resolve the complete album, and invoke shared routing. A photo without a caption returns without generation.
 
-- [ ] **Step 8: Verify GREEN**
+- [x] **Step 8: Verify GREEN**
 
 Run `npx tsx --test src/controllers/text.controller.test.ts src/lib/prompt.test.ts`, `npm run typecheck`, and `npm run lint`.
 
@@ -148,7 +148,7 @@ Run `npx tsx --test src/controllers/text.controller.test.ts src/lib/prompt.test.
 **Interfaces:**
 - Removes: obsolete threshold test left behind by commit `d0ee0c2`, without changing production moderation behavior.
 
-- [ ] **Step 1: Remove the stale baseline test**
+- [x] **Step 1: Remove the stale baseline test**
 
 Delete only `blocks high category scores before OpenAI image generation`; threshold rejection was intentionally removed from production before this branch.
 

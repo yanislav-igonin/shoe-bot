@@ -9,11 +9,12 @@ import {
 	ImageModerationRejectedError,
 } from "lib/imageGeneration.js";
 import { logger } from "lib/logger.js";
+import type { chooseTask } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
 import {
 	getUploadedImage,
 	type UploadedImage,
-	uploadedImageStore,
+	type uploadedImageStore,
 } from "lib/uploadedImages.js";
 import {
 	type Chat,
@@ -26,6 +27,9 @@ import {
 import { telegram } from "../telegram.js";
 
 type PersistedImageMessage = Message & { tgPhotoId: string };
+type ImagePromptContext =
+	| Filter<BotContext, "message:photo">
+	| Filter<BotContext, "message:text">;
 
 const IMAGE_EDIT_CONCURRENCY = 5;
 
@@ -37,6 +41,17 @@ type ImageEditDependencies = {
 type TriggeredImageEditDependencies = {
 	generateBetterImageController: typeof generateBetterImageController;
 	uploadedImageStore: Pick<typeof uploadedImageStore, "resolve">;
+};
+
+type TriggeredImagePromptDependencies = TriggeredImageEditDependencies & {
+	chooseTask: typeof chooseTask;
+	handleTextPrompt: (
+		context: ImagePromptContext,
+		text: string,
+		sourceMessages: PersistedImageMessage[],
+		repliedMessage: PersistedImageMessage,
+		requestMessage?: PersistedImageMessage,
+	) => Promise<void>;
 };
 
 export const downloadImageAsDataUrl = async (
@@ -125,31 +140,38 @@ export const findPersistedImageMessage = async (
 	});
 
 export const generateBetterImageController = async (
-	context: Filter<BotContext, "message:text">,
+	context: ImagePromptContext,
 	sourceMessages: PersistedImageMessage[],
 	repliedMessage: PersistedImageMessage,
-	text = context.message.text,
+	text = ("text" in context.message
+		? context.message.text
+		: context.message.caption) ?? "",
 	dependencies: ImageEditDependencies = {
 		generateImage,
 		getTelegramImageDataUrl,
 	},
+	requestMessage?: PersistedImageMessage,
 ) => {
 	await context.replyWithChatAction("upload_photo");
 
 	const { dialog, em, user } = context.state;
 	const { message_id: messageId } = context.message;
-	const newUserMessage = em.create(Message, {
-		dialog,
-		replyTo: repliedMessage,
-		text,
-		tgMessageId: messageId.toString(),
-		type: MessageType.image,
-		user,
-	});
+	const newUserMessage =
+		requestMessage ??
+		em.create(Message, {
+			dialog,
+			replyTo: repliedMessage,
+			text,
+			tgMessageId: messageId.toString(),
+			type: MessageType.image,
+			user,
+		});
+	newUserMessage.text = text;
+	newUserMessage.type = MessageType.image;
 	const imageErrors = new Map<number, unknown>();
 
 	try {
-		em.persist(newUserMessage);
+		if (!requestMessage) em.persist(newUserMessage);
 		await em.flush();
 
 		let nextSourceIndex = 0;
@@ -243,18 +265,14 @@ export const generateBetterImageController = async (
 	}
 };
 
-export const handleTriggeredImageEdit = async (
+const resolveTriggeredImageReply = async (
 	context: Filter<BotContext, "message:text">,
-	text: string,
-	dependencies: TriggeredImageEditDependencies = {
-		generateBetterImageController,
-		uploadedImageStore,
-	},
+	store: Pick<typeof uploadedImageStore, "resolve">,
 ) => {
 	const repliedMessage = context.message.reply_to_message;
-	if (!repliedMessage?.photo) return false;
+	if (!repliedMessage?.photo) return undefined;
 
-	const { chat, dialog, em, user } = context.state;
+	const { chat, em } = context.state;
 	const repliedMessageId = repliedMessage.message_id.toString();
 	const isOwnBotMessage =
 		repliedMessage.from?.is_bot === true &&
@@ -266,20 +284,40 @@ export const handleTriggeredImageEdit = async (
 			repliedMessageId,
 			chat,
 		);
-		if (!persistedMessage || !isImageEditReply(persistedMessage)) return false;
+		if (!persistedMessage || !isImageEditReply(persistedMessage)) {
+			return undefined;
+		}
 
-		await dependencies.generateBetterImageController(
-			context,
-			[persistedMessage],
-			persistedMessage,
-			text,
-		);
-		return true;
+		return {
+			repliedMessage: persistedMessage,
+			sourceMessages: [persistedMessage],
+		};
 	}
 
-	const uploadedImages = dependencies.uploadedImageStore.resolve(
-		getUploadedImage(repliedMessage),
+	const uploadedImages = store.resolve(getUploadedImage(repliedMessage));
+	const sourceMessages = await persistUploadedImageMessages(
+		context,
+		uploadedImages,
 	);
+
+	const exactRepliedMessage = findRepliedImageMessage(
+		sourceMessages,
+		repliedMessageId,
+	);
+	if (!exactRepliedMessage) {
+		throw new Error("Replied image is not available in the resolved upload");
+	}
+	return {
+		repliedMessage: exactRepliedMessage,
+		sourceMessages,
+	};
+};
+
+export const persistUploadedImageMessages = async (
+	context: ImagePromptContext,
+	uploadedImages: UploadedImage[],
+) => {
+	const { dialog, em, user } = context.state;
 	const sourceMessages: PersistedImageMessage[] = [];
 	for (const image of uploadedImages) {
 		const sourceUser = image.tgUserId
@@ -292,20 +330,74 @@ export const handleTriggeredImageEdit = async (
 		em.persist(sourceMessage);
 		sourceMessages.push(sourceMessage);
 	}
+	await em.flush();
+	return sourceMessages;
+};
 
-	const exactRepliedMessage = findRepliedImageMessage(
-		sourceMessages,
-		repliedMessageId,
-	);
-	if (!exactRepliedMessage) {
-		throw new Error("Replied image is not available in the resolved upload");
+export const handleResolvedImagePrompt = async (
+	context: ImagePromptContext,
+	text: string,
+	sourceMessages: PersistedImageMessage[],
+	repliedMessage: PersistedImageMessage,
+	dependencies: TriggeredImagePromptDependencies,
+	requestMessage?: PersistedImageMessage,
+) => {
+	const task = await dependencies.chooseTask(text);
+	if (requestMessage) {
+		requestMessage.text = text;
+		requestMessage.type = task;
+		await context.state.em.flush();
 	}
 
-	await dependencies.generateBetterImageController(
+	if (task === MessageType.image) {
+		await dependencies.generateBetterImageController(
+			context,
+			sourceMessages,
+			repliedMessage,
+			text,
+			undefined,
+			requestMessage,
+		);
+		return;
+	}
+
+	try {
+		await dependencies.handleTextPrompt(
+			context,
+			text,
+			sourceMessages,
+			repliedMessage,
+			requestMessage,
+		);
+	} catch (error) {
+		try {
+			await context.reply(replies.error, {
+				reply_to_message_id: context.message.message_id,
+			});
+		} catch (replyError) {
+			logger.error(replyError);
+		}
+		throw error;
+	}
+};
+
+export const handleTriggeredImagePrompt = async (
+	context: Filter<BotContext, "message:text">,
+	text: string,
+	dependencies: TriggeredImagePromptDependencies,
+) => {
+	const resolved = await resolveTriggeredImageReply(
 		context,
-		sourceMessages,
-		exactRepliedMessage,
+		dependencies.uploadedImageStore,
+	);
+	if (!resolved) return false;
+
+	await handleResolvedImagePrompt(
+		context,
 		text,
+		resolved.sourceMessages,
+		resolved.repliedMessage,
+		dependencies,
 	);
 	return true;
 };

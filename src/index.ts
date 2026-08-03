@@ -2,6 +2,7 @@ import {
 	activateController,
 	generateController,
 	getBotRolesController,
+	photoCaptionController,
 	profileController,
 	setBotRoleController,
 	shictureController,
@@ -105,6 +106,9 @@ bot.on("message:text").hears(textTriggerRegexp, textTriggerController);
  * Handles replies and private messages.
  */
 bot.on("message:text", textController);
+bot.on("message:photo", async (context) => {
+	await photoCaptionController(context);
+});
 
 const start = async () => {
 	await initializeDatabase();

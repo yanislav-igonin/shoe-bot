@@ -7,11 +7,12 @@ type MiddlewareOptions = {
 	replayUpdate: (update: unknown) => Promise<void>;
 	store: ReturnType<typeof createUploadedImageStore>;
 };
-const uploadedImages = (await import("./uploadedImages.js")) as typeof import("./uploadedImages.js") & {
-	createUploadedImageMiddleware?: (options: MiddlewareOptions) => (
-		context: never,
-		next: () => Promise<void>,
-	) => Promise<void>;
+const uploadedImages = (await import(
+	"./uploadedImages.js"
+)) as typeof import("./uploadedImages.js") & {
+	createUploadedImageMiddleware?: (
+		options: MiddlewareOptions,
+	) => (context: never, next: () => Promise<void>) => Promise<void>;
 };
 
 const image = (chatId: string, messageId: string, mediaGroupId?: string) => ({

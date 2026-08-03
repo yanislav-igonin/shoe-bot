@@ -142,6 +142,23 @@ export const addUserContext = (
 	};
 };
 
+const addUserContextWithImages = (
+	message: Message | string,
+	imageUrls: string[],
+): ChatCompletionRequestMessage => {
+	const text = typeof message === "string" ? message : message.text;
+	return {
+		content: [
+			...(text ? [{ text, type: "text" as const }] : []),
+			...imageUrls.map((image) => ({
+				image: new URL(image),
+				type: "image" as const,
+			})),
+		],
+		role: ContextRole.User,
+	};
+};
+
 export const addContext =
 	(imagesMap: Record<number, string>) => (message: Message) => {
 		if (message.user.id === config.botId) {
@@ -152,13 +169,19 @@ export const addContext =
 	};
 
 export const getGrokCompletion = async (
-	message: string,
+	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
 	model: Model = Model.Grok3,
+	imagesMap: Record<number, string> = {},
+	currentImageUrls: string[] = [],
+	generate: typeof generateText = generateText,
 ) => {
-	const userMessage = addUserContext(message);
+	const userMessage =
+		currentImageUrls.length > 0
+			? addUserContextWithImages(message, currentImageUrls)
+			: addUserContext(message, imagesMap);
 	const messages = [...context, userMessage];
-	const { text } = await generateText({
+	const { text } = await generate({
 		allowSystemInMessages: true,
 		messages,
 		model: xai(model),
@@ -170,8 +193,16 @@ export const getCompletion = async (
 	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
 	model: Model = Model.Grok3,
+	imagesMap: Record<number, string> = {},
+	currentImageUrls: string[] = [],
 ) => {
-	const result = await getGrokCompletion(message as string, context, model);
+	const result = await getGrokCompletion(
+		message,
+		context,
+		model,
+		imagesMap,
+		currentImageUrls,
+	);
 	return chunkMessage(result);
 };
 
@@ -272,7 +303,7 @@ const classifyTask = async (text: string): Promise<Task> => {
  */
 export const chooseTask = async (
 	text: string,
- classifier: (text: string) => Promise<Task> = classifyTask,
+	classifier: (text: string) => Promise<Task> = classifyTask,
 ): Promise<Task> => {
 	try {
 		return await classifier(text);

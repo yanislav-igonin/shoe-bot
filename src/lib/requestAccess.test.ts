@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { classifyRequest } from "./requestAccess.js";
 
-const requestAccess = (await import("./requestAccess.js")) as typeof import("./requestAccess.js") & {
-	getRequestText?: (message: { caption?: string; text?: string }) =>
-		| string
-		| undefined;
+const requestAccess = (await import(
+	"./requestAccess.js"
+)) as typeof import("./requestAccess.js") & {
+	getRequestText?: (message: {
+		caption?: string;
+		text?: string;
+	}) => string | undefined;
 };
 
 const baseInput = {
