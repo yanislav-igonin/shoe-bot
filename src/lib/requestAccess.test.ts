@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { classifyRequest } from "./requestAccess.js";
 
+const requestAccess = (await import("./requestAccess.js")) as typeof import("./requestAccess.js") & {
+	getRequestText?: (message: { caption?: string; text?: string }) =>
+		| string
+		| undefined;
+};
+
 const baseInput = {
 	botUsername: "shoe_bot",
 	chatType: "group",
@@ -102,6 +108,25 @@ describe("classifyRequest", () => {
 				text: "/PROFILE",
 			}),
 			"generation",
+		);
+	});
+});
+
+describe("getRequestText", () => {
+	it("prefers message text over a caption", () => {
+		assert.equal(
+			requestAccess.getRequestText?.({
+				caption: "photo caption",
+				text: "message text",
+			}),
+			"message text",
+		);
+	});
+
+	it("uses a photo caption when message text is absent", () => {
+		assert.equal(
+			requestAccess.getRequestText?.({ caption: "photo caption" }),
+			"photo caption",
 		);
 	});
 });

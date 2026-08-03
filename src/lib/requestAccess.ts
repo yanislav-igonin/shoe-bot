@@ -10,6 +10,11 @@ export type RequestAccessInput = {
 	text: string | undefined;
 };
 
+export const getRequestText = (message: {
+	caption?: string;
+	text?: string;
+}) => message.text ?? message.caption;
+
 const freeCommands = new Set([
 	"activate",
 	"generate",

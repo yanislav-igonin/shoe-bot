@@ -60,27 +60,27 @@ Run `npx tsx --test src/lib/prompt.test.ts` and `npm run typecheck`.
 - Produces: `getRequestText({ text?, caption? }) -> string | undefined` and caption-aware `classifyRequest` input.
 - Produces: `createUploadedImageMiddleware(replayUpdate, debounceMs?)` that remembers standalone images, buffers albums, and replays one caption update after inactivity.
 
-- [ ] **Step 1: Write failing access tests**
+- [x] **Step 1: Write failing access tests**
 
 Add literal cases proving `getRequestText` prefers message text and otherwise returns caption text. Feed those results into `classifyRequest` for private, triggered-group, and unrelated-group cases.
 
-- [ ] **Step 2: Verify access RED**
+- [x] **Step 2: Verify access RED**
 
 Run `npx tsx --test src/lib/requestAccess.test.ts`. Expect failure because `getRequestText` does not exist.
 
-- [ ] **Step 3: Pass caption text into access classification**
+- [x] **Step 3: Pass caption text into access classification**
 
 Add `getRequestText` to `requestAccess.ts` and use it in `allowedMiddleware`; keep `classifyRequest` rules unchanged.
 
-- [ ] **Step 4: Write failing album middleware tests**
+- [x] **Step 4: Write failing album middleware tests**
 
 Exercise real middleware instances with three ordered album updates. Assert no immediate replay, one replay after the injected short debounce, the caption update is replayed, and the store resolves all three photos in numeric Telegram order. Add a standalone-photo case that calls `next` immediately.
 
-- [ ] **Step 5: Verify album RED**
+- [x] **Step 5: Verify album RED**
 
 Run `npx tsx --test src/lib/uploadedImages.test.ts`. Expect failure because current middleware has no debounce or replay boundary.
 
-- [ ] **Step 6: Implement album collection**
+- [x] **Step 6: Implement album collection**
 
 Add bounded pending-group state beside the existing bounded image store. Mark replayed update IDs so re-entry calls `next` rather than buffering again. Reset the 500 ms timer for every group item and replay only when a caption-bearing update exists.
 
@@ -88,7 +88,7 @@ Add bounded pending-group state beside the existing bounded image store. Mark re
 
 Construct middleware with `update => bot.handleUpdate(update)` before state/auth middleware. Register the photo-caption controller added in Task 3 after text handlers.
 
-- [ ] **Step 8: Verify GREEN**
+- [x] **Step 8: Verify GREEN**
 
 Run `npx tsx --test src/lib/requestAccess.test.ts src/lib/uploadedImages.test.ts` and `npm run typecheck`.
 

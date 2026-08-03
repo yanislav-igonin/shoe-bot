@@ -16,7 +16,7 @@ import { closeDatabase, initializeDatabase } from "lib/database.js";
 import { logger } from "lib/logger.js";
 import { textTriggerRegexp } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
-import { uploadedImageMiddleware } from "lib/uploadedImages.js";
+import { createUploadedImageMiddleware } from "lib/uploadedImages.js";
 import {
 	adminMiddleware,
 	allowedMiddleware,
@@ -41,7 +41,13 @@ bot.catch((error) => {
 	logger.error(error);
 });
 
-bot.use(uploadedImageMiddleware);
+bot.use(
+	createUploadedImageMiddleware({
+		replayUpdate: async (update) => {
+			await bot.handleUpdate(update);
+		},
+	}),
+);
 bot.use(stateMiddleware);
 bot.use(entityManagerMiddleware);
 bot.use(chatMiddleware);
