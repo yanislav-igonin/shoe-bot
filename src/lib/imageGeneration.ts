@@ -23,6 +23,7 @@ const TOGETHER_IMAGE_URL_MODELS = new Set([
 	"black-forest-labs/FLUX.1-kontext-pro",
 ]);
 const XAI_EDIT_MODEL_REGEXP = /^grok-imagine-image(?:-|$)/u;
+const OPENAI_IMAGE_MODERATION_SCORE_THRESHOLD = 0.3;
 
 type GeneratedImageResponse = {
 	data?: Array<{
@@ -246,10 +247,24 @@ const moderateOpenAiImageInput = async (
 		model: "omni-moderation-latest",
 	});
 
-	if (moderation.results.some(({ flagged }) => flagged)) {
+	if (
+		moderation.results.some(
+			({ flagged, category_scores: categoryScores }) =>
+				flagged ||
+				Object.values(categoryScores).some(
+					(score) => score >= OPENAI_IMAGE_MODERATION_SCORE_THRESHOLD,
+				),
+		)
+	) {
 		throw new ImageModerationRejectedError();
 	}
 };
+
+const isOpenAiModerationBlockedError = (error: unknown) =>
+	typeof error === "object" &&
+	error !== null &&
+	"code" in error &&
+	(error as { code?: unknown }).code === "moderation_blocked";
 
 const generateWithOpenAi = async (
 	text: string,
@@ -258,18 +273,26 @@ const generateWithOpenAi = async (
 ) => {
 	await moderateOpenAiImageInput(text, sourceImageUrl);
 
-	const response = sourceImageUrl
-		? await openai.images.edit({
-				image: await createOpenAiImageFile(sourceImageUrl),
-				model,
-				prompt: text,
-				size: "1536x1024",
-			})
-		: await openai.images.generate({
-				model,
-				prompt: text,
-				size: "1536x1024",
-			});
+	let response: GeneratedImageResponse;
+	try {
+		response = sourceImageUrl
+			? await openai.images.edit({
+					image: await createOpenAiImageFile(sourceImageUrl),
+					model,
+					prompt: text,
+					size: "1536x1024",
+				})
+			: await openai.images.generate({
+					model,
+					prompt: text,
+					size: "1536x1024",
+				});
+	} catch (error) {
+		if (isOpenAiModerationBlockedError(error)) {
+			throw new ImageModerationRejectedError();
+		}
+		throw error;
+	}
 
 	return getGeneratedImageBase64Data(response);
 };

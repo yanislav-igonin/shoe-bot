@@ -21,7 +21,7 @@ const {
 	requireTogetherApiKey,
 } = imageGeneration;
 
-const moderationResponse = (flagged: boolean) => ({
+const moderationResponse = (flagged: boolean, sexualScore = 0) => ({
 	id: "modr-test",
 	model: "omni-moderation-latest",
 	results: [
@@ -66,7 +66,7 @@ const moderationResponse = (flagged: boolean) => ({
 				"self-harm": 0,
 				"self-harm/instructions": 0,
 				"self-harm/intent": 0,
-				sexual: 0,
+				sexual: sexualScore,
 				"sexual/minors": 0,
 				violence: 0,
 				"violence/graphic": 0,
@@ -323,6 +323,68 @@ describe("generateImage with OpenAI", () => {
 				(error: Error) => error.name === "ImageModerationRejectedError",
 			);
 			assert.equal(generateCalls, 0);
+		} finally {
+			openai.moderations.create = originalModerate;
+			openai.images.generate = originalGenerate;
+		}
+	});
+
+	it("blocks high category scores before OpenAI image generation", async () => {
+		const originalModerate = openai.moderations.create;
+		const originalGenerate = openai.images.generate;
+		let generateCalls = 0;
+		openai.moderations.create = (async () =>
+			moderationResponse(
+				false,
+				0.3,
+			)) as unknown as typeof openai.moderations.create;
+		openai.images.generate = (async () => {
+			generateCalls += 1;
+			return { data: [{ b64_json: "AQID" }] };
+		}) as unknown as typeof openai.images.generate;
+
+		try {
+			await assert.rejects(
+				generateImage(
+					{
+						find: async () => [
+							{ key: "imageProvider", value: "openai" },
+							{ key: "imageModel", value: "gpt-image-2" },
+						],
+					} as never,
+					"draw sexual content",
+				),
+				(error: Error) => error.name === "ImageModerationRejectedError",
+			);
+			assert.equal(generateCalls, 0);
+		} finally {
+			openai.moderations.create = originalModerate;
+			openai.images.generate = originalGenerate;
+		}
+	});
+
+	it("maps image API moderation blocks to the moderation error", async () => {
+		const originalModerate = openai.moderations.create;
+		const originalGenerate = openai.images.generate;
+		openai.moderations.create = (async () =>
+			moderationResponse(false)) as unknown as typeof openai.moderations.create;
+		openai.images.generate = (async () => {
+			throw { code: "moderation_blocked" };
+		}) as unknown as typeof openai.images.generate;
+
+		try {
+			await assert.rejects(
+				generateImage(
+					{
+						find: async () => [
+							{ key: "imageProvider", value: "openai" },
+							{ key: "imageModel", value: "gpt-image-2" },
+						],
+					} as never,
+					"draw sexual content",
+				),
+				(error: Error) => error.name === "ImageModerationRejectedError",
+			);
 		} finally {
 			openai.moderations.create = originalModerate;
 			openai.images.generate = originalGenerate;
