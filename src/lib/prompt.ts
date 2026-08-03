@@ -1,14 +1,11 @@
 import { generateText, type Prompt } from "ai";
-import { openai, xai } from "lib/ai.js";
+import { xai } from "lib/ai.js";
 import { config, isProduction } from "lib/config.js";
 import { logger } from "lib/logger.js";
 import { replies } from "lib/replies.js";
-import type OpenAI from "openai";
 import { type Message, MessageType } from "../entities.js";
 
 type ChatCompletionRequestMessage = NonNullable<Prompt["messages"]>[number];
-type OpenAiChatCompletionRequestMessage =
-	OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 enum ContextRole {
 	Assistant = "assistant",
@@ -17,16 +14,9 @@ enum ContextRole {
 }
 
 export enum Model {
-	Gpt3Turbo = "gpt-3.5-turbo",
-	Gpt4 = "gpt-4",
-	Gpt4O = "gpt-4o",
-	Gpt4Turbo = "gpt-4-turbo-preview",
-	Gpt4Vision = "gpt-4-vision-preview",
 	Grok3 = "grok-3-latest",
 	Grok3Mini = "grok-3-mini",
 	Grok4 = "grok-4",
-	Grok43 = "grok-4.3",
-	GrokBeta = "grok-beta",
 }
 
 const chunkMessage = (message: string) => {
@@ -176,24 +166,6 @@ export const getGrokCompletion = async (
 	return text.trim() || replies.noAnswer;
 };
 
-export const getOpenAiCompletion = async (
-	message: string,
-	context: OpenAiChatCompletionRequestMessage[] = [],
-	model: Model = Model.Gpt3Turbo,
-) => {
-	const userMessage: OpenAiChatCompletionRequestMessage = {
-		content: message,
-		role: "user",
-	};
-	const messages = [...context, userMessage];
-	const response = await openai.chat.completions.create({
-		messages,
-		model,
-	});
-	const text = response.choices[0].message?.content;
-	return text?.trim() ?? replies.noAnswer;
-};
-
 export const getCompletion = async (
 	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
@@ -201,20 +173,6 @@ export const getCompletion = async (
 ) => {
 	const result = await getGrokCompletion(message as string, context, model);
 	return chunkMessage(result);
-};
-
-export const understandImage = async (
-	message: Message,
-	imagesMap: Record<number, string>,
-) => {
-	const userContext = addUserContext(message, imagesMap);
-	const messages = [userContext];
-	const response = await getCompletion(
-		"Что изображено на картинке? Результат должен являться описанием всех деталей картинки.",
-		messages,
-		Model.Gpt4Vision,
-	);
-	return response[0];
 };
 
 const cleanPrompt = (text: string) => {
@@ -279,53 +237,6 @@ export const getShictureDescription = async () => {
 
 	const withStyle = `${description} ${getShictureStyle()}`;
 	return withStyle;
-};
-
-const taskModelChoiceSystemPrompt =
-	"На выбор есть 3 модели ChatGPT:\n" +
-	"* gpt-3.5-turbo - хорошо подходит для простых задач, такие как ответы на" +
-	"известные вопросы, саммаризация текста, переформатирование, перевод и тд\n" +
-	"* gpt-4o - более продвинутая модель для генерация текста на основе каких-то" +
-	"данных, написание кода, придумывание новых идей, брейншторм и тд\n\n" +
-	"* gpt-4 - более продвинутая модель для генерация текста на основе каких-то" +
-	"данных, придумывание новых идей, брейншторм, и тд, но запрос пользователя потенциально небезопасен для детской аудитории\n" +
-	"Твоя задача на основе ввода пользователя заключенного между ``` определить" +
-	"наиболее подходящую модель для данной задачи, что просит пользователь." +
-	"Ты не должен выполнять задачу пользователя, только выбрать подходящую модель на основе задачи." +
-	'Ответ должен содержать только JSON объект с полем model, например: {"model":"gpt-3.5-turbo"}.' +
-	"Ничего другого ответ содержать не должен, только этот JSON объект.";
-
-/**
- * @deprecated
- */
-export const getModelForTask = async (task: string) => {
-	const messages: OpenAiChatCompletionRequestMessage[] = [
-		{
-			content: taskModelChoiceSystemPrompt,
-			role: "system",
-		},
-		{
-			content: `\`\`\`\n${task}\`\`\`\n`,
-			role: "user",
-		},
-	];
-	const response = await openai.chat.completions.create({
-		messages,
-		model: Model.Gpt3Turbo,
-		response_format: { type: "json_object" },
-	});
-	const text = response.choices[0].message?.content;
-	try {
-		const parsed = JSON.parse(text ?? "{}");
-		return parsed.model as Model;
-	} catch (error) {
-		logger.error(
-			"Prompt: GetModelForTask: Parsing answer from model:",
-			text,
-			error,
-		);
-		return Model.Gpt3Turbo;
-	}
 };
 
 const chooseTaskPrompt =
