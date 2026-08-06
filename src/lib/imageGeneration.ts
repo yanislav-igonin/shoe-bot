@@ -262,7 +262,7 @@ const generateWithOpenAi = async (
 	model: string,
 	sourceImageUrl: string | undefined,
 ) => {
-	await moderateOpenAiImageInput(text, sourceImageUrl);
+	// await moderateOpenAiImageInput(text, sourceImageUrl);
 
 	let response: GeneratedImageResponse;
 	try {
