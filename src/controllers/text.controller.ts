@@ -10,7 +10,6 @@ import {
 	addSystemContext,
 	chooseTask,
 	getCompletion,
-	MAIN_MODEL,
 	maximumMessageLengthPrompt,
 	preparePrompt,
 	textTriggerRegexp,
@@ -135,9 +134,9 @@ export const generateTextResponse = async (
 			);
 
 			return await getCompletion(
+				em,
 				newUserMessage,
 				previousMessagesContext,
-				MAIN_MODEL,
 				imagesMap,
 				currentImageUrls,
 			);

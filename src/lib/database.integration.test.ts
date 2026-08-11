@@ -109,7 +109,7 @@ describe("MikroORM baseline migration", { skip: !testDatabaseUrl }, () => {
 					"user_settings_userId_key",
 				],
 			);
-			assert.deepEqual(seedCounts, [{ botRoles: 2, botUsers: 1, settings: 2 }]);
+			assert.deepEqual(seedCounts, [{ botRoles: 2, botUsers: 1, settings: 4 }]);
 		} finally {
 			await orm.close(true);
 		}

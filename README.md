@@ -10,7 +10,10 @@
 ```
 npm install
 ```
-2. Make `.env` file from `.env.example` and provide `BOT_TOKEN` and `OPENAI_API_KEY`values. Add `ADMINS_USERNAMES` if you want to use admin commands.
+2. Make `.env` file from `.env.example` and provide `BOT_TOKEN`,
+   `GROK_API_KEY`, and `OPENAI_API_KEY`. Add `TOGETHER_API_KEY` or
+   `OPENROUTER_API_KEY` when selecting that text provider. Add
+   `ADMINS_USERNAMES` to use admin commands.
 3. Run postgresql database via provided docker-compose file:
 ```
 docker compose up
@@ -33,4 +36,28 @@ untouched.
 5. Run bot:
 ```
 npm run dev
+```
+
+## Text providers
+
+User-facing text generation reads `textProvider` and `textModel` from the
+global `settings` table for every request. Supported providers are `xai`,
+`togetherai`, and `openrouter`.
+
+Set the matching API key before switching: `TOGETHER_API_KEY` for Together AI
+or `OPENROUTER_API_KEY` for OpenRouter. Update `textProvider` and `textModel`
+together because model IDs are provider-specific.
+
+Example switch to OpenRouter:
+
+```sql
+UPDATE settings SET value = 'openrouter' WHERE key = 'textProvider';
+UPDATE settings SET value = 'anthropic/claude-sonnet-4.5' WHERE key = 'textModel';
+```
+
+Example switch to Together AI:
+
+```sql
+UPDATE settings SET value = 'togetherai' WHERE key = 'textProvider';
+UPDATE settings SET value = 'moonshotai/Kimi-K2.5' WHERE key = 'textModel';
 ```

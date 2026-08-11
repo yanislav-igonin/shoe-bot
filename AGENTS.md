@@ -216,4 +216,5 @@ Both use Node.js 18.
 5. **Image Generation**: Uses Grok's `grok-2-image` model
 6. **ts-expect-error**: Several typing workarounds exist due to library type issues
 7. **Message Chunking**: Responses over 4000 chars are split into multiple messages
-8. **Main Model**: Currently set to `Model.Grok4` in `lib/prompt.ts`
+8. **Main Model**: Selected at runtime by the `textProvider` and `textModel`
+   rows in the `settings` table

@@ -52,6 +52,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.14",
     "@ai-sdk/xai": "^4.0.18",
     "@mikro-orm/core": "^7.1.7",
     "@mikro-orm/decorators": "^7.1.7",

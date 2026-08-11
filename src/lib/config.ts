@@ -11,6 +11,7 @@ export const config = {
 		process.env.OPENAI_API_KEY,
 		"OPENAI_API_KEY is not set",
 	),
+	openRouterApiKey: process.env.OPENROUTER_API_KEY,
 	togetherApiKey: process.env.TOGETHER_API_KEY,
 };
 
