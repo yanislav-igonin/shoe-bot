@@ -1,32 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { EntityManager } from "@mikro-orm/postgresql";
+import { logger } from "lib/logger.js";
 import { Message, MessageType, User } from "../entities.js";
 
 process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
+process.env.OPENROUTER_API_KEY = "test";
+process.env.TOGETHER_API_KEY = "test";
 
 const prompt = await import("lib/prompt.js");
-const { addUserContext, chooseTask, Model } = prompt;
-const textProviders = prompt as typeof prompt & {
-	parseTextGenerationSettings: (
-		rows: Array<{ key: string; value: string }>,
-	) => { model: string; provider: "openrouter" | "togetherai" | "xai" };
-	requireProviderApiKey: (
-		apiKey: string | undefined,
-		variableName: string,
-	) => string;
-	resolveTextModel: <T>(
-		settings: {
-			model: string;
-			provider: "openrouter" | "togetherai" | "xai";
-		},
-		factories: Record<
-			"openrouter" | "togetherai" | "xai",
-			(model: string) => T
-		>,
-	) => T;
-};
+const {
+	addUserContext,
+	chooseTask,
+	getCompletion,
+	parseTextGenerationSettings,
+	requireProviderApiKey,
+	resolveTextModel,
+} = prompt;
 
 const user = new User();
 user.id = 1;
@@ -77,83 +69,88 @@ describe("chooseTask", () => {
 	});
 });
 
-describe("getGrokCompletion", () => {
-	it("includes the current message image in the generated user prompt", async () => {
-		let generatedMessages: unknown;
-		const getGrokCompletion = prompt.getGrokCompletion as unknown as (
-			message: Message,
-			context: unknown[],
-			model: (typeof Model)[keyof typeof Model],
-			imagesMap: Record<number, string>,
-			currentImageUrls: string[],
-			generate: (options: { messages: unknown }) => Promise<{ text: string }>,
-		) => Promise<string>;
+describe("getCompletion", () => {
+	const expectedModelProviders = {
+		openrouter: "openrouter.chat",
+		togetherai: "togetherai.chat",
+		xai: "xai.responses",
+	};
 
-		const completion = await getGrokCompletion(
-			message,
-			[],
-			Model.Grok3,
-			{ [message.id]: "https://example.com/image.jpg" },
-			[],
-			async ({ messages }) => {
-				generatedMessages = messages;
-				return { text: "A boot" };
-			},
-		);
-
-		assert.equal(completion, "A boot");
-		assert.deepEqual(generatedMessages, [
-			{
-				content: [
-					{ text: "describe this", type: "text" },
-					{
-						image: new URL("https://example.com/image.jpg"),
-						type: "image",
-					},
+	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+		it(`loads settings and routes ${provider} completions`, async () => {
+			let generatedOptions: Record<string, unknown> | undefined;
+			const em = {
+				find: async () => [
+					{ key: "textProvider", value: provider },
+					{ key: "textModel", value: "provider/model" },
 				],
-				role: "user",
-			},
-		]);
-	});
+			} as unknown as EntityManager;
+			const generate = async (options: Record<string, unknown>) => {
+				generatedOptions = options;
+				return { text: "  A boot  " };
+			};
 
-	it("keeps every current album image in the supplied order", async () => {
-		let generatedMessages: unknown;
-		const getGrokCompletion = prompt.getGrokCompletion as unknown as (
-			message: Message,
-			context: unknown[],
-			model: (typeof Model)[keyof typeof Model],
-			imagesMap: Record<number, string>,
-			currentImageUrls: string[],
-			generate: (options: { messages: unknown }) => Promise<{ text: string }>,
-		) => Promise<string>;
+			const completion = await getCompletion(
+				em,
+				message,
+				[],
+				{},
+				["https://example.com/first.jpg", "https://example.com/second.jpg"],
+				generate,
+			);
 
-		await getGrokCompletion(
-			message,
-			[],
-			Model.Grok3,
-			{},
-			["https://example.com/first.jpg", "https://example.com/second.jpg"],
-			async ({ messages }) => {
-				generatedMessages = messages;
-				return { text: "Two boots" };
-			},
-		);
+			assert.deepEqual(completion, ["A boot"]);
+			assert.ok(generatedOptions);
+			const generatedModel = generatedOptions.model as {
+				modelId: string;
+				provider: string;
+			};
+			assert.equal(generatedModel.modelId, "provider/model");
+			assert.equal(generatedModel.provider, expectedModelProviders[provider]);
+			assert.deepEqual(generatedOptions.messages, [
+				{
+					content: [
+						{ text: "describe this", type: "text" },
+						{
+							image: new URL("https://example.com/first.jpg"),
+							type: "image",
+						},
+						{
+							image: new URL("https://example.com/second.jpg"),
+							type: "image",
+						},
+					],
+					role: "user",
+				},
+			]);
+		});
+	}
 
-		assert.deepEqual(generatedMessages, [
-			{
-				content: [
-					{ text: "describe this", type: "text" },
-					{
-						image: new URL("https://example.com/first.jpg"),
-						type: "image",
-					},
-					{
-						image: new URL("https://example.com/second.jpg"),
-						type: "image",
-					},
-				],
-				role: "user",
-			},
+	it("logs the configured provider and model when generation fails", async () => {
+		const upstreamError = new Error("upstream failed");
+		const logged: unknown[][] = [];
+		const originalLogger = logger.error;
+		logger.error = (...args) => logged.push(args);
+		const em = {
+			find: async () => [
+				{ key: "textProvider", value: "openrouter" },
+				{ key: "textModel", value: "provider/model" },
+			],
+		} as unknown as EntityManager;
+
+		try {
+			await assert.rejects(
+				getCompletion(em, "hello", [], {}, [], async () => {
+					throw upstreamError;
+				}),
+				upstreamError,
+			);
+		} finally {
+			logger.error = originalLogger;
+		}
+
+		assert.deepEqual(logged, [
+			["Text completion failed for openrouter/provider/model:", upstreamError],
 		]);
 	});
 });
@@ -162,7 +159,7 @@ describe("parseTextGenerationSettings", () => {
 	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
 		it(`parses ${provider} settings`, () => {
 			assert.deepEqual(
-				textProviders.parseTextGenerationSettings([
+				parseTextGenerationSettings([
 					{ key: "textModel", value: "provider/model" },
 					{ key: "textProvider", value: provider },
 				]),
@@ -173,10 +170,7 @@ describe("parseTextGenerationSettings", () => {
 
 	it("rejects a missing text provider", () => {
 		assert.throws(
-			() =>
-				textProviders.parseTextGenerationSettings([
-					{ key: "textModel", value: "model" },
-				]),
+			() => parseTextGenerationSettings([{ key: "textModel", value: "model" }]),
 			/textProvider setting is missing/u,
 		);
 	});
@@ -184,9 +178,7 @@ describe("parseTextGenerationSettings", () => {
 	it("rejects a missing text model", () => {
 		assert.throws(
 			() =>
-				textProviders.parseTextGenerationSettings([
-					{ key: "textProvider", value: "xai" },
-				]),
+				parseTextGenerationSettings([{ key: "textProvider", value: "xai" }]),
 			/textModel setting is missing/u,
 		);
 	});
@@ -194,7 +186,7 @@ describe("parseTextGenerationSettings", () => {
 	it("rejects an empty text model", () => {
 		assert.throws(
 			() =>
-				textProviders.parseTextGenerationSettings([
+				parseTextGenerationSettings([
 					{ key: "textProvider", value: "xai" },
 					{ key: "textModel", value: "   " },
 				]),
@@ -205,7 +197,7 @@ describe("parseTextGenerationSettings", () => {
 	it("rejects an unsupported text provider", () => {
 		assert.throws(
 			() =>
-				textProviders.parseTextGenerationSettings([
+				parseTextGenerationSettings([
 					{ key: "textProvider", value: "unknown" },
 					{ key: "textModel", value: "model" },
 				]),
@@ -217,21 +209,21 @@ describe("parseTextGenerationSettings", () => {
 describe("requireProviderApiKey", () => {
 	it("returns a configured key", () => {
 		assert.equal(
-			textProviders.requireProviderApiKey("provider-key", "PROVIDER_API_KEY"),
+			requireProviderApiKey("provider-key", "PROVIDER_API_KEY"),
 			"provider-key",
 		);
 	});
 
 	it("names the missing provider key", () => {
 		assert.throws(
-			() => textProviders.requireProviderApiKey(undefined, "PROVIDER_API_KEY"),
+			() => requireProviderApiKey(undefined, "PROVIDER_API_KEY"),
 			/PROVIDER_API_KEY is not set/u,
 		);
 	});
 
 	it("rejects a whitespace-only provider key", () => {
 		assert.throws(
-			() => textProviders.requireProviderApiKey("   ", "PROVIDER_API_KEY"),
+			() => requireProviderApiKey("   ", "PROVIDER_API_KEY"),
 			/PROVIDER_API_KEY is not set/u,
 		);
 	});
@@ -240,7 +232,7 @@ describe("requireProviderApiKey", () => {
 describe("resolveTextModel", () => {
 	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
 		it(`routes ${provider} model IDs to the matching factory`, () => {
-			const result = textProviders.resolveTextModel(
+			const result = resolveTextModel(
 				{ model: "provider/model", provider },
 				{
 					openrouter: (model) => `openrouter:${model}`,

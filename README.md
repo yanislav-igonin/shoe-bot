@@ -44,6 +44,10 @@ User-facing text generation reads `textProvider` and `textModel` from the
 global `settings` table for every request. Supported providers are `xai`,
 `togetherai`, and `openrouter`.
 
+Set the matching API key before switching: `TOGETHER_API_KEY` for Together AI
+or `OPENROUTER_API_KEY` for OpenRouter. Update `textProvider` and `textModel`
+together because model IDs are provider-specific.
+
 Example switch to OpenRouter:
 
 ```sql

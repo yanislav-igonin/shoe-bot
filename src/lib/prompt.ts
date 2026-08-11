@@ -8,6 +8,9 @@ import { replies } from "lib/replies.js";
 import { type Message, MessageType, Setting } from "../entities.js";
 
 type ChatCompletionRequestMessage = NonNullable<Prompt["messages"]>[number];
+type TextGenerator = (
+	options: Parameters<typeof generateText>[0],
+) => Promise<{ text: string }>;
 
 type SettingRow = {
 	key: string;
@@ -107,9 +110,7 @@ enum ContextRole {
 }
 
 export enum Model {
-	Grok3 = "grok-3-latest",
 	Grok3Mini = "grok-3-mini",
-	Grok4 = "grok-4",
 }
 
 const chunkMessage = (message: string) => {
@@ -259,46 +260,35 @@ export const addContext =
 		return addUserContext(message, imagesMap);
 	};
 
-export const getGrokCompletion = async (
-	message: Message | string,
-	context: ChatCompletionRequestMessage[] = [],
-	model: Model = Model.Grok3,
-	imagesMap: Record<number, string> = {},
-	currentImageUrls: string[] = [],
-	generate: typeof generateText = generateText,
-) => {
-	const userMessage =
-		currentImageUrls.length > 0
-			? addUserContextWithImages(message, currentImageUrls)
-			: addUserContext(message, imagesMap);
-	const messages = [...context, userMessage];
-	const { text } = await generate({
-		allowSystemInMessages: true,
-		messages,
-		model: xai(model),
-	});
-	return text.trim() || replies.noAnswer;
-};
-
 export const getCompletion = async (
 	em: EntityManager,
 	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
 	imagesMap: Record<number, string> = {},
 	currentImageUrls: string[] = [],
+	generate: TextGenerator = generateText,
 ) => {
 	const settings = await loadTextGenerationSettings(em);
 	const userMessage =
 		currentImageUrls.length > 0
 			? addUserContextWithImages(message, currentImageUrls)
 			: addUserContext(message, imagesMap);
-	const { text } = await generateText({
-		allowSystemInMessages: true,
-		messages: [...context, userMessage],
-		model: getConfiguredTextModel(settings),
-	});
-	const result = text.trim() || replies.noAnswer;
-	return chunkMessage(result);
+
+	try {
+		const { text } = await generate({
+			allowSystemInMessages: true,
+			messages: [...context, userMessage],
+			model: getConfiguredTextModel(settings),
+		});
+		const result = text.trim() || replies.noAnswer;
+		return chunkMessage(result);
+	} catch (error) {
+		logger.error(
+			`Text completion failed for ${settings.provider}/${settings.model}:`,
+			error,
+		);
+		throw error;
+	}
 };
 
 const cleanPrompt = (text: string) => {
