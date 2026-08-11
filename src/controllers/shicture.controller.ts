@@ -34,7 +34,7 @@ export const shictureController = async (
 		await context.replyWithChatAction("upload_photo");
 		await runPersistedGeneration({
 			generate: async () => {
-				const prompt = await getShictureDescription();
+				const prompt = await getShictureDescription(em);
 				const image = await generateImage(em, prompt);
 				if (!image) {
 					logger.error("Failed to generate image");

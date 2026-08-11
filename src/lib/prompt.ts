@@ -1,11 +1,104 @@
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import type { EntityManager } from "@mikro-orm/postgresql";
 import { generateText, Output, type Prompt } from "ai";
 import { xai } from "lib/ai.js";
 import { config, isProduction } from "lib/config.js";
 import { logger } from "lib/logger.js";
 import { replies } from "lib/replies.js";
-import { type Message, MessageType } from "../entities.js";
+import { type Message, MessageType, Setting } from "../entities.js";
 
 type ChatCompletionRequestMessage = NonNullable<Prompt["messages"]>[number];
+
+type SettingRow = {
+	key: string;
+	value: string;
+};
+
+type TextProvider = "openrouter" | "togetherai" | "xai";
+
+const TEXT_SETTING_KEYS = ["textProvider", "textModel"];
+
+export type TextGenerationSettings = {
+	model: string;
+	provider: TextProvider;
+};
+
+export const parseTextGenerationSettings = (
+	rows: SettingRow[],
+): TextGenerationSettings => {
+	const provider = rows.find(({ key }) => key === "textProvider")?.value;
+	const model = rows.find(({ key }) => key === "textModel")?.value;
+
+	if (!provider) {
+		throw new Error("textProvider setting is missing");
+	}
+
+	if (model === undefined) {
+		throw new Error("textModel setting is missing");
+	}
+
+	if (model.trim() === "") {
+		throw new Error("textModel setting is empty");
+	}
+
+	if (
+		provider !== "openrouter" &&
+		provider !== "togetherai" &&
+		provider !== "xai"
+	) {
+		throw new Error(`Unsupported text provider: ${provider}`);
+	}
+
+	return { model, provider };
+};
+
+export const requireProviderApiKey = (
+	apiKey: string | undefined,
+	variableName: string,
+) => {
+	if (!apiKey?.trim()) {
+		throw new Error(`${variableName} is not set`);
+	}
+
+	return apiKey;
+};
+
+export const resolveTextModel = <T>(
+	settings: TextGenerationSettings,
+	factories: Record<TextProvider, (model: string) => T>,
+) => factories[settings.provider](settings.model);
+
+const loadTextGenerationSettings = async (em: EntityManager) => {
+	// eslint-disable-next-line unicorn/no-array-method-this-argument
+	const rows = await em.find(Setting, {
+		key: { $in: TEXT_SETTING_KEYS },
+	});
+
+	return parseTextGenerationSettings(rows);
+};
+
+const getConfiguredTextModel = (settings: TextGenerationSettings) =>
+	resolveTextModel(settings, {
+		openrouter: (model) =>
+			createOpenAICompatible({
+				apiKey: requireProviderApiKey(
+					config.openRouterApiKey,
+					"OPENROUTER_API_KEY",
+				),
+				baseURL: "https://openrouter.ai/api/v1",
+				name: "openrouter",
+			})(model),
+		togetherai: (model) =>
+			createOpenAICompatible({
+				apiKey: requireProviderApiKey(
+					config.togetherApiKey,
+					"TOGETHER_API_KEY",
+				),
+				baseURL: "https://api.together.ai/v1",
+				name: "togetherai",
+			})(model),
+		xai,
+	});
 
 enum ContextRole {
 	Assistant = "assistant",
@@ -28,8 +121,6 @@ const chunkMessage = (message: string) => {
 
 	return chunks;
 };
-
-export const MAIN_MODEL = Model.Grok4;
 
 export const textTriggerRegexp = isProduction
 	? /^((ботинок,|shoe,|блинное,) )(.+)/isu
@@ -190,19 +281,23 @@ export const getGrokCompletion = async (
 };
 
 export const getCompletion = async (
+	em: EntityManager,
 	message: Message | string,
 	context: ChatCompletionRequestMessage[] = [],
-	model: Model = Model.Grok3,
 	imagesMap: Record<number, string> = {},
 	currentImageUrls: string[] = [],
 ) => {
-	const result = await getGrokCompletion(
-		message,
-		context,
-		model,
-		imagesMap,
-		currentImageUrls,
-	);
+	const settings = await loadTextGenerationSettings(em);
+	const userMessage =
+		currentImageUrls.length > 0
+			? addUserContextWithImages(message, currentImageUrls)
+			: addUserContext(message, imagesMap);
+	const { text } = await generateText({
+		allowSystemInMessages: true,
+		messages: [...context, userMessage],
+		model: getConfiguredTextModel(settings),
+	});
+	const result = text.trim() || replies.noAnswer;
 	return chunkMessage(result);
 };
 
@@ -241,7 +336,7 @@ export const getShictureStyle = () => {
 	return styles[randomIndex];
 };
 
-export const getShictureDescription = async () => {
+export const getShictureDescription = async (em: EntityManager) => {
 	const prompt =
 		"Придумай очень короткое интересное задание для художника." +
 		"Описание может содержать реальных существовавших людей, персонажей фильмов, кино, аниме, сериалов." +
@@ -252,7 +347,7 @@ export const getShictureDescription = async () => {
 		'Результат должен содержать только формулировку, а в конце добавить " в стиле ",' +
 		"но сам стиль не добавлять, я добавлю его после сам, например: " +
 		"Нарисуй картину с большими в стиле ";
-	let description = (await getCompletion(prompt))[0];
+	let description = (await getCompletion(em, prompt))[0];
 	const lastFewCharacters = description.slice(-3);
 
 	// Remove trailing dot
