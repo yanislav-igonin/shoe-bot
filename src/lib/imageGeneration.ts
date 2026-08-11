@@ -228,29 +228,6 @@ const generateWithXai = async (
 	return getGeneratedImageData(image);
 };
 
-const moderateOpenAiImageInput = async (
-	text: string,
-	sourceImageUrl: string | undefined,
-) => {
-	const input = sourceImageUrl
-		? [
-				{ text, type: "text" as const },
-				{
-					image_url: { url: sourceImageUrl },
-					type: "image_url" as const,
-				},
-			]
-		: text;
-	const moderation = await openai.moderations.create({
-		input,
-		model: "omni-moderation-latest",
-	});
-
-	if (moderation.results.some(({ flagged }) => flagged)) {
-		throw new ImageModerationRejectedError();
-	}
-};
-
 const isOpenAiModerationBlockedError = (error: unknown) =>
 	typeof error === "object" &&
 	error !== null &&
@@ -262,8 +239,6 @@ const generateWithOpenAi = async (
 	model: string,
 	sourceImageUrl: string | undefined,
 ) => {
-	// await moderateOpenAiImageInput(text, sourceImageUrl);
-
 	let response: GeneratedImageResponse;
 	try {
 		response = sourceImageUrl
