@@ -1,3 +1,4 @@
+import { run } from "@grammyjs/runner";
 import {
 	activateController,
 	generateController,
@@ -113,12 +114,30 @@ bot.on("message:photo", async (context) => {
 const start = async () => {
 	await initializeDatabase();
 	logger.info("database connected");
-	bot.start().catch(async (error) => {
-		logger.error(error);
+
+	try {
+		const runner = run(bot);
+		const stopRunner = () => {
+			void runner.stop().catch(logger.error);
+		};
+		process.once("SIGINT", stopRunner);
+		process.once("SIGTERM", stopRunner);
+		logger.info("bot started");
+
+		try {
+			await runner.task();
+		} finally {
+			process.off("SIGINT", stopRunner);
+			process.off("SIGTERM", stopRunner);
+		}
+	} finally {
 		await closeDatabase();
-	});
+	}
 };
 
 start()
-	.then(() => logger.info("bot started"))
-	.catch(logger.error);
+	.then(() => process.exit(0))
+	.catch((error) => {
+		logger.error(error);
+		process.exit(1);
+	});

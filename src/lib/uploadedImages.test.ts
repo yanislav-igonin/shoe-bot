@@ -161,7 +161,7 @@ describe("uploaded image middleware", () => {
 		assert.equal(nextCalls, 1);
 	});
 
-	it("serializes downstream processing across concurrent updates", async () => {
+	it("processes separate updates downstream concurrently", async () => {
 		const middleware = createUploadedImageMiddleware({
 			replayUpdate: async () => {},
 			store: createUploadedImageStore(),
@@ -185,11 +185,13 @@ describe("uploaded image middleware", () => {
 		const second = middleware(secondContext as never, async () => {
 			calls.push("second");
 		});
-		await Promise.resolve();
-
-		assert.deepEqual(calls, ["first:start"]);
-		releaseFirst();
-		await Promise.all([first, second]);
-		assert.deepEqual(calls, ["first:start", "first:end", "second"]);
+		try {
+			await Promise.resolve();
+			assert.deepEqual(calls, ["first:start", "second"]);
+		} finally {
+			releaseFirst();
+			await Promise.all([first, second]);
+		}
+		assert.deepEqual(calls, ["first:start", "second", "first:end"]);
 	});
 });

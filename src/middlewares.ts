@@ -73,13 +73,17 @@ export const chatMiddleware = async (
 	}
 
 	const name = (context.chat as TelegramChat.GroupChat).title ?? "user";
-	const newChat = em.create(Chat, {
-		name,
-		tgId: chatId.toString(),
-		type: context.chat?.type as ChatType,
-	});
-	em.persist(newChat);
-	await em.flush();
+	const newChat = await em.upsert(
+		Chat,
+		{
+			name,
+			tgId: chatId.toString(),
+			type: context.chat?.type as ChatType,
+		},
+		{
+			onConflictFields: ["tgId"],
+		},
+	);
 	// eslint-disable-next-line require-atomic-updates
 	context.state.chat = newChat;
 
@@ -191,15 +195,19 @@ export const userMiddleware = async (
 		username,
 	} = user;
 
-	const newUser = em.create(User, {
-		firstName: valueOrNull(firstName),
-		languageCode: valueOrNull(language),
-		lastName: valueOrNull(lastName),
-		tgId: tgUserId.toString(),
-		username: valueOrNull(username),
-	});
-	em.persist(newUser);
-	await em.flush();
+	const newUser = await em.upsert(
+		User,
+		{
+			firstName: valueOrNull(firstName),
+			languageCode: valueOrNull(language),
+			lastName: valueOrNull(lastName),
+			tgId: tgUserId.toString(),
+			username: valueOrNull(username),
+		},
+		{
+			onConflictFields: ["tgId"],
+		},
+	);
 	// eslint-disable-next-line require-atomic-updates
 	context.state.user = newUser;
 
@@ -224,12 +232,18 @@ export const userSettingsMiddleware = async (
 		return;
 	}
 
-	const newUserSettings = em.create(UserSettings, {
-		botRole: em.getReference(BotRole, 1),
-		user,
-	});
-	em.persist(newUserSettings);
-	await em.flush();
+	const newUserSettings = await em.upsert(
+		UserSettings,
+		{
+			botRole: em.getReference(BotRole, 1),
+			updatedAt: new Date(),
+			user,
+		},
+		{
+			onConflictExcludeFields: ["botRole"],
+			onConflictFields: ["user"],
+		},
+	);
 	// eslint-disable-next-line require-atomic-updates
 	context.state.userSettings = newUserSettings;
 

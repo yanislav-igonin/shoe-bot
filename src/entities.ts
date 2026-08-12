@@ -137,7 +137,12 @@ export class Chat {
 	@Enum({ items: () => ChatType, nativeEnumName: "ChatType" })
 	type!: ChatType;
 
-	@Property({ columnType: "text", fieldName: "tgId", type: "string" })
+	@Property({
+		columnType: "text",
+		fieldName: "tgId",
+		type: "string",
+		unique: "chats_tgId_key",
+	})
 	tgId!: string;
 
 	@Property({ fieldName: "createdAt", ...createdTimestampOptions })
