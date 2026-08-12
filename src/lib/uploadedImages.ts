@@ -95,32 +95,23 @@ export const createUploadedImageMiddleware = ({
 }: UploadedImageMiddlewareOptions) => {
 	const pendingAlbums = new Map<string, PendingAlbum>();
 	const replayedUpdateIds = new Set<number>();
-	let downstream = Promise.resolve();
-	const runDownstream = (operation: () => Promise<void>) => {
-		const result = downstream.then(operation, operation);
-		downstream = result.then(
-			() => undefined,
-			() => undefined,
-		);
-		return result;
-	};
 
 	return async (context: BotContext, next: NextFunction) => {
 		if (!context.has("message:photo")) {
-			await runDownstream(next);
+			await next();
 			return;
 		}
 
 		const image = getUploadedImage(context.message);
 		store.remember(image);
 		if (!image.mediaGroupId) {
-			await runDownstream(next);
+			await next();
 			return;
 		}
 
 		const updateId = context.update.update_id;
 		if (replayedUpdateIds.delete(updateId)) {
-			await runDownstream(next);
+			await next();
 			return;
 		}
 

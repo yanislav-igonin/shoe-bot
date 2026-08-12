@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { User } from "../entities.js";
+import { BotRole, Chat, ChatType, User, UserSettings } from "../entities.js";
 
 /* eslint-disable node/no-process-env */
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
@@ -59,6 +59,7 @@ describe("MikroORM baseline migration", { skip: !testDatabaseUrl }, () => {
            WHERE schemaname = 'public'
              AND indexname IN (
                'activation_codes_code_key',
+               'chats_tgId_key',
                'daily_request_usages_userId_date_key',
                'new_users_tgId_key',
                'user_settings_userId_key'
@@ -104,6 +105,7 @@ describe("MikroORM baseline migration", { skip: !testDatabaseUrl }, () => {
 				indexes.map(({ indexname }) => indexname),
 				[
 					"activation_codes_code_key",
+					"chats_tgId_key",
 					"daily_request_usages_userId_date_key",
 					"new_users_tgId_key",
 					"user_settings_userId_key",
@@ -158,6 +160,81 @@ describe("MikroORM baseline migration", { skip: !testDatabaseUrl }, () => {
 			await refundDailyRequest(orm.em.fork(), userId);
 
 			assert.equal(await getRemainingDailyRequests(orm.em.fork(), userId), 1);
+		} finally {
+			await orm.close(true);
+		}
+	});
+
+	it("upserts request state safely from concurrent entity managers", async () => {
+		if (!testDatabaseUrl) {
+			throw new Error("TEST_DATABASE_URL is not set");
+		}
+
+		const { createDatabase } = await import("./database.js");
+		const orm = await createDatabase(testDatabaseUrl);
+
+		try {
+			await orm.em
+				.getConnection()
+				.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+			await orm.migrator.up();
+
+			const chats = await Promise.all(
+				Array.from({ length: 2 }, () =>
+					orm.em.fork().upsert(
+						Chat,
+						{
+							name: "user",
+							tgId: "parallel-chat",
+							type: ChatType.private,
+						},
+						{ onConflictFields: ["tgId"] },
+					),
+				),
+			);
+			const users = await Promise.all(
+				Array.from({ length: 2 }, () =>
+					orm.em
+						.fork()
+						.upsert(
+							User,
+							{ tgId: "parallel-user" },
+							{ onConflictFields: ["tgId"] },
+						),
+				),
+			);
+			const userSettings = await Promise.all(
+				Array.from({ length: 2 }, () => {
+					const em = orm.em.fork();
+					return em.upsert(
+						UserSettings,
+						{
+							botRole: em.getReference(BotRole, 1),
+							updatedAt: new Date(),
+							user: em.getReference(User, users[0].id),
+						},
+						{
+							onConflictExcludeFields: ["botRole"],
+							onConflictFields: ["user"],
+						},
+					);
+				}),
+			);
+
+			assert.equal(new Set(chats.map(({ id }) => id)).size, 1);
+			assert.equal(new Set(users.map(({ id }) => id)).size, 1);
+			assert.equal(new Set(userSettings.map(({ id }) => id)).size, 1);
+			assert.deepEqual(
+				await orm.em
+					.getConnection()
+					.execute<
+						Array<{ chats: number; userSettings: number; users: number }>
+					>(`SELECT
+					(SELECT COUNT(*)::int FROM "chats") AS "chats",
+					(SELECT COUNT(*)::int FROM "users" WHERE "tgId" = 'parallel-user') AS "users",
+					(SELECT COUNT(*)::int FROM "user_settings") AS "userSettings"`),
+				[{ chats: 1, userSettings: 1, users: 1 }],
+			);
 		} finally {
 			await orm.close(true);
 		}
