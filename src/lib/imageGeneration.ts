@@ -362,10 +362,15 @@ const generateWithHuggingFace = async (
 		?.split(";", 1)[0]
 		.trim()
 		.toLowerCase();
-	if (contentType?.startsWith("image/") || contentType === "application/octet-stream") {
+	if (
+		contentType?.startsWith("image/") ||
+		contentType === "application/octet-stream"
+	) {
 		const imageData = Buffer.from(await response.arrayBuffer());
 		if (imageData.length === 0) {
-			throw new Error("Hugging Face inference endpoint returned an empty image");
+			throw new Error(
+				"Hugging Face inference endpoint returned an empty image",
+			);
 		}
 		return imageData;
 	}
