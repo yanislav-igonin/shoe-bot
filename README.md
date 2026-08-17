@@ -152,8 +152,9 @@ let reconciliation retry afterward.
 
 Concurrent reconciliation calls inside one bot process are coalesced into one
 in-flight reconcile so a burst of requests does not issue duplicate endpoint
-updates. This coordination is process-local; multiple shoe-bot replicas would
-need distributed coordination for the same guarantees.
+updates. Reconciliation and active-generation draining are process-local; a
+horizontally scaled deployment needs distributed coordination for strict
+cross-process model-switch and shutdown guarantees.
 
 #### Cold start and scale-to-zero
 
