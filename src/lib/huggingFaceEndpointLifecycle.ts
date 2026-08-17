@@ -2,12 +2,6 @@ const HUGGING_FACE_ENDPOINTS_API_URL =
 	"https://api.endpoints.huggingface.cloud/v2";
 const HUGGING_FACE_MANAGEMENT_REQUEST_TIMEOUT_MS = 15_000;
 
-type HuggingFaceEndpointManagementConfigInput = {
-	endpointName: string | undefined;
-	namespace: string | undefined;
-	token: string | undefined;
-};
-
 export type HuggingFaceEndpointManagementConfig = {
 	endpointName: string;
 	namespace: string;
@@ -16,31 +10,8 @@ export type HuggingFaceEndpointManagementConfig = {
 
 type HuggingFaceEndpointLifecycleOptions = {
 	onScaleError?: (error: unknown) => void;
-	scaleToZero: () => Promise<void>;
+	scaleToZero?: (config: HuggingFaceEndpointManagementConfig) => Promise<void>;
 };
-
-const requireValue = (
-	value: string | undefined,
-	variableName: string,
-): string => {
-	const normalizedValue = value?.trim();
-	if (!normalizedValue) {
-		throw new Error(`${variableName} is not set`);
-	}
-
-	return normalizedValue;
-};
-
-export const requireHuggingFaceEndpointManagementConfig = (
-	input: HuggingFaceEndpointManagementConfigInput,
-): HuggingFaceEndpointManagementConfig => ({
-	endpointName: requireValue(
-		input.endpointName,
-		"HF_TEXT_INFERENCE_ENDPOINT_NAME",
-	),
-	namespace: requireValue(input.namespace, "HF_INFERENCE_ENDPOINT_NAMESPACE"),
-	token: requireValue(input.token, "HF_TOKEN"),
-});
 
 export const scaleHuggingFaceEndpointToZero = async (
 	config: HuggingFaceEndpointManagementConfig,
@@ -72,8 +43,8 @@ export const scaleHuggingFaceEndpointToZero = async (
 
 export const createHuggingFaceEndpointLifecycle = ({
 	onScaleError,
-	scaleToZero,
-}: HuggingFaceEndpointLifecycleOptions) => {
+	scaleToZero = scaleHuggingFaceEndpointToZero,
+}: HuggingFaceEndpointLifecycleOptions = {}) => {
 	let activeRequests = 0;
 	let scaleToZeroInFlight: Promise<void> | undefined;
 
@@ -83,7 +54,9 @@ export const createHuggingFaceEndpointLifecycle = ({
 		}
 	};
 
-	const finishRequest = async () => {
+	const finishRequest = async (
+		managementConfig: HuggingFaceEndpointManagementConfig,
+	) => {
 		activeRequests -= 1;
 		if (activeRequests > 0) {
 			return;
@@ -96,7 +69,7 @@ export const createHuggingFaceEndpointLifecycle = ({
 
 		const currentScale = (async () => {
 			try {
-				await scaleToZero();
+				await scaleToZero(managementConfig);
 			} catch (error) {
 				onScaleError?.(error);
 			}
@@ -109,13 +82,16 @@ export const createHuggingFaceEndpointLifecycle = ({
 	};
 
 	return {
-		run: async <T>(task: () => Promise<T>): Promise<T> => {
+		run: async <T>(
+			managementConfig: HuggingFaceEndpointManagementConfig,
+			task: () => Promise<T>,
+		): Promise<T> => {
 			await waitForScaleToZero();
 			activeRequests += 1;
 			try {
 				return await task();
 			} finally {
-				await finishRequest();
+				await finishRequest(managementConfig);
 			}
 		},
 	};
