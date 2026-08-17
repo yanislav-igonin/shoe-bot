@@ -129,18 +129,23 @@ describe("createHuggingFaceEndpointLifecycle", () => {
 
 	it("waits for an in-flight scale-to-zero before starting a new generation", async () => {
 		let finishScale: (() => void) | undefined;
+		let notifyScaleStarted: (() => void) | undefined;
 		let secondStarted = false;
+		const scaleStarted = new Promise<void>((resolve) => {
+			notifyScaleStarted = resolve;
+		});
 		const scaleGate = new Promise<void>((resolve) => {
 			finishScale = resolve;
 		});
 		const lifecycle = createHuggingFaceEndpointLifecycle({
 			scaleToZero: async () => {
+				notifyScaleStarted?.();
 				await scaleGate;
 			},
 		});
 
 		const first = lifecycle.run(async () => "first");
-		await Promise.resolve();
+		await scaleStarted;
 		const second = lifecycle.run(async () => {
 			secondStarted = true;
 			return "second";
