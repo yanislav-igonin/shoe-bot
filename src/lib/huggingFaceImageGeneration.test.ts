@@ -105,7 +105,7 @@ describe("generateImage with Hugging Face", () => {
 		assert.equal(requestUrl, "https://example.com/hf-endpoint");
 		assert.equal(requestInit?.method, "POST");
 		assert.deepEqual(requestInit?.headers, {
-			Accept: "image/*, application/json",
+			Accept: "image/png",
 			Authorization: "Bearer hf-test-token",
 			"Content-Type": "application/json",
 		});
