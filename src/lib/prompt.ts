@@ -5,9 +5,12 @@ import { xai } from "lib/ai.js";
 import { config, isProduction } from "lib/config.js";
 import {
 	createHuggingFaceEndpointLifecycle,
-	requireHuggingFaceEndpointManagementConfig,
-	scaleHuggingFaceEndpointToZero,
+	type HuggingFaceEndpointManagementConfig,
 } from "lib/huggingFaceEndpointLifecycle.js";
+import {
+	type ResolvedHuggingFaceTextEndpoint,
+	reconcileHuggingFaceTextEndpoint,
+} from "lib/huggingFaceTextEndpoint.js";
 import { logger } from "lib/logger.js";
 import { replies } from "lib/replies.js";
 import { type Message, MessageType, Setting } from "../entities.js";
@@ -31,8 +34,15 @@ type HuggingFaceColdStartFetchOptions = {
 };
 
 type TextGenerationLifecycle = {
-	run: <T>(task: () => Promise<T>) => Promise<T>;
+	run: <T>(
+		managementConfig: HuggingFaceEndpointManagementConfig,
+		task: () => Promise<T>,
+	) => Promise<T>;
 };
+
+type HuggingFaceTextEndpointResolver = (
+	em: EntityManager,
+) => Promise<ResolvedHuggingFaceTextEndpoint | undefined>;
 
 const TEXT_SETTING_KEYS = ["textProvider", "textModel"];
 const HUGGING_FACE_COLD_START_MAX_WAIT_MS = 10 * 60_000;
@@ -91,7 +101,7 @@ export const requireHuggingFaceTextEndpointUrl = (
 ) => {
 	const normalizedEndpointUrl = endpointUrl?.trim().replace(/\/+$/u, "");
 	if (!normalizedEndpointUrl) {
-		throw new Error("HF_TEXT_INFERENCE_ENDPOINT_URL is not set");
+		throw new Error("hfTextInferenceEndpointUrl setting is not set");
 	}
 
 	try {
@@ -101,7 +111,7 @@ export const requireHuggingFaceTextEndpointUrl = (
 		}
 	} catch {
 		throw new Error(
-			"HF_TEXT_INFERENCE_ENDPOINT_URL must be a valid HTTP(S) URL",
+			"hfTextInferenceEndpointUrl setting must be a valid HTTP(S) URL",
 		);
 	}
 
@@ -149,21 +159,9 @@ export const createHuggingFaceColdStartFetch = (
 	}) as typeof fetch;
 };
 
-const getHuggingFaceEndpointManagementConfig = () =>
-	requireHuggingFaceEndpointManagementConfig({
-		endpointName: config.hfTextInferenceEndpointName,
-		namespace: config.hfInferenceEndpointNamespace,
-		token: config.hfToken,
-	});
-
 const huggingFaceTextEndpointLifecycle = createHuggingFaceEndpointLifecycle({
 	onScaleError: (error) =>
 		logger.error("Failed to scale Hugging Face text endpoint to zero:", error),
-	scaleToZero: async () => {
-		await scaleHuggingFaceEndpointToZero(
-			getHuggingFaceEndpointManagementConfig(),
-		);
-	},
 });
 
 export const resolveTextModel = <T>(
@@ -180,14 +178,15 @@ const loadTextGenerationSettings = async (em: EntityManager) => {
 	return parseTextGenerationSettings(rows);
 };
 
-const getConfiguredTextModel = (settings: TextGenerationSettings) =>
+const getConfiguredTextModel = (
+	settings: TextGenerationSettings,
+	huggingFaceEndpointUrl?: string,
+) =>
 	resolveTextModel(settings, {
 		huggingface: () =>
 			createOpenAICompatible({
 				apiKey: requireProviderApiKey(config.hfToken, "HF_TOKEN"),
-				baseURL: requireHuggingFaceTextEndpointUrl(
-					config.hfTextInferenceEndpointUrl,
-				),
+				baseURL: requireHuggingFaceTextEndpointUrl(huggingFaceEndpointUrl),
 				fetch: createHuggingFaceColdStartFetch(),
 				name: "huggingface",
 			})("tgi"),
@@ -377,6 +376,7 @@ export const getCompletion = async (
 	currentImageUrls: string[] = [],
 	generate: TextGenerator = generateText,
 	huggingFaceLifecycle: TextGenerationLifecycle = huggingFaceTextEndpointLifecycle,
+	resolveHuggingFaceEndpoint: HuggingFaceTextEndpointResolver = reconcileHuggingFaceTextEndpoint,
 ) => {
 	const settings = await loadTextGenerationSettings(em);
 	const userMessage =
@@ -384,21 +384,32 @@ export const getCompletion = async (
 			? addUserContextWithImages(message, currentImageUrls)
 			: addUserContext(message, imagesMap);
 
-	const generateCompletion = () =>
-		generate({
-			allowSystemInMessages: true,
-			messages: [...context, userMessage],
-			model: getConfiguredTextModel(settings),
-		});
-
 	try {
-		const completion =
+		const resolvedHuggingFaceEndpoint =
 			settings.provider === "huggingface"
-				? await (() => {
-						getHuggingFaceEndpointManagementConfig();
-						return huggingFaceLifecycle.run(generateCompletion);
-					})()
-				: await generateCompletion();
+				? await resolveHuggingFaceEndpoint(em)
+				: undefined;
+		if (settings.provider === "huggingface" && !resolvedHuggingFaceEndpoint) {
+			throw new Error(
+				"Hugging Face text endpoint reconciliation returned no endpoint",
+			);
+		}
+
+		const generateCompletion = () =>
+			generate({
+				allowSystemInMessages: true,
+				messages: [...context, userMessage],
+				model: getConfiguredTextModel(
+					settings,
+					resolvedHuggingFaceEndpoint?.endpointUrl,
+				),
+			});
+		const completion = resolvedHuggingFaceEndpoint
+			? await huggingFaceLifecycle.run(
+					resolvedHuggingFaceEndpoint.managementConfig,
+					generateCompletion,
+				)
+			: await generateCompletion();
 		const result = completion.text.trim() || replies.noAnswer;
 		return chunkMessage(result);
 	} catch (error) {

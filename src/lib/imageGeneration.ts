@@ -10,7 +10,11 @@ import { Setting } from "../entities.js";
 
 type ImageProvider = "huggingface" | "openai" | "togetherai" | "xai";
 
-const IMAGE_SETTING_KEYS = ["imageProvider", "imageModel"];
+const IMAGE_SETTING_KEYS = [
+	"imageProvider",
+	"imageModel",
+	"hfImageInferenceEndpointUrl",
+];
 const TOGETHER_REFERENCE_IMAGE_MODELS = new Set([
 	"black-forest-labs/FLUX.2-dev",
 	"black-forest-labs/FLUX.2-flex",
@@ -42,6 +46,7 @@ type SettingRow = {
 };
 
 export type ImageGenerationSettings = {
+	huggingFaceEndpointUrl?: string;
 	model: string;
 	provider: ImageProvider;
 };
@@ -79,7 +84,7 @@ export const requireHuggingFaceConfig = (
 
 	const normalizedEndpointUrl = endpointUrl?.trim();
 	if (!normalizedEndpointUrl) {
-		throw new Error("HF_INFERENCE_ENDPOINT_URL is not set");
+		throw new Error("hfImageInferenceEndpointUrl setting is not set");
 	}
 
 	try {
@@ -88,7 +93,9 @@ export const requireHuggingFaceConfig = (
 			throw new Error("unsupported protocol");
 		}
 	} catch {
-		throw new Error("HF_INFERENCE_ENDPOINT_URL must be a valid HTTP(S) URL");
+		throw new Error(
+			"hfImageInferenceEndpointUrl setting must be a valid HTTP(S) URL",
+		);
 	}
 
 	return {
@@ -124,7 +131,15 @@ export const parseImageGenerationSettings = (
 		throw new Error(`Unsupported image provider: ${provider}`);
 	}
 
-	return { model, provider };
+	const huggingFaceEndpointUrl = rows
+		.find(({ key }) => key === "hfImageInferenceEndpointUrl")
+		?.value.trim();
+
+	return {
+		...(huggingFaceEndpointUrl ? { huggingFaceEndpointUrl } : {}),
+		model,
+		provider,
+	};
 };
 
 export const getGeneratedImageUrl = (response: GeneratedImageResponse) => {
@@ -330,17 +345,18 @@ const generateWithTogether = async (
 const generateWithHuggingFace = async (
 	text: string,
 	model: string,
+	endpointUrl: string | undefined,
 	sourceImageUrl: string | undefined,
 ) => {
 	if (sourceImageUrl) {
 		throw new ImageEditingNotSupportedError("huggingface", model);
 	}
 
-	const { endpointUrl, token } = requireHuggingFaceConfig(
+	const { endpointUrl: resolvedEndpointUrl, token } = requireHuggingFaceConfig(
 		config.hfToken,
-		config.hfInferenceEndpointUrl,
+		endpointUrl,
 	);
-	const response = await fetch(endpointUrl, {
+	const response = await fetch(resolvedEndpointUrl, {
 		body: JSON.stringify({ inputs: text }),
 		headers: {
 			Accept: "image/png",
@@ -402,11 +418,17 @@ export const generateImage = async (
 	text: string,
 	sourceImageUrl?: string,
 ) => {
-	const { model, provider } = await loadImageGenerationSettings(em);
+	const { huggingFaceEndpointUrl, model, provider } =
+		await loadImageGenerationSettings(em);
 
 	switch (provider) {
 		case "huggingface":
-			return await generateWithHuggingFace(text, model, sourceImageUrl);
+			return await generateWithHuggingFace(
+				text,
+				model,
+				huggingFaceEndpointUrl,
+				sourceImageUrl,
+			);
 		case "openai":
 			return await generateWithOpenAi(text, model, sourceImageUrl);
 		case "togetherai":

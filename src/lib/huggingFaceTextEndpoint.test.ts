@@ -1,17 +1,25 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
+
+process.env.BOT_TOKEN = "test";
+process.env.GROK_API_KEY = "test";
+process.env.OPENAI_API_KEY = "test";
+process.env.HF_TOKEN = "hf-test-token";
+
+const endpointModule = await import("lib/huggingFaceTextEndpoint.js");
+const {
 	fetchHuggingFaceEndpointMetadata,
 	parseHuggingFaceTextEndpointSettings,
 	reconcileHuggingFaceTextEndpointState,
 	updateHuggingFaceEndpointRepository,
-} from "lib/huggingFaceTextEndpoint.js";
+} = endpointModule;
 
 const settingsRows = (overrides: Record<string, string> = {}) => {
 	const values = {
 		hfInferenceEndpointNamespace: "yanislav-igonin",
 		hfTextInferenceEndpointName: "shoe-bot-text",
-		hfTextInferenceEndpointUrl: "https://old.example.endpoints.huggingface.cloud",
+		hfTextInferenceEndpointUrl:
+			"https://old.example.endpoints.huggingface.cloud",
 		textModel: "owner/new-model",
 		...overrides,
 	};
@@ -154,14 +162,18 @@ describe("reconcileHuggingFaceTextEndpointState", () => {
 			};
 		};
 
-		const resolved = await reconcileHuggingFaceTextEndpointState(store, "hf-token", {
-			fetchMetadata,
-			sleep: async () => {},
-			updateRepository: async () => {
-				updateCalls += 1;
-				return { repository: "owner/new-model", status: "pending" };
+		const resolved = await reconcileHuggingFaceTextEndpointState(
+			store,
+			"hf-token",
+			{
+				fetchMetadata,
+				sleep: async () => {},
+				updateRepository: async () => {
+					updateCalls += 1;
+					return { repository: "owner/new-model", status: "pending" };
+				},
 			},
-		});
+		);
 
 		assert.equal(updateCalls, 1);
 		assert.equal(metadataCalls, 3);
@@ -217,7 +229,8 @@ describe("reconcileHuggingFaceTextEndpointState", () => {
 		await assert.rejects(
 			reconcileHuggingFaceTextEndpointState(
 				{
-					load: async () => parseHuggingFaceTextEndpointSettings(settingsRows()),
+					load: async () =>
+						parseHuggingFaceTextEndpointSettings(settingsRows()),
 					saveUrl: async () => {},
 				},
 				"hf-token",

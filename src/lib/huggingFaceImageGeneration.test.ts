@@ -5,7 +5,6 @@ process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 process.env.HF_TOKEN = "hf-test-token";
-process.env.HF_INFERENCE_ENDPOINT_URL = "https://example.com/hf-endpoint";
 
 // Config reads environment variables at module load, so imports must follow setup.
 const imageGeneration = await import("lib/imageGeneration.js");
@@ -25,6 +24,10 @@ const huggingFaceSettings = () => ({
 	find: async () => [
 		{ key: "imageProvider", value: "huggingface" },
 		{ key: "imageModel", value: "owner/community-image-model" },
+		{
+			key: "hfImageInferenceEndpointUrl",
+			value: "https://example.com/hf-endpoint",
+		},
 	],
 });
 
@@ -71,14 +74,14 @@ describe("requireHuggingFaceConfig", () => {
 	it("rejects a missing endpoint URL", () => {
 		assert.throws(
 			() => requireHuggingFaceConfig("hf-token", undefined),
-			/HF_INFERENCE_ENDPOINT_URL is not set/u,
+			/hfImageInferenceEndpointUrl setting is not set/u,
 		);
 	});
 
 	it("rejects an invalid endpoint URL", () => {
 		assert.throws(
 			() => requireHuggingFaceConfig("hf-token", "not-a-url"),
-			/HF_INFERENCE_ENDPOINT_URL must be a valid HTTP\(S\) URL/u,
+			/hfImageInferenceEndpointUrl setting must be a valid HTTP\(S\) URL/u,
 		);
 	});
 });

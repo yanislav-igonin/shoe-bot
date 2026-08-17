@@ -10,10 +10,6 @@ process.env.OPENAI_API_KEY = "test";
 process.env.OPENROUTER_API_KEY = "test";
 process.env.TOGETHER_API_KEY = "test";
 process.env.HF_TOKEN = "hf-test-token";
-process.env.HF_TEXT_INFERENCE_ENDPOINT_URL =
-	"https://example.com/hf-text-endpoint";
-process.env.HF_INFERENCE_ENDPOINT_NAMESPACE = "yanislav-igonin";
-process.env.HF_TEXT_INFERENCE_ENDPOINT_NAME = "shoe-bot-text";
 
 const prompt = await import("lib/prompt.js");
 const {
@@ -27,8 +23,18 @@ const {
 } = prompt;
 
 const passthroughLifecycle = {
-	run: async <T>(task: () => Promise<T>) => await task(),
+	run: async <T>(_managementConfig: unknown, task: () => Promise<T>) =>
+		await task(),
 };
+
+const resolveHuggingFaceEndpoint = async () => ({
+	endpointUrl: "https://example.com/hf-text-endpoint",
+	managementConfig: {
+		endpointName: "shoe-bot-text",
+		namespace: "yanislav-igonin",
+		token: "hf-test-token",
+	},
+});
 
 const user = new User();
 user.id = 1;
@@ -120,6 +126,7 @@ describe("getCompletion", () => {
 				["https://example.com/first.jpg", "https://example.com/second.jpg"],
 				generate,
 				passthroughLifecycle,
+				resolveHuggingFaceEndpoint,
 			);
 
 			assert.deepEqual(completion, ["A boot"]);
@@ -275,14 +282,14 @@ describe("requireHuggingFaceTextEndpointUrl", () => {
 	it("rejects a missing endpoint URL", () => {
 		assert.throws(
 			() => requireHuggingFaceTextEndpointUrl(undefined),
-			/HF_TEXT_INFERENCE_ENDPOINT_URL is not set/u,
+			/hfTextInferenceEndpointUrl setting is not set/u,
 		);
 	});
 
 	it("rejects an invalid endpoint URL", () => {
 		assert.throws(
 			() => requireHuggingFaceTextEndpointUrl("not-a-url"),
-			/HF_TEXT_INFERENCE_ENDPOINT_URL must be a valid HTTP\(S\) URL/u,
+			/hfTextInferenceEndpointUrl setting must be a valid HTTP\(S\) URL/u,
 		);
 	});
 });

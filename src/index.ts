@@ -15,6 +15,7 @@ import { Bot } from "grammy";
 import { config } from "lib/config.js";
 import type { BotContext } from "lib/context.js";
 import { closeDatabase, initializeDatabase } from "lib/database.js";
+import { startHuggingFaceTextEndpointReconciler } from "lib/huggingFaceTextEndpoint.js";
 import { logger } from "lib/logger.js";
 import { textTriggerRegexp } from "lib/prompt.js";
 import { replies } from "lib/replies.js";
@@ -114,6 +115,8 @@ bot.on("message:photo", async (context) => {
 const start = async () => {
 	await initializeDatabase();
 	logger.info("database connected");
+	const stopHuggingFaceTextEndpointReconciler =
+		startHuggingFaceTextEndpointReconciler();
 
 	try {
 		const runner = run(bot);
@@ -131,6 +134,7 @@ const start = async () => {
 			process.off("SIGTERM", stopRunner);
 		}
 	} finally {
+		stopHuggingFaceTextEndpointReconciler();
 		await closeDatabase();
 	}
 };

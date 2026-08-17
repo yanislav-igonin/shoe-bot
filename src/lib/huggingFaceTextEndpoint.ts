@@ -124,7 +124,9 @@ const parseEndpointMetadata = (raw: unknown): HuggingFaceEndpointMetadata => {
 	const status = metadata.status?.state;
 	const url = metadata.status?.url;
 	if (typeof repository !== "string" || typeof status !== "string") {
-		throw new Error("Hugging Face endpoint metadata is missing repository/status");
+		throw new Error(
+			"Hugging Face endpoint metadata is missing repository/status",
+		);
 	}
 
 	return {
@@ -262,7 +264,9 @@ export const reconcileHuggingFaceTextEndpointState = async (
 	};
 };
 
-const createEntityManagerStore = (em: EntityManager): HuggingFaceTextEndpointStore => ({
+const createEntityManagerStore = (
+	em: EntityManager,
+): HuggingFaceTextEndpointStore => ({
 	load: async () => {
 		// eslint-disable-next-line unicorn/no-array-method-this-argument
 		const rows = await em.find(Setting, {
@@ -284,7 +288,9 @@ const createEntityManagerStore = (em: EntityManager): HuggingFaceTextEndpointSto
 	},
 });
 
-let reconcileInFlight: Promise<ResolvedHuggingFaceTextEndpoint | undefined> | undefined;
+let reconcileInFlight:
+	| Promise<ResolvedHuggingFaceTextEndpoint | undefined>
+	| undefined;
 
 export const reconcileHuggingFaceTextEndpoint = async (
 	em: EntityManager,

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
 	createHuggingFaceEndpointLifecycle,
-	scaleHuggingFaceEndpointToZero,
 	type HuggingFaceEndpointManagementConfig,
+	scaleHuggingFaceEndpointToZero,
 } from "lib/huggingFaceEndpointLifecycle.js";
 
 const managementConfig: HuggingFaceEndpointManagementConfig = {
@@ -125,7 +125,10 @@ describe("createHuggingFaceEndpointLifecycle", () => {
 			},
 		});
 
-		const result = await lifecycle.run(managementConfig, async () => "generated");
+		const result = await lifecycle.run(
+			managementConfig,
+			async () => "generated",
+		);
 
 		assert.equal(result, "generated");
 		assert.equal(errors.length, 1);
