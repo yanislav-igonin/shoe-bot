@@ -28,6 +28,8 @@ type HuggingFaceColdStartFetchOptions = {
 const TEXT_SETTING_KEYS = ["textProvider", "textModel"];
 const HUGGING_FACE_COLD_START_MAX_WAIT_MS = 10 * 60_000;
 const HUGGING_FACE_COLD_START_RETRY_DELAY_MS = 5_000;
+const HUGGING_FACE_SCALE_UP_TIMEOUT_SECONDS = 600;
+const HUGGING_FACE_COLD_START_STATUS_CODES = new Set([502, 503]);
 
 export type TextGenerationSettings = {
 	model: string;
@@ -113,11 +115,21 @@ export const createHuggingFaceColdStartFetch = (
 		options.retryDelayMs ?? HUGGING_FACE_COLD_START_RETRY_DELAY_MS;
 
 	return (async (input, init) => {
+		const request = new Request(input, init);
+		const headers = new Headers(request.headers);
+		headers.set(
+			"X-Scale-Up-Timeout",
+			String(HUGGING_FACE_SCALE_UP_TIMEOUT_SECONDS),
+		);
+		const requestWithScaleUpTimeout = new Request(request, { headers });
 		const startedAt = now();
+
 		while (true) {
-			const requestInput = input instanceof Request ? input.clone() : input;
-			const response = await baseFetch(requestInput, init);
-			if (response.status !== 502 || now() - startedAt >= maxWaitMs) {
+			const response = await baseFetch(requestWithScaleUpTimeout.clone());
+			if (
+				!HUGGING_FACE_COLD_START_STATUS_CODES.has(response.status) ||
+				now() - startedAt >= maxWaitMs
+			) {
 				return response;
 			}
 
