@@ -8,7 +8,7 @@ import { toFile } from "openai";
 import { Together } from "together-ai";
 import { Setting } from "../entities.js";
 
-type ImageProvider = "openai" | "togetherai" | "xai";
+type ImageProvider = "huggingface" | "openai" | "togetherai" | "xai";
 
 const IMAGE_SETTING_KEYS = ["imageProvider", "imageModel"];
 const TOGETHER_REFERENCE_IMAGE_MODELS = new Set([
@@ -29,6 +29,11 @@ type GeneratedImageResponse = {
 		b64_json?: string | null;
 		url?: string | null;
 	}>;
+};
+
+type HuggingFaceImageResponse = GeneratedImageResponse & {
+	b64_json?: string | null;
+	url?: string | null;
 };
 
 type SettingRow = {
@@ -63,6 +68,35 @@ export const requireTogetherApiKey = (apiKey: string | undefined) => {
 	return apiKey;
 };
 
+export const requireHuggingFaceConfig = (
+	token: string | undefined,
+	endpointUrl: string | undefined,
+) => {
+	const normalizedToken = token?.trim();
+	if (!normalizedToken) {
+		throw new Error("HF_TOKEN is not set");
+	}
+
+	const normalizedEndpointUrl = endpointUrl?.trim();
+	if (!normalizedEndpointUrl) {
+		throw new Error("HF_INFERENCE_ENDPOINT_URL is not set");
+	}
+
+	try {
+		const url = new URL(normalizedEndpointUrl);
+		if (url.protocol !== "http:" && url.protocol !== "https:") {
+			throw new Error("unsupported protocol");
+		}
+	} catch {
+		throw new Error("HF_INFERENCE_ENDPOINT_URL must be a valid HTTP(S) URL");
+	}
+
+	return {
+		endpointUrl: normalizedEndpointUrl,
+		token: normalizedToken,
+	};
+};
+
 export const parseImageGenerationSettings = (
 	rows: SettingRow[],
 ): ImageGenerationSettings => {
@@ -82,6 +116,7 @@ export const parseImageGenerationSettings = (
 	}
 
 	if (
+		provider !== "huggingface" &&
 		provider !== "openai" &&
 		provider !== "togetherai" &&
 		provider !== "xai"
@@ -131,6 +166,16 @@ export const getGeneratedImageBase64Data = (
 	const imageData = Buffer.from(imageBase64, "base64");
 	return imageData.length > 0 ? imageData : undefined;
 };
+
+const getHuggingFaceImageUrl = (response: HuggingFaceImageResponse) =>
+	getGeneratedImageUrl({
+		data: [{ url: response.url ?? response.data?.[0]?.url }],
+	});
+
+const getHuggingFaceImageBase64Data = (response: HuggingFaceImageResponse) =>
+	getGeneratedImageBase64Data({
+		data: [{ b64_json: response.b64_json ?? response.data?.[0]?.b64_json }],
+	});
 
 export const createOpenAiImageFile = async (sourceImageUrl: string) => {
 	const response = await fetch(sourceImageUrl);
@@ -282,6 +327,71 @@ const generateWithTogether = async (
 	return getGeneratedImageUrl(response);
 };
 
+const generateWithHuggingFace = async (
+	text: string,
+	model: string,
+	sourceImageUrl: string | undefined,
+) => {
+	if (sourceImageUrl) {
+		throw new ImageEditingNotSupportedError("huggingface", model);
+	}
+
+	const { endpointUrl, token } = requireHuggingFaceConfig(
+		config.hfToken,
+		config.hfInferenceEndpointUrl,
+	);
+	const response = await fetch(endpointUrl, {
+		body: JSON.stringify({ inputs: text }),
+		headers: {
+			Accept: "image/*, application/json",
+			Authorization: `Bearer ${token}`,
+			"Content-Type": "application/json",
+		},
+		method: "POST",
+	});
+
+	if (!response.ok) {
+		const body = (await response.text()).trim();
+		throw new Error(
+			`Hugging Face inference endpoint returned ${response.status}${body ? `: ${body}` : ""}`,
+		);
+	}
+
+	const contentType = response.headers
+		.get("content-type")
+		?.split(";", 1)[0]
+		.trim()
+		.toLowerCase();
+	if (contentType?.startsWith("image/") || contentType === "application/octet-stream") {
+		const imageData = Buffer.from(await response.arrayBuffer());
+		if (imageData.length === 0) {
+			throw new Error("Hugging Face inference endpoint returned an empty image");
+		}
+		return imageData;
+	}
+
+	let json: HuggingFaceImageResponse;
+	try {
+		json = (await response.json()) as HuggingFaceImageResponse;
+	} catch {
+		throw new Error(
+			`Hugging Face inference endpoint returned unsupported content type: ${contentType ?? "unknown"}`,
+		);
+	}
+
+	const imageUrl = getHuggingFaceImageUrl(json);
+	if (imageUrl) {
+		return imageUrl;
+	}
+
+	const imageData = getHuggingFaceImageBase64Data(json);
+	if (imageData) {
+		return imageData;
+	}
+
+	throw new Error("Hugging Face inference endpoint returned no image data");
+};
+
 export const generateImage = async (
 	em: EntityManager,
 	text: string,
@@ -290,6 +400,8 @@ export const generateImage = async (
 	const { model, provider } = await loadImageGenerationSettings(em);
 
 	switch (provider) {
+		case "huggingface":
+			return await generateWithHuggingFace(text, model, sourceImageUrl);
 		case "openai":
 			return await generateWithOpenAi(text, model, sourceImageUrl);
 		case "togetherai":
