@@ -1,0 +1,53 @@
+name: Fix HF model id
+
+on:
+  push:
+    branches:
+      - feature/huggingface-inference-endpoints
+    paths:
+      - .github/workflows/fix-hf-model-id.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/huggingface-inference-endpoints
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Patch model id
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/lib/prompt.ts')
+          text = path.read_text()
+          old = '})("tgi"),'
+          new = '})(settings.model),'
+          assert old in text
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('src/lib/prompt.test.ts')
+          text = path.read_text()
+          old = 'huggingface: "tgi",'
+          new = 'huggingface: "provider/model",'
+          assert old in text
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Commit fix and remove temporary workflow
+        run: |
+          rm .github/workflows/fix-hf-model-id.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/prompt.ts src/lib/prompt.test.ts .github/workflows/fix-hf-model-id.yml
+          git commit -m "fix: use configured model id for Hugging Face chat"
+          git push origin HEAD:feature/huggingface-inference-endpoints
