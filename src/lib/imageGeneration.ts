@@ -343,7 +343,7 @@ const generateWithHuggingFace = async (
 	const response = await fetch(endpointUrl, {
 		body: JSON.stringify({ inputs: text }),
 		headers: {
-			Accept: "image/*, application/json",
+			Accept: "image/png",
 			Authorization: `Bearer ${token}`,
 			"Content-Type": "application/json",
 		},
