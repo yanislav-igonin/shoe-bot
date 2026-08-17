@@ -120,12 +120,15 @@ to finish. For example, Hugging Face's CLI supports:
 hf endpoints update shoe-bot-text --repo owner/another-uncensored-model
 ```
 
-After the endpoint is ready, verify its current inference URL. If Hugging Face
-returns a different URL after the update, update `HF_TEXT_INFERENCE_ENDPOINT_URL`;
-otherwise the existing environment configuration can remain unchanged. Then set
-`textModel` to the new repository ID so application settings/logs match what is
-actually deployed. A substantially larger or differently packaged model may
-also require updating endpoint hardware or its custom container/runtime.
+Hugging Face supports updating the model on an existing endpoint instead of
+creating a new endpoint for every model. While the update is being deployed the
+endpoint is pending and its inference URL may temporarily be unavailable. After
+it becomes ready, read the endpoint metadata again and use the URL returned by
+Hugging Face; update `HF_TEXT_INFERENCE_ENDPOINT_URL` if it differs from the
+currently configured URL. Then set `textModel` to the new repository ID so
+application settings/logs match what is actually deployed. A substantially
+larger or differently packaged model may also require updating endpoint hardware
+or its custom container/runtime.
 
 Hugging Face endpoints that are scaled to zero can return HTTP 502 or 503 while
 a replica is waking, depending on the endpoint/proxy behavior. The Hugging Face
