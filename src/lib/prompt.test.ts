@@ -93,7 +93,7 @@ describe("getCompletion", () => {
 		xai: "xai.responses",
 	};
 	const expectedModelIds = {
-		huggingface: "tgi",
+		huggingface: "provider/model",
 		openrouter: "provider/model",
 		togetherai: "provider/model",
 		xai: "provider/model",

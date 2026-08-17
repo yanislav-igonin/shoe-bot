@@ -189,7 +189,7 @@ const getConfiguredTextModel = (
 				baseURL: requireHuggingFaceTextEndpointUrl(huggingFaceEndpointUrl),
 				fetch: createHuggingFaceColdStartFetch(),
 				name: "huggingface",
-			})("tgi"),
+			})(settings.model),
 		openrouter: (model) =>
 			createOpenAICompatible({
 				apiKey: requireProviderApiKey(
