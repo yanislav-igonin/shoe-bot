@@ -21,10 +21,10 @@ const settingsRows = (overrides: Record<string, string> = {}) => {
 describe("parseHuggingFaceTextEndpointSettings", () => {
 	it("parses mutable endpoint settings from database rows", () => {
 		assert.deepEqual(parseHuggingFaceTextEndpointSettings(settingsRows()), {
-		desiredRepository: "owner/new-model",
-		endpointName: "shoe-bot-text",
-		endpointUrl: "https://old.example.endpoints.huggingface.cloud",
-		namespace: "yanislav-igonin",
+			desiredRepository: "owner/new-model",
+			endpointName: "shoe-bot-text",
+			endpointUrl: "https://old.example.endpoints.huggingface.cloud",
+			namespace: "yanislav-igonin",
 		});
 	});
 
@@ -185,7 +185,9 @@ describe("reconcileHuggingFaceTextEndpointState", () => {
 		const resolved = await reconcileHuggingFaceTextEndpointState(
 			{
 				load: async () => parseHuggingFaceTextEndpointSettings(settingsRows()),
-				saveUrl: async (url: string) => savedUrls.push(url),
+				saveUrl: async (url: string) => {
+					savedUrls.push(url);
+				},
 			},
 			"hf-token",
 			{
