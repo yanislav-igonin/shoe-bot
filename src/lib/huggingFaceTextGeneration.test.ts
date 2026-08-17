@@ -21,7 +21,9 @@ describe("createHuggingFaceColdStartFetch", () => {
 			retryDelayMs: 0,
 		});
 
-		const response = await retryingFetch("https://example.com/v1/chat/completions");
+		const response = await retryingFetch(
+			"https://example.com/v1/chat/completions",
+		);
 
 		assert.equal(response.status, 200);
 		assert.equal(calls, 3);
@@ -39,7 +41,9 @@ describe("createHuggingFaceColdStartFetch", () => {
 			retryDelayMs: 0,
 		});
 
-		const response = await retryingFetch("https://example.com/v1/chat/completions");
+		const response = await retryingFetch(
+			"https://example.com/v1/chat/completions",
+		);
 
 		assert.equal(response.status, 502);
 	});
