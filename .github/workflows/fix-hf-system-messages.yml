@@ -39,7 +39,7 @@ jobs:
           path.write_text(text)
           PY
       - run: npm ci
-      - run: npx prettier --write src/lib/prompt.ts src/lib/huggingFaceMessageCompatibility.test.ts
+      - run: npx biome check --write --unsafe src/lib/prompt.ts src/lib/huggingFaceMessageCompatibility.test.ts
       - run: npm test
       - run: npm run lint
       - run: npm run typecheck
