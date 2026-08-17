@@ -70,10 +70,10 @@ conveniently available through those hosted providers.
 
 ### Hugging Face text inference
 
-Create one dedicated Hugging Face Inference Endpoint using Text Generation
-Inference (TGI) or another compatible runtime that exposes the OpenAI-compatible
-chat API. The endpoint is a persistent resource; its compute replicas can scale
-to zero without deleting the endpoint.
+Create one dedicated Hugging Face Inference Endpoint using TGI, vLLM, SGLang,
+or another compatible runtime that exposes the OpenAI-compatible chat API. The
+endpoint is a persistent resource; its compute replicas can scale to zero
+without deleting the endpoint.
 
 Only the Hugging Face token is an environment secret:
 
@@ -104,7 +104,16 @@ endpoint metadata and stores the returned URL back into that settings row.
 
 The Hugging Face provider never routes through Hugging Face Router or
 OpenRouter. Inference goes directly to the reconciled dedicated endpoint. The
-bot appends `/v1` and uses its OpenAI-compatible `/v1/chat/completions` API.
+bot appends `/v1` and uses its OpenAI-compatible `/v1/chat/completions` API. The
+OpenAI-compatible request uses `textModel` as its model ID rather than assuming
+the TGI-specific `tgi` alias, so vLLM/SGLang endpoints receive the Hub repository
+ID they serve.
+
+Some chat templates, including Qwen3.6, allow at most one system message and
+require it to be the first message. Before Hugging Face inference, shoe-bot
+merges all text system messages into one leading system message while preserving
+the order of user/assistant history. Other text providers keep their existing
+message history unchanged.
 
 #### Automatic model reconciliation
 
