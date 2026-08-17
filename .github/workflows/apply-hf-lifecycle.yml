@@ -1,3 +1,4 @@
+# Temporary one-shot workflow. It deletes itself after a successful patch.
 name: Apply HF lifecycle integration
 
 on:
