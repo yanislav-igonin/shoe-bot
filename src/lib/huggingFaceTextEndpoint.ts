@@ -279,7 +279,8 @@ const createEntityManagerStore = (em: EntityManager): HuggingFaceTextEndpointSto
 			return;
 		}
 
-		await em.persistAndFlush(em.create(Setting, { key, value: url }));
+		em.persist(em.create(Setting, { key, value: url }));
+		await em.flush();
 	},
 });
 
