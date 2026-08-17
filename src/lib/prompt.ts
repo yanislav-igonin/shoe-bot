@@ -17,9 +17,17 @@ type SettingRow = {
 	value: string;
 };
 
-type TextProvider = "openrouter" | "togetherai" | "xai";
+type TextProvider = "huggingface" | "openrouter" | "togetherai" | "xai";
+
+type HuggingFaceColdStartFetchOptions = {
+	maxWaitMs?: number;
+	now?: () => number;
+	retryDelayMs?: number;
+};
 
 const TEXT_SETTING_KEYS = ["textProvider", "textModel"];
+const HUGGING_FACE_COLD_START_MAX_WAIT_MS = 10 * 60_000;
+const HUGGING_FACE_COLD_START_RETRY_DELAY_MS = 5_000;
 
 export type TextGenerationSettings = {
 	model: string;
@@ -45,6 +53,7 @@ export const parseTextGenerationSettings = (
 	}
 
 	if (
+		provider !== "huggingface" &&
 		provider !== "openrouter" &&
 		provider !== "togetherai" &&
 		provider !== "xai"
@@ -66,6 +75,60 @@ export const requireProviderApiKey = (
 	return apiKey;
 };
 
+export const requireHuggingFaceTextEndpointUrl = (
+	endpointUrl: string | undefined,
+) => {
+	const normalizedEndpointUrl = endpointUrl?.trim().replace(/\/+$/u, "");
+	if (!normalizedEndpointUrl) {
+		throw new Error("HF_TEXT_INFERENCE_ENDPOINT_URL is not set");
+	}
+
+	try {
+		const url = new URL(normalizedEndpointUrl);
+		if (url.protocol !== "http:" && url.protocol !== "https:") {
+			throw new Error("unsupported protocol");
+		}
+	} catch {
+		throw new Error(
+			"HF_TEXT_INFERENCE_ENDPOINT_URL must be a valid HTTP(S) URL",
+		);
+	}
+
+	return normalizedEndpointUrl.endsWith("/v1")
+		? normalizedEndpointUrl
+		: `${normalizedEndpointUrl}/v1`;
+};
+
+const sleep = async (milliseconds: number) => {
+	await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+};
+
+export const createHuggingFaceColdStartFetch = (
+	baseFetch: typeof fetch = globalThis.fetch,
+	options: HuggingFaceColdStartFetchOptions = {},
+) => {
+	const maxWaitMs =
+		options.maxWaitMs ?? HUGGING_FACE_COLD_START_MAX_WAIT_MS;
+	const now = options.now ?? Date.now;
+	const retryDelayMs =
+		options.retryDelayMs ?? HUGGING_FACE_COLD_START_RETRY_DELAY_MS;
+
+	return (async (input, init) => {
+		const startedAt = now();
+		while (true) {
+			const requestInput = input instanceof Request ? input.clone() : input;
+			const response = await baseFetch(requestInput, init);
+			if (response.status !== 502 || now() - startedAt >= maxWaitMs) {
+				return response;
+			}
+
+			if (retryDelayMs > 0) {
+				await sleep(retryDelayMs);
+			}
+		}
+	}) as typeof fetch;
+};
+
 export const resolveTextModel = <T>(
 	settings: TextGenerationSettings,
 	factories: Record<TextProvider, (model: string) => T>,
@@ -82,6 +145,15 @@ const loadTextGenerationSettings = async (em: EntityManager) => {
 
 const getConfiguredTextModel = (settings: TextGenerationSettings) =>
 	resolveTextModel(settings, {
+		huggingface: () =>
+			createOpenAICompatible({
+				apiKey: requireProviderApiKey(config.hfToken, "HF_TOKEN"),
+				baseURL: requireHuggingFaceTextEndpointUrl(
+					config.hfTextInferenceEndpointUrl,
+				),
+				fetch: createHuggingFaceColdStartFetch(),
+				name: "huggingface",
+			})("tgi"),
 		openrouter: (model) =>
 			createOpenAICompatible({
 				apiKey: requireProviderApiKey(
