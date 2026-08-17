@@ -256,6 +256,30 @@ export const addSystemContext = (
 	};
 };
 
+export const normalizeHuggingFaceMessages = (
+	messages: ChatCompletionRequestMessage[],
+): ChatCompletionRequestMessage[] => {
+	const systemMessages = messages.filter(({ role }) => role === "system");
+	if (systemMessages.length === 0) {
+		return messages;
+	}
+
+	const systemContents = systemMessages.map(({ content }) => {
+		if (typeof content !== "string") {
+			throw new Error("Hugging Face system messages must contain text only");
+		}
+		return content;
+	});
+
+	return [
+		{
+			content: systemContents.join("\n\n"),
+			role: "system",
+		},
+		...messages.filter(({ role }) => role !== "system"),
+	];
+};
+
 export const addAssistantContext = (
 	message: Message | string,
 	imagesMap: Record<number, string> = {},
@@ -395,10 +419,15 @@ export const getCompletion = async (
 			);
 		}
 
+		const rawMessages = [...context, userMessage];
+		const messages =
+			settings.provider === "huggingface"
+				? normalizeHuggingFaceMessages(rawMessages)
+				: rawMessages;
 		const generateCompletion = () =>
 			generate({
 				allowSystemInMessages: true,
-				messages: [...context, userMessage],
+				messages,
 				model: getConfiguredTextModel(
 					settings,
 					resolvedHuggingFaceEndpoint?.endpointUrl,
