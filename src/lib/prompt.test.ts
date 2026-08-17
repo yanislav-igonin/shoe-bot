@@ -9,6 +9,8 @@ process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 process.env.OPENROUTER_API_KEY = "test";
 process.env.TOGETHER_API_KEY = "test";
+process.env.HF_TOKEN = "hf-test-token";
+process.env.HF_TEXT_INFERENCE_ENDPOINT_URL = "https://example.com/hf-text-endpoint";
 
 const prompt = await import("lib/prompt.js");
 const {
@@ -16,6 +18,7 @@ const {
 	chooseTask,
 	getCompletion,
 	parseTextGenerationSettings,
+	requireHuggingFaceTextEndpointUrl,
 	requireProviderApiKey,
 	resolveTextModel,
 } = prompt;
@@ -71,12 +74,24 @@ describe("chooseTask", () => {
 
 describe("getCompletion", () => {
 	const expectedModelProviders = {
+		huggingface: "huggingface.chat",
 		openrouter: "openrouter.chat",
 		togetherai: "togetherai.chat",
 		xai: "xai.responses",
 	};
+	const expectedModelIds = {
+		huggingface: "tgi",
+		openrouter: "provider/model",
+		togetherai: "provider/model",
+		xai: "provider/model",
+	};
 
-	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+	for (const provider of [
+		"xai",
+		"togetherai",
+		"openrouter",
+		"huggingface",
+	] as const) {
 		it(`loads settings and routes ${provider} completions`, async () => {
 			let generatedOptions: Record<string, unknown> | undefined;
 			const em = {
@@ -105,7 +120,7 @@ describe("getCompletion", () => {
 				modelId: string;
 				provider: string;
 			};
-			assert.equal(generatedModel.modelId, "provider/model");
+			assert.equal(generatedModel.modelId, expectedModelIds[provider]);
 			assert.equal(generatedModel.provider, expectedModelProviders[provider]);
 			assert.deepEqual(generatedOptions.messages, [
 				{
@@ -156,7 +171,12 @@ describe("getCompletion", () => {
 });
 
 describe("parseTextGenerationSettings", () => {
-	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+	for (const provider of [
+		"xai",
+		"togetherai",
+		"openrouter",
+		"huggingface",
+	] as const) {
 		it(`parses ${provider} settings`, () => {
 			assert.deepEqual(
 				parseTextGenerationSettings([
@@ -229,12 +249,48 @@ describe("requireProviderApiKey", () => {
 	});
 });
 
+describe("requireHuggingFaceTextEndpointUrl", () => {
+	it("appends the TGI OpenAI-compatible v1 path", () => {
+		assert.equal(
+			requireHuggingFaceTextEndpointUrl(" https://example.com/endpoint/ "),
+			"https://example.com/endpoint/v1",
+		);
+	});
+
+	it("keeps an existing v1 path", () => {
+		assert.equal(
+			requireHuggingFaceTextEndpointUrl("https://example.com/endpoint/v1/"),
+			"https://example.com/endpoint/v1",
+		);
+	});
+
+	it("rejects a missing endpoint URL", () => {
+		assert.throws(
+			() => requireHuggingFaceTextEndpointUrl(undefined),
+			/HF_TEXT_INFERENCE_ENDPOINT_URL is not set/u,
+		);
+	});
+
+	it("rejects an invalid endpoint URL", () => {
+		assert.throws(
+			() => requireHuggingFaceTextEndpointUrl("not-a-url"),
+			/HF_TEXT_INFERENCE_ENDPOINT_URL must be a valid HTTP\(S\) URL/u,
+		);
+	});
+});
+
 describe("resolveTextModel", () => {
-	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+	for (const provider of [
+		"xai",
+		"togetherai",
+		"openrouter",
+		"huggingface",
+	] as const) {
 		it(`routes ${provider} model IDs to the matching factory`, () => {
 			const result = resolveTextModel(
 				{ model: "provider/model", provider },
 				{
+					huggingface: (model) => `huggingface:${model}`,
 					openrouter: (model) => `openrouter:${model}`,
 					togetherai: (model) => `togetherai:${model}`,
 					xai: (model) => `xai:${model}`,
