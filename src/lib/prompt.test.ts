@@ -9,6 +9,7 @@ process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
 process.env.OPENROUTER_API_KEY = "test";
 process.env.TOGETHER_API_KEY = "test";
+process.env.HF_TOKEN = "hf-test-token";
 
 const prompt = await import("lib/prompt.js");
 const {
@@ -16,9 +17,24 @@ const {
 	chooseTask,
 	getCompletion,
 	parseTextGenerationSettings,
+	requireHuggingFaceTextEndpointUrl,
 	requireProviderApiKey,
 	resolveTextModel,
 } = prompt;
+
+const passthroughLifecycle = {
+	run: async <T>(_managementConfig: unknown, task: () => Promise<T>) =>
+		await task(),
+};
+
+const resolveHuggingFaceEndpoint = async () => ({
+	endpointUrl: "https://example.com/hf-text-endpoint",
+	managementConfig: {
+		endpointName: "shoe-bot-text",
+		namespace: "yanislav-igonin",
+		token: "hf-test-token",
+	},
+});
 
 const user = new User();
 user.id = 1;
@@ -71,12 +87,24 @@ describe("chooseTask", () => {
 
 describe("getCompletion", () => {
 	const expectedModelProviders = {
+		huggingface: "huggingface.chat",
 		openrouter: "openrouter.chat",
 		togetherai: "togetherai.chat",
 		xai: "xai.responses",
 	};
+	const expectedModelIds = {
+		huggingface: "provider/model",
+		openrouter: "provider/model",
+		togetherai: "provider/model",
+		xai: "provider/model",
+	};
 
-	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+	for (const provider of [
+		"xai",
+		"togetherai",
+		"openrouter",
+		"huggingface",
+	] as const) {
 		it(`loads settings and routes ${provider} completions`, async () => {
 			let generatedOptions: Record<string, unknown> | undefined;
 			const em = {
@@ -97,6 +125,8 @@ describe("getCompletion", () => {
 				{},
 				["https://example.com/first.jpg", "https://example.com/second.jpg"],
 				generate,
+				passthroughLifecycle,
+				resolveHuggingFaceEndpoint,
 			);
 
 			assert.deepEqual(completion, ["A boot"]);
@@ -105,7 +135,7 @@ describe("getCompletion", () => {
 				modelId: string;
 				provider: string;
 			};
-			assert.equal(generatedModel.modelId, "provider/model");
+			assert.equal(generatedModel.modelId, expectedModelIds[provider]);
 			assert.equal(generatedModel.provider, expectedModelProviders[provider]);
 			assert.deepEqual(generatedOptions.messages, [
 				{
@@ -156,7 +186,12 @@ describe("getCompletion", () => {
 });
 
 describe("parseTextGenerationSettings", () => {
-	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+	for (const provider of [
+		"xai",
+		"togetherai",
+		"openrouter",
+		"huggingface",
+	] as const) {
 		it(`parses ${provider} settings`, () => {
 			assert.deepEqual(
 				parseTextGenerationSettings([
@@ -229,12 +264,48 @@ describe("requireProviderApiKey", () => {
 	});
 });
 
+describe("requireHuggingFaceTextEndpointUrl", () => {
+	it("appends the TGI OpenAI-compatible v1 path", () => {
+		assert.equal(
+			requireHuggingFaceTextEndpointUrl(" https://example.com/endpoint/ "),
+			"https://example.com/endpoint/v1",
+		);
+	});
+
+	it("keeps an existing v1 path", () => {
+		assert.equal(
+			requireHuggingFaceTextEndpointUrl("https://example.com/endpoint/v1/"),
+			"https://example.com/endpoint/v1",
+		);
+	});
+
+	it("rejects a missing endpoint URL", () => {
+		assert.throws(
+			() => requireHuggingFaceTextEndpointUrl(undefined),
+			/hfTextInferenceEndpointUrl setting is not set/u,
+		);
+	});
+
+	it("rejects an invalid endpoint URL", () => {
+		assert.throws(
+			() => requireHuggingFaceTextEndpointUrl("not-a-url"),
+			/hfTextInferenceEndpointUrl setting must be a valid HTTP\(S\) URL/u,
+		);
+	});
+});
+
 describe("resolveTextModel", () => {
-	for (const provider of ["xai", "togetherai", "openrouter"] as const) {
+	for (const provider of [
+		"xai",
+		"togetherai",
+		"openrouter",
+		"huggingface",
+	] as const) {
 		it(`routes ${provider} model IDs to the matching factory`, () => {
 			const result = resolveTextModel(
 				{ model: "provider/model", provider },
 				{
+					huggingface: (model) => `huggingface:${model}`,
 					openrouter: (model) => `openrouter:${model}`,
 					togetherai: (model) => `togetherai:${model}`,
 					xai: (model) => `xai:${model}`,
