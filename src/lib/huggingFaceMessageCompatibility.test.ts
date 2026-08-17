@@ -5,6 +5,7 @@ import type { EntityManager } from "@mikro-orm/postgresql";
 process.env.BOT_TOKEN = "test";
 process.env.GROK_API_KEY = "test";
 process.env.OPENAI_API_KEY = "test";
+process.env.OPENROUTER_API_KEY = "test";
 process.env.HF_TOKEN = "hf-test-token";
 
 const { getCompletion } = await import("lib/prompt.js");
