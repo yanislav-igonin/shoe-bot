@@ -10,7 +10,8 @@ process.env.OPENAI_API_KEY = "test";
 process.env.OPENROUTER_API_KEY = "test";
 process.env.TOGETHER_API_KEY = "test";
 process.env.HF_TOKEN = "hf-test-token";
-process.env.HF_TEXT_INFERENCE_ENDPOINT_URL = "https://example.com/hf-text-endpoint";
+process.env.HF_TEXT_INFERENCE_ENDPOINT_URL =
+	"https://example.com/hf-text-endpoint";
 
 const prompt = await import("lib/prompt.js");
 const {
