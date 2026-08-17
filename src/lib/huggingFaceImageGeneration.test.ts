@@ -9,15 +9,11 @@ process.env.HF_INFERENCE_ENDPOINT_URL = "https://example.com/hf-endpoint";
 
 // Config reads environment variables at module load, so imports must follow setup.
 const imageGeneration = await import("lib/imageGeneration.js");
-const { generateImage, parseImageGenerationSettings } = imageGeneration;
-const requireHuggingFaceConfig = (
-	imageGeneration as unknown as {
-		requireHuggingFaceConfig?: (
-			token: string | undefined,
-			endpointUrl: string | undefined,
-		) => { endpointUrl: string; token: string };
-	}
-).requireHuggingFaceConfig;
+const {
+	generateImage,
+	parseImageGenerationSettings,
+	requireHuggingFaceConfig,
+} = imageGeneration;
 
 const originalFetch = globalThis.fetch;
 
@@ -54,7 +50,7 @@ describe("requireHuggingFaceConfig", () => {
 
 	it("returns trimmed token and endpoint URL", () => {
 		assert.deepEqual(
-			requireHuggingFaceConfig?.(
+			requireHuggingFaceConfig(
 				"  hf-token  ",
 				"  https://example.com/endpoint  ",
 			),
@@ -67,21 +63,22 @@ describe("requireHuggingFaceConfig", () => {
 
 	it("rejects a missing token", () => {
 		assert.throws(
-			() => requireHuggingFaceConfig?.(undefined, "https://example.com/endpoint"),
+			() =>
+				requireHuggingFaceConfig(undefined, "https://example.com/endpoint"),
 			/HF_TOKEN is not set/u,
 		);
 	});
 
 	it("rejects a missing endpoint URL", () => {
 		assert.throws(
-			() => requireHuggingFaceConfig?.("hf-token", undefined),
+			() => requireHuggingFaceConfig("hf-token", undefined),
 			/HF_INFERENCE_ENDPOINT_URL is not set/u,
 		);
 	});
 
 	it("rejects an invalid endpoint URL", () => {
 		assert.throws(
-			() => requireHuggingFaceConfig?.("hf-token", "not-a-url"),
+			() => requireHuggingFaceConfig("hf-token", "not-a-url"),
 			/HF_INFERENCE_ENDPOINT_URL must be a valid HTTP\(S\) URL/u,
 		);
 	});
