@@ -12,11 +12,8 @@ npm install
 ```
 2. Make `.env` file from `.env.example` and provide `BOT_TOKEN`,
    `GROK_API_KEY`, and `OPENAI_API_KEY`. Add `TOGETHER_API_KEY` or
-   `OPENROUTER_API_KEY` when selecting that text provider. For Hugging Face
-   text inference, configure `HF_TOKEN`, `HF_INFERENCE_ENDPOINT_NAMESPACE`,
-   `HF_TEXT_INFERENCE_ENDPOINT_NAME`, and `HF_TEXT_INFERENCE_ENDPOINT_URL`.
-   Add `HF_INFERENCE_ENDPOINT_URL` for Hugging Face image inference. Add
-   `ADMINS_USERNAMES` to use admin commands.
+   `OPENROUTER_API_KEY` when selecting that text provider. Add `HF_TOKEN` when
+   using Hugging Face. Add `ADMINS_USERNAMES` to use admin commands.
 3. Run postgresql database via provided docker-compose file:
 ```
 docker compose up
@@ -48,8 +45,8 @@ global `settings` table for every request. Supported providers are `xai`,
 `togetherai`, `openrouter`, and `huggingface`.
 
 Set the matching API key before switching: `TOGETHER_API_KEY` for Together AI,
-`OPENROUTER_API_KEY` for OpenRouter, or the Hugging Face endpoint configuration
-described below for a dedicated Hugging Face Inference Endpoint.
+`OPENROUTER_API_KEY` for OpenRouter, or `HF_TOKEN` for a dedicated Hugging Face
+Inference Endpoint.
 
 Example switch to OpenRouter:
 
@@ -73,82 +70,110 @@ conveniently available through those hosted providers.
 
 ### Hugging Face text inference
 
-Create a dedicated Hugging Face Inference Endpoint once for the desired text
-model, using Text Generation Inference (TGI) with a chat template, then
-configure the endpoint resource and its inference URL:
+Create one dedicated Hugging Face Inference Endpoint using Text Generation
+Inference (TGI) or another compatible runtime that exposes the OpenAI-compatible
+chat API. The endpoint is a persistent resource; its compute replicas can scale
+to zero without deleting the endpoint.
+
+Only the Hugging Face token is an environment secret:
 
 ```env
 HF_TOKEN='hf_...'
-HF_INFERENCE_ENDPOINT_NAMESPACE='your-hf-user-or-org'
-HF_TEXT_INFERENCE_ENDPOINT_NAME='shoe-bot-text'
-HF_TEXT_INFERENCE_ENDPOINT_URL='https://your-text-endpoint.region.endpoints.huggingface.cloud'
 ```
 
-`HF_TEXT_INFERENCE_ENDPOINT_URL` is the data-plane URL used for inference.
-`HF_INFERENCE_ENDPOINT_NAMESPACE` plus `HF_TEXT_INFERENCE_ENDPOINT_NAME`
-identify the persistent endpoint resource in the Hugging Face management API so
-the bot can scale its compute to zero after requests finish. The token therefore
-needs both inference access and permission to manage this endpoint.
+The endpoint's mutable metadata lives in the global `settings` table. The
+migration creates these rows without overwriting existing values:
 
-The endpoint resource is not recreated for every request. Scaling it to zero
-turns off its compute replicas while keeping the endpoint resource and inference
-URL. The next inference request automatically wakes the endpoint and incurs the
-usual cold-start delay.
+- `hfInferenceEndpointNamespace` — Hugging Face user/organization that owns the endpoint.
+- `hfTextInferenceEndpointName` — stable endpoint resource name.
+- `hfTextInferenceEndpointUrl` — current inference URL cached by the bot. It may start empty and is refreshed automatically from Hugging Face metadata.
+- `hfImageInferenceEndpointUrl` — dedicated image endpoint URL, if the Hugging Face image provider is used.
 
-The bot automatically appends `/v1` and uses the endpoint's OpenAI-compatible
-`/v1/chat/completions` API. There is no Hugging Face Router fallback and no
-OpenRouter fallback: when `textProvider` is `huggingface`, all user-facing text
-completion requests go directly to that dedicated endpoint.
-
-Switch text generation to the endpoint, for example:
+Configure the text endpoint resource once, for example:
 
 ```sql
-UPDATE settings SET value = 'huggingface' WHERE key = 'textProvider';
-UPDATE settings SET value = 'owner/qwen-uncensored-finetune' WHERE key = 'textModel';
+UPDATE settings
+SET value = 'your-hf-user-or-org'
+WHERE key = 'hfInferenceEndpointNamespace';
+
+UPDATE settings
+SET value = 'shoe-bot-text'
+WHERE key = 'hfTextInferenceEndpointName';
+
+UPDATE settings
+SET value = 'huggingface'
+WHERE key = 'textProvider';
+
+UPDATE settings
+SET value = 'owner/qwen-uncensored-finetune'
+WHERE key = 'textModel';
 ```
 
-The actual weights being executed are determined by the model repository
-deployed on the Hugging Face endpoint. `textModel` remains the project-level
-identifier used in settings and logging; changing that database value alone does
-not update the endpoint's deployed repository.
+`hfTextInferenceEndpointUrl` does not need to be entered manually if the
+management API already returns a URL for the endpoint. The bot reads the current
+endpoint metadata and stores the returned URL back into that settings row.
 
-To test a different Hugging Face model with the same endpoint resource, update
-the endpoint repository through Hugging Face UI/API/CLI and wait for the update
-to finish. For example, Hugging Face's CLI supports:
+The Hugging Face provider never routes through Hugging Face Router or
+OpenRouter. Inference goes directly to the reconciled dedicated endpoint. The
+bot appends `/v1` and uses its OpenAI-compatible `/v1/chat/completions` API.
 
-```bash
-hf endpoints update shoe-bot-text --repo owner/another-uncensored-model
+#### Automatic model reconciliation
+
+For Hugging Face, `textModel` is the desired Hub repository. The bot reconciles
+the existing endpoint against that value before every Hugging Face text request
+and also in the background every 30 seconds.
+
+If the endpoint currently runs a different repository, the bot automatically:
+
+1. updates the existing endpoint repository through the Hugging Face management API;
+2. polls endpoint metadata every 5 seconds for up to 10 minutes;
+3. waits for the desired repository to become `running` or `scaledToZero` with an inference URL;
+4. writes the latest URL into `hfTextInferenceEndpointUrl`;
+5. sends inference to that URL.
+
+This means that after the one-time endpoint setup, switching to another
+compatible community model only requires changing `textModel`:
+
+```sql
+UPDATE settings
+SET value = 'another-owner/another-uncensored-model'
+WHERE key = 'textModel';
 ```
 
-Hugging Face supports updating the model on an existing endpoint instead of
-creating a new endpoint for every model. While the update is being deployed the
-endpoint is pending and its inference URL may temporarily be unavailable. After
-it becomes ready, read the endpoint metadata again and use the URL returned by
-Hugging Face; update `HF_TEXT_INFERENCE_ENDPOINT_URL` if it differs from the
-currently configured URL. Then set `textModel` to the new repository ID so
-application settings/logs match what is actually deployed. A substantially
-larger or differently packaged model may also require updating endpoint hardware
-or its custom container/runtime.
+No application environment change or redeploy is required just because Hugging
+Face returns a different inference URL. The reconciler refreshes and persists
+the current URL automatically.
 
-Hugging Face endpoints that are scaled to zero can return HTTP 502 or 503 while
-a replica is waking, depending on the endpoint/proxy behavior. The Hugging Face
-text provider sends `X-Scale-Up-Timeout: 600`, allowing supported HF proxies to
-hold the request for up to 10 minutes while scaling up, and also retries 502/503
-cold-start responses every 5 seconds within a 10-minute client-side wait budget.
+The bot deliberately does not create a new endpoint or select new hardware on
+its own. A substantially larger model, a different serving runtime, or a model
+that does not fit the endpoint's current hardware may make Hugging Face report
+`updateFailed`; change the endpoint hardware/runtime manually in that case and
+let reconciliation retry afterward.
 
-For minimum idle cost, the bot explicitly scales the text endpoint to zero as
-soon as its in-process active Hugging Face generation count reaches zero. If two
-or more Hugging Face text generations overlap, the endpoint stays running until
-the final one finishes. A request arriving while a scale-to-zero management call
-is already in progress waits for that call to finish and then sends inference,
-which wakes the endpoint again. Failure of the management call is logged but
-does not discard a text response that was already generated.
+Concurrent reconciliation calls inside one bot process are coalesced into one
+in-flight reconcile so a burst of requests does not issue duplicate endpoint
+updates. This coordination is process-local; multiple shoe-bot replicas would
+need distributed coordination for the same guarantees.
 
-Automatic scale-to-zero can still be enabled on the Hugging Face endpoint as a
-fallback. This explicit active-request counter is process-local, so a deployment
-running multiple shoe-bot processes/replicas needs distributed coordination
-before using immediate scale-to-zero safely; otherwise one process could shut
-the shared endpoint down while another process is still generating.
+#### Cold start and scale-to-zero
+
+Hugging Face endpoints scaled to zero can return HTTP 502 or 503 while a replica
+is waking, depending on endpoint/proxy behavior. The provider sends
+`X-Scale-Up-Timeout: 600` and retries 502/503 cold-start responses every 5
+seconds within a 10-minute client-side wait budget.
+
+For minimum idle compute cost, the bot explicitly scales the text endpoint to
+zero when its in-process active Hugging Face generation count reaches zero. If
+multiple text generations overlap, the endpoint stays running until the final
+one finishes. A request arriving while the scale-to-zero management call is in
+progress waits for that call and then sends inference, which wakes the endpoint
+again. A scale-to-zero failure is logged but does not discard an already
+completed response.
+
+Automatic Hugging Face scale-to-zero can still be enabled as a fallback. The
+active-request counter is process-local, so horizontally running multiple bot
+replicas against one endpoint requires distributed coordination before relying
+on immediate scale-to-zero.
 
 ## Image providers
 
@@ -157,27 +182,22 @@ Image generation reads `imageProvider` and `imageModel` from the global
 `huggingface`.
 
 The `huggingface` provider is intended for a dedicated Hugging Face Inference
-Endpoint that runs a community/custom model not conveniently available through
-the normal hosted providers. A model existing on the Hugging Face Hub does not
-by itself make it callable by this integration: deploy an Inference Endpoint
-first and configure its URL.
+Endpoint that runs a community/custom image model. A model existing on the Hub
+does not by itself make it callable: deploy an Inference Endpoint first.
 
-Configure the endpoint with:
-
-```env
-HF_TOKEN='hf_...'
-HF_INFERENCE_ENDPOINT_URL='https://your-endpoint.region.endpoints.huggingface.cloud'
-```
-
-Then switch image generation to Hugging Face, for example:
+Keep `HF_TOKEN` in the environment and store the image endpoint URL in settings:
 
 ```sql
+UPDATE settings
+SET value = 'https://your-image-endpoint.region.endpoints.huggingface.cloud'
+WHERE key = 'hfImageInferenceEndpointUrl';
+
 UPDATE settings SET value = 'huggingface' WHERE key = 'imageProvider';
 UPDATE settings SET value = 'owner/community-image-model' WHERE key = 'imageModel';
 ```
 
-The initial Hugging Face adapter sends an authenticated `POST` to the configured
-endpoint with this body:
+The initial Hugging Face image adapter sends an authenticated `POST` to the
+configured endpoint with this body:
 
 ```json
 {
@@ -186,8 +206,8 @@ endpoint with this body:
 ```
 
 It accepts binary image responses and common JSON URL/base64 image responses.
-The endpoint URL determines the actual deployed model; `imageModel` remains the
-project-level model identifier used in settings and error messages.
+The image endpoint URL is currently configured directly in settings; automatic
+image repository reconciliation is not implemented yet.
 
 Hugging Face source-image editing is not supported yet. Managed Diffusers
 Text-to-Image endpoints require a repository containing the full model weights;
