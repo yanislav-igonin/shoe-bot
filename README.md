@@ -92,21 +92,10 @@ migration creates these rows without overwriting existing values:
 Configure the text endpoint resource once, for example:
 
 ```sql
-UPDATE settings
-SET value = 'your-hf-user-or-org'
-WHERE key = 'hfInferenceEndpointNamespace';
-
-UPDATE settings
-SET value = 'shoe-bot-text'
-WHERE key = 'hfTextInferenceEndpointName';
-
-UPDATE settings
-SET value = 'huggingface'
-WHERE key = 'textProvider';
-
-UPDATE settings
-SET value = 'owner/qwen-uncensored-finetune'
-WHERE key = 'textModel';
+UPDATE settings SET value = 'your-hf-user-or-org' WHERE key = 'hfInferenceEndpointNamespace';
+UPDATE settings SET value = 'shoe-bot-text' WHERE key = 'hfTextInferenceEndpointName';
+UPDATE settings SET value = 'huggingface' WHERE key = 'textProvider';
+UPDATE settings SET value = 'owner/community-finetune' WHERE key = 'textModel';
 ```
 
 `hfTextInferenceEndpointUrl` does not need to be entered manually if the
@@ -135,9 +124,7 @@ This means that after the one-time endpoint setup, switching to another
 compatible community model only requires changing `textModel`:
 
 ```sql
-UPDATE settings
-SET value = 'another-owner/another-uncensored-model'
-WHERE key = 'textModel';
+UPDATE settings SET value = 'another-owner/another-community-model' WHERE key = 'textModel';
 ```
 
 No application environment change or redeploy is required just because Hugging
@@ -189,10 +176,7 @@ does not by itself make it callable: deploy an Inference Endpoint first.
 Keep `HF_TOKEN` in the environment and store the image endpoint URL in settings:
 
 ```sql
-UPDATE settings
-SET value = 'https://your-image-endpoint.region.endpoints.huggingface.cloud'
-WHERE key = 'hfImageInferenceEndpointUrl';
-
+UPDATE settings SET value = 'https://your-image-endpoint.region.endpoints.huggingface.cloud' WHERE key = 'hfImageInferenceEndpointUrl';
 UPDATE settings SET value = 'huggingface' WHERE key = 'imageProvider';
 UPDATE settings SET value = 'owner/community-image-model' WHERE key = 'imageModel';
 ```
