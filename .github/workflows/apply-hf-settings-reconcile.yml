@@ -1,0 +1,449 @@
+name: Apply HF DB settings integration
+
+on:
+  push:
+    branches:
+      - feature/huggingface-inference-endpoints
+    paths:
+      - .github/workflows/apply-hf-settings-reconcile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/huggingface-inference-endpoints
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Patch runtime and tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # prompt.ts
+          path = Path("src/lib/prompt.ts")
+          text = path.read_text()
+          old = '''import {
+          \tcreateHuggingFaceEndpointLifecycle,
+          \trequireHuggingFaceEndpointManagementConfig,
+          \tscaleHuggingFaceEndpointToZero,
+          } from "lib/huggingFaceEndpointLifecycle.js";
+          import { logger } from "lib/logger.js";'''
+          new = '''import {
+          \tcreateHuggingFaceEndpointLifecycle,
+          \ttype HuggingFaceEndpointManagementConfig,
+          } from "lib/huggingFaceEndpointLifecycle.js";
+          import {
+          \treconcileHuggingFaceTextEndpoint,
+          \ttype ResolvedHuggingFaceTextEndpoint,
+          } from "lib/huggingFaceTextEndpoint.js";
+          import { logger } from "lib/logger.js";'''
+          assert old in text
+          text = text.replace(old, new, 1)
+
+          old = '''type TextGenerationLifecycle = {
+          \trun: <T>(task: () => Promise<T>) => Promise<T>;
+          };
+          '''
+          new = '''type TextGenerationLifecycle = {
+          \trun: <T>(
+          \t\tmanagementConfig: HuggingFaceEndpointManagementConfig,
+          \t\ttask: () => Promise<T>,
+          \t) => Promise<T>;
+          };
+
+          type HuggingFaceTextEndpointResolver = (
+          \tem: EntityManager,
+          ) => Promise<ResolvedHuggingFaceTextEndpoint | undefined>;
+          '''
+          assert old in text
+          text = text.replace(old, new, 1)
+
+          text = text.replace(
+              'throw new Error("HF_TEXT_INFERENCE_ENDPOINT_URL is not set");',
+              'throw new Error("hfTextInferenceEndpointUrl setting is not set");',
+              1,
+          )
+          text = text.replace(
+              '"HF_TEXT_INFERENCE_ENDPOINT_URL must be a valid HTTP(S) URL",',
+              '"hfTextInferenceEndpointUrl setting must be a valid HTTP(S) URL",',
+              1,
+          )
+
+          old = '''const getHuggingFaceEndpointManagementConfig = () =>
+          \trequireHuggingFaceEndpointManagementConfig({
+          \t\tendpointName: config.hfTextInferenceEndpointName,
+          \t\tnamespace: config.hfInferenceEndpointNamespace,
+          \t\ttoken: config.hfToken,
+          \t});
+
+          const huggingFaceTextEndpointLifecycle = createHuggingFaceEndpointLifecycle({
+          \tonScaleError: (error) =>
+          \t\tlogger.error("Failed to scale Hugging Face text endpoint to zero:", error),
+          \tscaleToZero: async () => {
+          \t\tawait scaleHuggingFaceEndpointToZero(
+          \t\t\tgetHuggingFaceEndpointManagementConfig(),
+          \t\t);
+          \t},
+          });'''
+          new = '''const huggingFaceTextEndpointLifecycle = createHuggingFaceEndpointLifecycle({
+          \tonScaleError: (error) =>
+          \t\tlogger.error("Failed to scale Hugging Face text endpoint to zero:", error),
+          });'''
+          assert old in text
+          text = text.replace(old, new, 1)
+
+          old = 'const getConfiguredTextModel = (settings: TextGenerationSettings) =>\n\tresolveTextModel(settings, {'
+          new = '''const getConfiguredTextModel = (
+          \tsettings: TextGenerationSettings,
+          \thuggingFaceEndpointUrl?: string,
+          ) =>
+          \tresolveTextModel(settings, {'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''\t\t\t\tbaseURL: requireHuggingFaceTextEndpointUrl(
+          \t\t\t\t\tconfig.hfTextInferenceEndpointUrl,
+          \t\t\t\t),'''
+          new = '''\t\t\t\tbaseURL: requireHuggingFaceTextEndpointUrl(
+          \t\t\t\t\thuggingFaceEndpointUrl,
+          \t\t\t\t),'''
+          assert old in text
+          text = text.replace(old, new, 1)
+
+          old = '''export const getCompletion = async (
+          \tem: EntityManager,
+          \tmessage: Message | string,
+          \tcontext: ChatCompletionRequestMessage[] = [],
+          \timagesMap: Record<number, string> = {},
+          \tcurrentImageUrls: string[] = [],
+          \tgenerate: TextGenerator = generateText,
+          \thuggingFaceLifecycle: TextGenerationLifecycle = huggingFaceTextEndpointLifecycle,
+          ) => {
+          \tconst settings = await loadTextGenerationSettings(em);
+          \tconst userMessage =
+          \t\tcurrentImageUrls.length > 0
+          \t\t\t? addUserContextWithImages(message, currentImageUrls)
+          \t\t\t: addUserContext(message, imagesMap);
+
+          \tconst generateCompletion = () =>
+          \t\tgenerate({
+          \t\t\tallowSystemInMessages: true,
+          \t\t\tmessages: [...context, userMessage],
+          \t\t\tmodel: getConfiguredTextModel(settings),
+          \t\t});
+
+          \ttry {
+          \t\tconst completion =
+          \t\t\tsettings.provider === "huggingface"
+          \t\t\t\t? await (() => {
+          \t\t\t\t\t\tgetHuggingFaceEndpointManagementConfig();
+          \t\t\t\t\t\treturn huggingFaceLifecycle.run(generateCompletion);
+          \t\t\t\t\t})()
+          \t\t\t\t: await generateCompletion();
+          \t\tconst result = completion.text.trim() || replies.noAnswer;
+          \t\treturn chunkMessage(result);
+          \t} catch (error) {'''
+          new = '''export const getCompletion = async (
+          \tem: EntityManager,
+          \tmessage: Message | string,
+          \tcontext: ChatCompletionRequestMessage[] = [],
+          \timagesMap: Record<number, string> = {},
+          \tcurrentImageUrls: string[] = [],
+          \tgenerate: TextGenerator = generateText,
+          \thuggingFaceLifecycle: TextGenerationLifecycle = huggingFaceTextEndpointLifecycle,
+          \tresolveHuggingFaceEndpoint: HuggingFaceTextEndpointResolver =
+          \t\treconcileHuggingFaceTextEndpoint,
+          ) => {
+          \tconst settings = await loadTextGenerationSettings(em);
+          \tconst userMessage =
+          \t\tcurrentImageUrls.length > 0
+          \t\t\t? addUserContextWithImages(message, currentImageUrls)
+          \t\t\t: addUserContext(message, imagesMap);
+
+          \ttry {
+          \t\tconst resolvedHuggingFaceEndpoint =
+          \t\t\tsettings.provider === "huggingface"
+          \t\t\t\t? await resolveHuggingFaceEndpoint(em)
+          \t\t\t\t: undefined;
+          \t\tif (settings.provider === "huggingface" && !resolvedHuggingFaceEndpoint) {
+          \t\t\tthrow new Error("Hugging Face text endpoint reconciliation returned no endpoint");
+          \t\t}
+
+          \t\tconst generateCompletion = () =>
+          \t\t\tgenerate({
+          \t\t\t\tallowSystemInMessages: true,
+          \t\t\t\tmessages: [...context, userMessage],
+          \t\t\t\tmodel: getConfiguredTextModel(
+          \t\t\t\t\tsettings,
+          \t\t\t\t\tresolvedHuggingFaceEndpoint?.endpointUrl,
+          \t\t\t\t),
+          \t\t\t});
+          \t\tconst completion = resolvedHuggingFaceEndpoint
+          \t\t\t? await huggingFaceLifecycle.run(
+          \t\t\t\t\tresolvedHuggingFaceEndpoint.managementConfig,
+          \t\t\t\t\tgenerateCompletion,
+          \t\t\t\t)
+          \t\t\t: await generateCompletion();
+          \t\tconst result = completion.text.trim() || replies.noAnswer;
+          \t\treturn chunkMessage(result);
+          \t} catch (error) {'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          # prompt.test.ts
+          path = Path("src/lib/prompt.test.ts")
+          text = path.read_text()
+          old = '''process.env.HF_TOKEN = "hf-test-token";
+          process.env.HF_TEXT_INFERENCE_ENDPOINT_URL =
+          \t"https://example.com/hf-text-endpoint";
+          process.env.HF_INFERENCE_ENDPOINT_NAMESPACE = "yanislav-igonin";
+          process.env.HF_TEXT_INFERENCE_ENDPOINT_NAME = "shoe-bot-text";
+          '''
+          new = '''process.env.HF_TOKEN = "hf-test-token";
+          '''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''const passthroughLifecycle = {
+          \trun: async <T>(task: () => Promise<T>) => await task(),
+          };
+          '''
+          new = '''const passthroughLifecycle = {
+          \trun: async <T>(_managementConfig: unknown, task: () => Promise<T>) =>
+          \t\tawait task(),
+          };
+
+          const resolveHuggingFaceEndpoint = async () => ({
+          \tendpointUrl: "https://example.com/hf-text-endpoint",
+          \tmanagementConfig: {
+          \t\tendpointName: "shoe-bot-text",
+          \t\tnamespace: "yanislav-igonin",
+          \t\ttoken: "hf-test-token",
+          \t},
+          });
+          '''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''\t\t\t\tgenerate,
+          \t\t\t\tpassthroughLifecycle,
+          \t\t\t);'''
+          new = '''\t\t\t\tgenerate,
+          \t\t\t\tpassthroughLifecycle,
+          \t\t\t\tresolveHuggingFaceEndpoint,
+          \t\t\t);'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              '/HF_TEXT_INFERENCE_ENDPOINT_URL is not set/u,',
+              '/hfTextInferenceEndpointUrl setting is not set/u,',
+              1,
+          )
+          text = text.replace(
+              '/HF_TEXT_INFERENCE_ENDPOINT_URL must be a valid HTTP\\(S\\) URL/u,',
+              '/hfTextInferenceEndpointUrl setting must be a valid HTTP\\(S\\) URL/u,',
+              1,
+          )
+          path.write_text(text)
+
+          # huggingFaceTextEndpoint.test.ts must import config-dependent module dynamically.
+          path = Path("src/lib/huggingFaceTextEndpoint.test.ts")
+          text = path.read_text()
+          old = '''import assert from "node:assert/strict";
+          import { describe, it } from "node:test";
+          import {
+          \tfetchHuggingFaceEndpointMetadata,
+          \tparseHuggingFaceTextEndpointSettings,
+          \treconcileHuggingFaceTextEndpointState,
+          \tupdateHuggingFaceEndpointRepository,
+          } from "lib/huggingFaceTextEndpoint.js";
+          '''
+          new = '''import assert from "node:assert/strict";
+          import { describe, it } from "node:test";
+
+          process.env.BOT_TOKEN = "test";
+          process.env.GROK_API_KEY = "test";
+          process.env.OPENAI_API_KEY = "test";
+          process.env.HF_TOKEN = "hf-test-token";
+
+          const endpointModule = await import("lib/huggingFaceTextEndpoint.js");
+          const {
+          \tfetchHuggingFaceEndpointMetadata,
+          \tparseHuggingFaceTextEndpointSettings,
+          \treconcileHuggingFaceTextEndpointState,
+          \tupdateHuggingFaceEndpointRepository,
+          } = endpointModule;
+          '''
+          assert old in text
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          # imageGeneration.ts
+          path = Path("src/lib/imageGeneration.ts")
+          text = path.read_text()
+          text = text.replace(
+              'const IMAGE_SETTING_KEYS = ["imageProvider", "imageModel"];',
+              'const IMAGE_SETTING_KEYS = ["imageProvider", "imageModel", "hfImageInferenceEndpointUrl"];',
+              1,
+          )
+          old = '''export type ImageGenerationSettings = {
+          \tmodel: string;
+          \tprovider: ImageProvider;
+          };'''
+          new = '''export type ImageGenerationSettings = {
+          \thuggingFaceEndpointUrl?: string;
+          \tmodel: string;
+          \tprovider: ImageProvider;
+          };'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              'throw new Error("HF_INFERENCE_ENDPOINT_URL is not set");',
+              'throw new Error("hfImageInferenceEndpointUrl setting is not set");',
+              1,
+          )
+          text = text.replace(
+              'throw new Error("HF_INFERENCE_ENDPOINT_URL must be a valid HTTP(S) URL");',
+              'throw new Error("hfImageInferenceEndpointUrl setting must be a valid HTTP(S) URL");',
+              1,
+          )
+          old = '''\treturn { model, provider };
+          };'''
+          new = '''\tconst huggingFaceEndpointUrl = rows
+          \t\t.find(({ key }) => key === "hfImageInferenceEndpointUrl")
+          \t\t?.value.trim();
+
+          \treturn {
+          \t\t...(huggingFaceEndpointUrl ? { huggingFaceEndpointUrl } : {}),
+          \t\tmodel,
+          \t\tprovider,
+          \t};
+          };'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''const generateWithHuggingFace = async (
+          \ttext: string,
+          \tmodel: string,
+          \tsourceImageUrl: string | undefined,
+          ) => {'''
+          new = '''const generateWithHuggingFace = async (
+          \ttext: string,
+          \tmodel: string,
+          \tendpointUrl: string | undefined,
+          \tsourceImageUrl: string | undefined,
+          ) => {'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''\tconst { endpointUrl, token } = requireHuggingFaceConfig(
+          \t\tconfig.hfToken,
+          \t\tconfig.hfInferenceEndpointUrl,
+          \t);'''
+          new = '''\tconst { endpointUrl: resolvedEndpointUrl, token } = requireHuggingFaceConfig(
+          \t\tconfig.hfToken,
+          \t\tendpointUrl,
+          \t);'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          text = text.replace('const response = await fetch(endpointUrl, {', 'const response = await fetch(resolvedEndpointUrl, {', 1)
+          old = '''\tconst { model, provider } = await loadImageGenerationSettings(em);
+
+          \tswitch (provider) {
+          \t\tcase "huggingface":
+          \t\t\treturn await generateWithHuggingFace(text, model, sourceImageUrl);'''
+          new = '''\tconst { huggingFaceEndpointUrl, model, provider } =
+          \t\tawait loadImageGenerationSettings(em);
+
+          \tswitch (provider) {
+          \t\tcase "huggingface":
+          \t\t\treturn await generateWithHuggingFace(
+          \t\t\t\ttext,
+          \t\t\t\tmodel,
+          \t\t\t\thuggingFaceEndpointUrl,
+          \t\t\t\tsourceImageUrl,
+          \t\t\t);'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          # Hugging Face image tests
+          path = Path("src/lib/huggingFaceImageGeneration.test.ts")
+          text = path.read_text()
+          text = text.replace('process.env.HF_INFERENCE_ENDPOINT_URL = "https://example.com/hf-endpoint";\n', '', 1)
+          old = '''\t\t{ key: "imageProvider", value: "huggingface" },
+          \t\t{ key: "imageModel", value: "owner/community-image-model" },'''
+          new = '''\t\t{ key: "imageProvider", value: "huggingface" },
+          \t\t{ key: "imageModel", value: "owner/community-image-model" },
+          \t\t{
+          \t\t\tkey: "hfImageInferenceEndpointUrl",
+          \t\t\tvalue: "https://example.com/hf-endpoint",
+          \t\t},'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              '/HF_INFERENCE_ENDPOINT_URL is not set/u,',
+              '/hfImageInferenceEndpointUrl setting is not set/u,',
+              1,
+          )
+          text = text.replace(
+              '/HF_INFERENCE_ENDPOINT_URL must be a valid HTTP\\(S\\) URL/u,',
+              '/hfImageInferenceEndpointUrl setting must be a valid HTTP\\(S\\) URL/u,',
+              1,
+          )
+          path.write_text(text)
+
+          # index.ts
+          path = Path("src/index.ts")
+          text = path.read_text()
+          old = 'import { logger } from "lib/logger.js";\nimport { textTriggerRegexp } from "lib/prompt.js";'
+          new = '''import { startHuggingFaceTextEndpointReconciler } from "lib/huggingFaceTextEndpoint.js";
+          import { logger } from "lib/logger.js";
+          import { textTriggerRegexp } from "lib/prompt.js";'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''\tawait initializeDatabase();
+          \tlogger.info("database connected");
+
+          \ttry {'''
+          new = '''\tawait initializeDatabase();
+          \tlogger.info("database connected");
+          \tconst stopHuggingFaceTextEndpointReconciler =
+          \t\tstartHuggingFaceTextEndpointReconciler();
+
+          \ttry {'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''\t} finally {
+          \t\tawait closeDatabase();
+          \t}
+          };'''
+          new = '''\t} finally {
+          \t\tstopHuggingFaceTextEndpointReconciler();
+          \t\tawait closeDatabase();
+          \t}
+          };'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Format changed files
+        run: npx biome check --write --unsafe src/lib/prompt.ts src/lib/prompt.test.ts src/lib/huggingFaceTextEndpoint.ts src/lib/huggingFaceTextEndpoint.test.ts src/lib/huggingFaceEndpointLifecycle.ts src/lib/huggingFaceEndpointLifecycle.test.ts src/lib/imageGeneration.ts src/lib/huggingFaceImageGeneration.test.ts src/index.ts src/migrations/Migration20260817000000.ts
+      - name: Test
+        run: npm test
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/apply-hf-settings-reconcile.yml
+          git config user.name "Yanislav Igonin"
+          git config user.email "yanislavdabest@gmail.com"
+          git add src/lib/prompt.ts src/lib/prompt.test.ts src/lib/huggingFaceTextEndpoint.ts src/lib/huggingFaceTextEndpoint.test.ts src/lib/huggingFaceEndpointLifecycle.ts src/lib/huggingFaceEndpointLifecycle.test.ts src/lib/imageGeneration.ts src/lib/huggingFaceImageGeneration.test.ts src/index.ts src/migrations/Migration20260817000000.ts .github/workflows/apply-hf-settings-reconcile.yml
+          git commit -m "feat: reconcile Hugging Face endpoint from settings"
+          git push origin HEAD:feature/huggingface-inference-endpoints
