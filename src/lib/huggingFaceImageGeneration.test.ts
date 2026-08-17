@@ -63,8 +63,7 @@ describe("requireHuggingFaceConfig", () => {
 
 	it("rejects a missing token", () => {
 		assert.throws(
-			() =>
-				requireHuggingFaceConfig(undefined, "https://example.com/endpoint"),
+			() => requireHuggingFaceConfig(undefined, "https://example.com/endpoint"),
 			/HF_TOKEN is not set/u,
 		);
 	});
