@@ -38,10 +38,7 @@ export const requireHuggingFaceEndpointManagementConfig = (
 		input.endpointName,
 		"HF_TEXT_INFERENCE_ENDPOINT_NAME",
 	),
-	namespace: requireValue(
-		input.namespace,
-		"HF_INFERENCE_ENDPOINT_NAMESPACE",
-	),
+	namespace: requireValue(input.namespace, "HF_INFERENCE_ENDPOINT_NAMESPACE"),
 	token: requireValue(input.token, "HF_TOKEN"),
 });
 

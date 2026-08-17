@@ -49,10 +49,13 @@ describe("scaleHuggingFaceEndpointToZero", () => {
 		let request: Request | undefined;
 		const fetcher = (async (input, init) => {
 			request = new Request(input, init);
-			return new Response(JSON.stringify({ status: { state: "scaledToZero" } }), {
-				headers: { "content-type": "application/json" },
-				status: 200,
-			});
+			return new Response(
+				JSON.stringify({ status: { state: "scaledToZero" } }),
+				{
+					headers: { "content-type": "application/json" },
+					status: 200,
+				},
+			);
 		}) as typeof fetch;
 
 		await scaleHuggingFaceEndpointToZero(

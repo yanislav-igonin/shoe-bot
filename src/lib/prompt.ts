@@ -3,6 +3,11 @@ import type { EntityManager } from "@mikro-orm/postgresql";
 import { generateText, Output, type Prompt } from "ai";
 import { xai } from "lib/ai.js";
 import { config, isProduction } from "lib/config.js";
+import {
+	createHuggingFaceEndpointLifecycle,
+	requireHuggingFaceEndpointManagementConfig,
+	scaleHuggingFaceEndpointToZero,
+} from "lib/huggingFaceEndpointLifecycle.js";
 import { logger } from "lib/logger.js";
 import { replies } from "lib/replies.js";
 import { type Message, MessageType, Setting } from "../entities.js";
@@ -23,6 +28,10 @@ type HuggingFaceColdStartFetchOptions = {
 	maxWaitMs?: number;
 	now?: () => number;
 	retryDelayMs?: number;
+};
+
+type TextGenerationLifecycle = {
+	run: <T>(task: () => Promise<T>) => Promise<T>;
 };
 
 const TEXT_SETTING_KEYS = ["textProvider", "textModel"];
@@ -139,6 +148,23 @@ export const createHuggingFaceColdStartFetch = (
 		}
 	}) as typeof fetch;
 };
+
+const getHuggingFaceEndpointManagementConfig = () =>
+	requireHuggingFaceEndpointManagementConfig({
+		endpointName: config.hfTextInferenceEndpointName,
+		namespace: config.hfInferenceEndpointNamespace,
+		token: config.hfToken,
+	});
+
+const huggingFaceTextEndpointLifecycle = createHuggingFaceEndpointLifecycle({
+	onScaleError: (error) =>
+		logger.error("Failed to scale Hugging Face text endpoint to zero:", error),
+	scaleToZero: async () => {
+		await scaleHuggingFaceEndpointToZero(
+			getHuggingFaceEndpointManagementConfig(),
+		);
+	},
+});
 
 export const resolveTextModel = <T>(
 	settings: TextGenerationSettings,
@@ -350,6 +376,7 @@ export const getCompletion = async (
 	imagesMap: Record<number, string> = {},
 	currentImageUrls: string[] = [],
 	generate: TextGenerator = generateText,
+	huggingFaceLifecycle: TextGenerationLifecycle = huggingFaceTextEndpointLifecycle,
 ) => {
 	const settings = await loadTextGenerationSettings(em);
 	const userMessage =
@@ -357,13 +384,22 @@ export const getCompletion = async (
 			? addUserContextWithImages(message, currentImageUrls)
 			: addUserContext(message, imagesMap);
 
-	try {
-		const { text } = await generate({
+	const generateCompletion = () =>
+		generate({
 			allowSystemInMessages: true,
 			messages: [...context, userMessage],
 			model: getConfiguredTextModel(settings),
 		});
-		const result = text.trim() || replies.noAnswer;
+
+	try {
+		const completion =
+			settings.provider === "huggingface"
+				? await (() => {
+						getHuggingFaceEndpointManagementConfig();
+						return huggingFaceLifecycle.run(generateCompletion);
+					})()
+				: await generateCompletion();
+		const result = completion.text.trim() || replies.noAnswer;
 		return chunkMessage(result);
 	} catch (error) {
 		logger.error(

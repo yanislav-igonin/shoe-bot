@@ -12,6 +12,8 @@ process.env.TOGETHER_API_KEY = "test";
 process.env.HF_TOKEN = "hf-test-token";
 process.env.HF_TEXT_INFERENCE_ENDPOINT_URL =
 	"https://example.com/hf-text-endpoint";
+process.env.HF_INFERENCE_ENDPOINT_NAMESPACE = "yanislav-igonin";
+process.env.HF_TEXT_INFERENCE_ENDPOINT_NAME = "shoe-bot-text";
 
 const prompt = await import("lib/prompt.js");
 const {
@@ -23,6 +25,10 @@ const {
 	requireProviderApiKey,
 	resolveTextModel,
 } = prompt;
+
+const passthroughLifecycle = {
+	run: async <T>(task: () => Promise<T>) => await task(),
+};
 
 const user = new User();
 user.id = 1;
@@ -113,6 +119,7 @@ describe("getCompletion", () => {
 				{},
 				["https://example.com/first.jpg", "https://example.com/second.jpg"],
 				generate,
+				passthroughLifecycle,
 			);
 
 			assert.deepEqual(completion, ["A boot"]);
