@@ -1,0 +1,53 @@
+name: Fix HF system messages
+
+on:
+  push:
+    branches:
+      - feature/huggingface-inference-endpoints
+    paths:
+      - .github/workflows/fix-hf-system-messages.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/huggingface-inference-endpoints
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Patch Hugging Face message normalization
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/lib/prompt.ts')
+          text = path.read_text()
+
+          anchor = '''export const addSystemContext = (\n\ttext: string,\n): ChatCompletionRequestMessage => {\n\treturn {\n\t\tcontent: text,\n\t\trole: "system",\n\t};\n};\n'''
+          replacement = anchor + '''\nexport const normalizeHuggingFaceMessages = (\n\tmessages: ChatCompletionRequestMessage[],\n): ChatCompletionRequestMessage[] => {\n\tconst systemMessages = messages.filter(({ role }) => role === "system");\n\tif (systemMessages.length === 0) {\n\t\treturn messages;\n\t}\n\n\tconst systemContents = systemMessages.map(({ content }) => {\n\t\tif (typeof content !== "string") {\n\t\t\tthrow new Error("Hugging Face system messages must contain text only");\n\t\t}\n\t\treturn content;\n\t});\n\n\treturn [\n\t\t{\n\t\t\tcontent: systemContents.join("\\n\\n"),\n\t\t\trole: "system",\n\t\t},\n\t\t...messages.filter(({ role }) => role !== "system"),\n\t];\n};\n'''
+          assert anchor in text
+          text = text.replace(anchor, replacement, 1)
+
+          old = '''\t\tconst generateCompletion = () =>\n\t\t\tgenerate({\n\t\t\t\tallowSystemInMessages: true,\n\t\t\t\tmessages: [...context, userMessage],\n\t\t\t\tmodel: getConfiguredTextModel(\n'''
+          new = '''\t\tconst rawMessages = [...context, userMessage];\n\t\tconst messages =\n\t\t\tsettings.provider === "huggingface"\n\t\t\t\t? normalizeHuggingFaceMessages(rawMessages)\n\t\t\t\t: rawMessages;\n\t\tconst generateCompletion = () =>\n\t\t\tgenerate({\n\t\t\t\tallowSystemInMessages: true,\n\t\t\t\tmessages,\n\t\t\t\tmodel: getConfiguredTextModel(\n'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+      - run: npm ci
+      - run: npx prettier --write src/lib/prompt.ts src/lib/huggingFaceMessageCompatibility.test.ts
+      - run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Commit fix and remove temporary workflow
+        run: |
+          rm .github/workflows/fix-hf-system-messages.yml
+          git config user.name "Yanislav Igonin"
+          git config user.email "yanislavdabest@gmail.com"
+          git add src/lib/prompt.ts src/lib/huggingFaceMessageCompatibility.test.ts .github/workflows/fix-hf-system-messages.yml
+          git commit -m "fix: normalize Hugging Face system messages"
+          git push origin HEAD:feature/huggingface-inference-endpoints
