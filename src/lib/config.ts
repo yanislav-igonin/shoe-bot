@@ -7,10 +7,6 @@ export const config = {
 	env: valueOrDefault(process.env.ENV, "development"),
 	grokApiKey: valueOrThrow(process.env.GROK_API_KEY, "GROK_API_KEY is not set"),
 	grokApiUrl: "https://api.x.ai/v1",
-	hfInferenceEndpointNamespace: process.env.HF_INFERENCE_ENDPOINT_NAMESPACE,
-	hfInferenceEndpointUrl: process.env.HF_INFERENCE_ENDPOINT_URL,
-	hfTextInferenceEndpointName: process.env.HF_TEXT_INFERENCE_ENDPOINT_NAME,
-	hfTextInferenceEndpointUrl: process.env.HF_TEXT_INFERENCE_ENDPOINT_URL,
 	hfToken: process.env.HF_TOKEN,
 	openAiApiKey: valueOrThrow(
 		process.env.OPENAI_API_KEY,
