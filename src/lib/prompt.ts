@@ -107,8 +107,7 @@ export const createHuggingFaceColdStartFetch = (
 	baseFetch: typeof fetch = globalThis.fetch,
 	options: HuggingFaceColdStartFetchOptions = {},
 ) => {
-	const maxWaitMs =
-		options.maxWaitMs ?? HUGGING_FACE_COLD_START_MAX_WAIT_MS;
+	const maxWaitMs = options.maxWaitMs ?? HUGGING_FACE_COLD_START_MAX_WAIT_MS;
 	const now = options.now ?? Date.now;
 	const retryDelayMs =
 		options.retryDelayMs ?? HUGGING_FACE_COLD_START_RETRY_DELAY_MS;
