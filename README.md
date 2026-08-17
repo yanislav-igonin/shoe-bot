@@ -98,15 +98,23 @@ The endpoint URL determines which model is actually loaded and executed.
 logging; changing `textModel` alone does not redeploy the Hugging Face endpoint.
 To change the actual model, update/redeploy the endpoint and its configured URL.
 
-Hugging Face endpoints that are scaled to zero can return HTTP 502 while the
-replica is waking and do not queue the original request. The Hugging Face text
-provider retries those cold-start 502 responses every 5 seconds for up to 10
-minutes so the original bot request can survive a normal cold start.
+Hugging Face endpoints that are scaled to zero can return HTTP 502 or 503 while
+a replica is waking, depending on the endpoint/proxy behavior. The Hugging Face
+text provider sends `X-Scale-Up-Timeout: 600`, allowing supported HF proxies to
+hold the request for up to 10 minutes while scaling up, and also retries 502/503
+cold-start responses every 5 seconds within a 10-minute client-side wait budget.
 
 For minimum idle cost, configure the endpoint with a minimum replica count of 0
-and automatic scale-to-zero. Hugging Face also supports explicitly scaling an
-endpoint to zero through its endpoint-management API; a scaled-to-zero endpoint
-incurs no compute charge and wakes automatically on the next inference request.
+and automatic scale-to-zero. The automatic idle timeout is an endpoint setting;
+it is not tied to completion of an individual request. Hugging Face also
+supports explicitly scaling an endpoint to zero through its endpoint-management
+API. A scaled-to-zero endpoint incurs no compute charge and wakes automatically
+on the next inference request.
+
+The bot does not explicitly scale the endpoint to zero immediately after each
+response. Adding that behavior requires endpoint-management credentials/name and
+concurrency-safe request draining so one completed request cannot shut down a
+replica while another request is still running.
 
 ## Image providers
 
